@@ -1,0 +1,111 @@
+// ── Точка входа и роутер ─────────────────────────────────────────────
+import { tg } from './tg.js';
+import { load, save, state, track, registerReferral } from './store.js';
+import { $, closeSheet, sheetOpen } from './ui.js';
+
+import * as Onboarding from './screens/onboarding.js';
+import * as Home from './screens/home.js';
+import * as Ideas from './screens/ideas.js';
+import * as Wishlist from './screens/wishlist.js';
+import * as Wheel from './screens/wheel.js';
+import * as Profile from './screens/profile.js';
+import * as Dates from './screens/dates.js';
+import * as Extra from './screens/extra.js';
+
+const ROUTES = {
+  onboarding: Onboarding.render,
+  home: Home.render,
+  cat: Ideas.render,
+  search: Ideas.renderSearch,
+  wishlist: Wishlist.render,
+  wl: Wishlist.renderOne,
+  wheel: Wheel.render,
+  profile: Profile.render,
+  dates: Dates.render,
+  dateform: Dates.renderForm,
+  quest: Extra.renderQuest,
+  paywall: Extra.renderPaywall,
+  friends: Extra.renderFriends,
+  ugc: Extra.renderUgc,
+  invite: Extra.renderInvite,
+  rewards: Extra.renderRewards,
+  access: Extra.renderAccess,
+  settings: Extra.renderSettings,
+  support: Extra.renderSupport,
+  terms: Extra.renderTerms,
+  hint: Extra.renderHint,
+  notfound: Extra.renderNotFound
+};
+
+const TABS = [
+  { id: 'home', ico: '🏠', name: 'Главная' },
+  { id: 'wishlist', ico: '💖', name: 'Вишлист' },
+  { id: 'wheel', ico: '🎡', name: 'Колесо' },
+  { id: 'profile', ico: '👤', name: 'Профиль' }
+];
+
+let stack = [];
+export let current = { route: 'home', params: {} };
+
+export function go(route, params = {}, replace = false) {
+  closeSheet();
+  const fn = ROUTES[route] || ROUTES.notfound;
+  if (!replace && current.route) stack.push({ ...current });
+  if (replace) stack = stack.filter(s => s.route !== route);
+  current = { route, params };
+  paint(fn, params);
+  window.scrollTo(0, 0);
+}
+
+export function back() {
+  if (sheetOpen()) return closeSheet();
+  const prev = stack.pop();
+  if (prev) { current = prev; paint(ROUTES[prev.route] || ROUTES.notfound, prev.params); }
+  else go('home', {}, true);
+}
+
+function paint(fn, params) {
+  const app = $('#app');
+  const view = fn(params) || {};
+  app.innerHTML = `<div class="screen">${view.html || ''}</div>`;
+  app.classList.toggle('app--nonav', !!view.hideNav);
+  const bar = $('#tabbar');
+  bar.hidden = !!view.hideNav;
+  renderTabs(view.tab);
+  view.mount?.(app);
+  const showBack = !view.hideBack && (stack.length > 0 && !TABS.some(t => t.id === current.route));
+  tg.back(showBack ? back : null);
+}
+
+function renderTabs(active) {
+  const bar = $('#tabbar');
+  bar.innerHTML = TABS.map(t =>
+    `<button class="tab ${t.id === active ? 'tab--on' : ''}" data-tab="${t.id}"><span>${t.ico}</span>${t.name}</button>`
+  ).join('');
+  bar.querySelectorAll('[data-tab]').forEach(b => {
+    b.onclick = () => { tg.haptic('light'); stack = []; go(b.dataset.tab, {}, true); };
+  });
+}
+
+// ── старт ────────────────────────────────────────────────────────────
+async function boot() {
+  tg.init();
+  await load();
+
+  const sp = tg.startParam();
+  registerReferral(sp);
+
+  track('app_open', { platform: tg.raw?.platform || 'browser', source: sp || 'direct' });
+
+  const splash = $('#splash');
+  setTimeout(() => { splash.classList.add('splash--hide'); setTimeout(() => splash.remove(), 400); }, 550);
+
+  if (sp && (sp.startsWith('h_') || sp.startsWith('w_'))) { go('hint', { id: sp.startsWith('h_') ? sp.slice(2) : null }, true); return; }
+  if (!state.onboarded) { go('onboarding', {}, true); return; }
+  go('home', {}, true);
+}
+
+window.addEventListener('error', e => console.error('[tadam]', e.message));
+document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
+
+boot();
