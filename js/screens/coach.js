@@ -1,101 +1,211 @@
-// ── Обучающие подсказки: «куда я попал и что тут можно» ──────────────
-// Показываются один раз: общая по нижнему меню + по одной на Главной,
-// в Вишлисте и в Профиле. Факт показа хранится в состоянии пользователя.
+// ── Обучающий тур: подсветка области + блюр вокруг ───────────────────
+// Механика подсмотрена в проекте «ЛМ воронка» (components/Tour.tsx):
+// вырез рисуем не clip-path, а огромной тенью вокруг рамки — так у выреза
+// настоящее скругление. Блюр добавляем четырьмя панелями вокруг выреза.
 import { tipSeen, markTip, track } from '../store.js';
 import { $, mascot, esc } from '../ui.js';
 import { tg } from '../tg.js';
 
-const TIPS = {
-  menu: {
-    mascot: 'wave', spot: true, title: 'привет! это та-дам',
-    sub: 'Помогаю придумать подарок за пару секунд. Внизу — четыре раздела:',
-    items: [
-      ['🏠', 'Главная', 'Поводы и идеи подарков. Отсюда всё начинается'],
-      ['💖', 'Вишлист', 'Твои желания и намёки близким'],
-      ['🎡', 'Колесо', 'Бесплатный спин раз в день — бонусы и скидки'],
-      ['👤', 'Профиль', 'Важные даты, доступ, награды и настройки']
-    ]
-  },
-  home: {
-    mascot: 'search', title: 'как искать подарок',
-    sub: 'Повод — главная дверь. Дальше всё за пару касаний:',
-    items: [
-      ['🎂', 'Выбери повод', 'Три открыты сразу, остальные — под замком'],
-      ['🎛️', 'Сузь фильтрами', 'Кому, бюджет, интересы'],
-      ['🤍', 'Жми на сердечко', 'Идея улетает в твой вишлист'],
-      ['🔍', 'Или ищи словом', 'Например «кофе» или «плед»']
-    ]
-  },
-  wishlist: {
-    mascot: 'heart', title: 'зачем вишлист',
-    sub: 'Это список желаний — твоих и для близких:',
-    items: [
-      ['💖', 'Копи идеи', 'Сохраняй из подборок или добавляй свои'],
-      ['💌', 'Намекни', 'Карточка-намёк уходит близкому прямо в Telegram'],
-      ['🔗', 'Поделись ссылкой', 'Её видно только тем, кому отправил — и можно отозвать']
-    ]
-  },
-  profile: {
-    mascot: 'notes', title: 'что в профиле',
-    sub: 'Всё, что возвращает тебя вовремя:',
-    items: [
-      ['📅', 'Важные даты', 'Добавь дни рождения — напомним заранее'],
-      ['⭐', 'Мой доступ', 'Что открыто сейчас и как открыть остальное'],
-      ['🎁', 'Награды', 'Бонусы из колеса и за заполненный профиль'],
-      ['✅', 'Заполни и получи', 'Три шага — и открываем категорию на 24 часа']
-    ]
-  }
+// sel — что подсветить, pad — отступ вокруг, place — где предпочтительно карточка
+const TOURS = {
+  home: [
+    { sel: '.cats .cat', take: 4, pad: 8, radius: 26, place: 'below', mascot: 'search',
+      title: 'повод — главная дверь',
+      text: 'Выбери, по какому случаю ищешь подарок. Три повода открыты сразу, остальные — под замком premium. Внутри повода идеи можно сузить фильтрами: кому, бюджет, интересы.' },
+    { sel: '.search', pad: 6, radius: 999, place: 'below', mascot: 'think',
+      title: 'или ищи словом',
+      text: 'Напиши «кофе», «плед» или «фотосессия» — покажу идеи из всех открытых поводов.' },
+    { sel: '[data-tab="home"]', pad: 4, radius: 16, place: 'above', mascot: 'wave',
+      title: 'главная',
+      text: 'Сюда возвращаешься за новой идеей: все поводы и поиск.' },
+    { sel: '[data-tab="wishlist"]', pad: 4, radius: 16, place: 'above', mascot: 'heart',
+      title: 'вишлист',
+      text: 'Твои желания и сохранённые идеи. Отсюда же уходит намёк близкому.' },
+    { sel: '[data-tab="wheel"]', pad: 4, radius: 16, place: 'above', mascot: 'wow',
+      title: 'колесо',
+      text: 'Бесплатный спин раз в день: категория на 24 часа, подборка или скидка на premium.' },
+    { sel: '[data-tab="profile"]', pad: 4, radius: 16, place: 'above', mascot: 'notes',
+      title: 'профиль',
+      text: 'Важные даты и напоминания, твой доступ, награды и настройки.' }
+  ],
+  wishlist: [
+    { sel: '.rows, .empty', take: 3, pad: 8, radius: 24, place: 'below', maxH: 0.42, mascot: 'heart',
+      title: 'тут копятся желания',
+      text: 'Сохраняй идеи из подборок сердечком или добавляй свои — например «плёночный фотоаппарат».' },
+    { sel: '#hintAll', pad: 6, radius: 999, place: 'above', mascot: 'bubble',
+      title: 'намекни',
+      text: 'Карточка-намёк уходит близкому прямо в Telegram: он увидит идею и откроет её у себя.' },
+    { sel: '#share', pad: 6, radius: 999, place: 'above', mascot: 'peek',
+      title: 'ссылка на список',
+      text: 'Её видит только тот, кому отправил. В любой момент можно отозвать — старая ссылка перестанет открываться.' }
+  ],
+  profile: [
+    { sel: '[data-go="dates"]', pad: 4, radius: 14, place: 'below', mascot: 'notes',
+      title: 'важные даты',
+      text: 'Добавь дни рождения близких — напомним заранее, чтобы не бежать за подарком в последний вечер.' },
+    { sel: '[data-go="paywall"]', pad: 4, radius: 14, place: 'below', mascot: 'cool',
+      title: 'мой доступ',
+      text: 'Что открыто сейчас и как открыть все 13 поводов со всеми фильтрами.' },
+    { sel: '[data-go="quest"]', pad: 4, radius: 14, place: 'above', mascot: 'alert',
+      title: 'заполни и получи',
+      text: 'Три шага — три даты, первый вишлист и подарок мечты. За это открываем premium-категорию на 24 часа.' }
+  ]
 };
 
-let showing = false;
+let active = false;
 
-export function showTip(key, onDone) {
-  const t = TIPS[key];
-  if (!t || showing) return onDone?.();
-  showing = true;
-  track('coach_viewed', { key });
+function topSafe() {
+  const v = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--safe-top')) || 0;
+  return v + 12;
+}
 
-  const bg = document.createElement('div');
-  bg.className = 'coach-bg';
-  const box = document.createElement('div');
-  box.className = 'coach' + (t.spot ? '' : ' coach--center');
-  box.innerHTML = `
-    <div class="coach__card">
-      ${mascot(t.mascot, 'coach__mascot')}
-      <div class="coach__title">${esc(t.title)}</div>
-      <div class="coach__sub">${esc(t.sub)}</div>
-      <div class="coach__list">
-        ${t.items.map(([ico, name, desc]) => `
-          <div class="coach__item">
-            <div class="coach__ico">${ico}</div>
-            <div><div class="coach__t">${esc(name)}</div><div class="coach__d">${esc(desc)}</div></div>
-          </div>`).join('')}
+export function startTour(name, onDone) {
+  const steps = TOURS[name];
+  if (!steps || active) return onDone?.();
+  active = true;
+  track('coach_viewed', { name });
+
+  const root = document.createElement('div');
+  root.className = 'tour';
+  root.innerHTML = `
+    <span class="tour__blur" data-b="t"></span><span class="tour__blur" data-b="b"></span>
+    <span class="tour__blur" data-b="l"></span><span class="tour__blur" data-b="r"></span>
+    <span class="tour__dim"></span>
+    <span class="tour__ring"></span>
+    <span class="tour__catch"></span>
+    <div class="tour__wrap">
+      <div class="tour__card">
+        <i class="tour__arrow"></i>
+        <div class="tour__head">
+          <img class="tour__mascot" alt="">
+          <div>
+            <div class="tour__n"></div>
+            <div class="tour__title bups"></div>
+          </div>
+        </div>
+        <p class="tour__text"></p>
+        <div class="tour__ft">
+          <span class="tour__dots">${steps.map(() => '<i></i>').join('')}</span>
+          <button class="tour__skip" type="button">Пропустить</button>
+          <button class="tour__next" type="button">Далее</button>
+        </div>
       </div>
-      <button class="btn" data-ok>Понятно</button>
     </div>`;
+  document.body.appendChild(root);
 
-  const bar = $('#tabbar');
-  if (t.spot) bar?.classList.add('tabbar--spot');
-  document.body.append(bg, box);
-  tg.haptic('light');
+  const q = s => root.querySelector(s);
+  const blur = { t: q('[data-b="t"]'), b: q('[data-b="b"]'), l: q('[data-b="l"]'), r: q('[data-b="r"]') };
+  const dim = q('.tour__dim'), ring = q('.tour__ring'), wrap = q('.tour__wrap');
+  const card = q('.tour__card'), arrow = q('.tour__arrow');
 
-  const close = () => {
-    bar?.classList.remove('tabbar--spot');
-    bg.remove(); box.remove();
-    showing = false;
-    markTip(key);
+  let i = 0, cleanupScroll = null;
+
+  function finish() {
+    cleanupScroll?.();
+    root.remove();
+    active = false;
+    markTip(name);
     onDone?.();
+  }
+  function next() { if (i + 1 < steps.length) { i++; render(); } else finish(); }
+
+  q('.tour__skip').onclick = e => { e.stopPropagation(); track('coach_skipped', { name, step: i }); finish(); };
+  q('.tour__next').onclick = e => { e.stopPropagation(); next(); };
+  q('.tour__catch').onclick = next;
+
+  function place() {
+    const s = steps[i];
+    const el = document.querySelector(s.sel);
+    const vw = window.innerWidth, vh = window.innerHeight;
+
+    if (!el) {                                    // элемента нет — просто затемняем
+      Object.values(blur).forEach(b => b.style.cssText = 'left:0;top:0;right:0;bottom:0');
+      dim.style.opacity = '0'; ring.style.opacity = '0'; arrow.style.display = 'none';
+      wrap.style.top = Math.max(topSafe(), (vh - card.offsetHeight) / 2) + 'px';
+      return;
+    }
+
+    let b = el.getBoundingClientRect();
+    if (s.take > 1) {                             // объединяем первые N элементов в один вырез
+      const list = [...document.querySelectorAll(s.sel)].slice(0, s.take).map(n => n.getBoundingClientRect());
+      if (list.length > 1) {
+        const L = Math.min(...list.map(n => n.left)), T = Math.min(...list.map(n => n.top));
+        const R = Math.max(...list.map(n => n.right)), B = Math.max(...list.map(n => n.bottom));
+        b = { left: L, top: T, width: R - L, height: B - T, right: R, bottom: B };
+      }
+    }
+    const pad = s.pad ?? 6;
+    const cap = (s.maxH || 0.6) * vh;
+    const x = Math.max(4, b.left - pad);
+    const y = Math.max(topSafe() - 8, b.top - pad);
+    const w = Math.min(vw - 8, b.width + pad * 2);
+    const h = Math.min(cap, b.height + pad * 2);
+    const rad = Math.min(s.radius ?? 18, h / 2, w / 2);
+
+    const box = `left:${x}px;top:${y}px;width:${w}px;height:${h}px;border-radius:${rad}px`;
+    dim.style.cssText = box; ring.style.cssText = box;
+    dim.style.opacity = ring.style.opacity = '1';
+
+    // блюр — четырьмя панелями вокруг выреза
+    blur.t.style.cssText = `left:0;top:0;width:${vw}px;height:${Math.max(0, y)}px`;
+    blur.b.style.cssText = `left:0;top:${y + h}px;width:${vw}px;height:${Math.max(0, vh - y - h)}px`;
+    blur.l.style.cssText = `left:0;top:${y}px;width:${Math.max(0, x)}px;height:${h}px`;
+    blur.r.style.cssText = `left:${x + w}px;top:${y}px;width:${Math.max(0, vw - x - w)}px;height:${h}px`;
+
+    // карточка: предпочтительная сторона, иначе противоположная, иначе край
+    const ch = card.offsetHeight, gap = 16, hi = topSafe(), lo = 12;
+    const below = y + h + gap, above = y - gap - ch;
+    const fitsBelow = below + ch <= vh - lo, fitsAbove = above >= hi;
+    let top = s.place === 'below'
+      ? (fitsBelow ? below : fitsAbove ? above : vh - ch - lo)
+      : (fitsAbove ? above : fitsBelow ? below : vh - ch - lo);
+    top = Math.min(Math.max(top, hi), Math.max(hi, vh - ch - lo));
+    wrap.style.top = top + 'px';
+
+    // стрелка к подсвеченной области
+    const pointsUp = top > y;                     // карточка ниже выреза → стрелка вверх
+    const cx = x + w / 2 - 14;                    // 14px — отступ .tour__wrap
+    arrow.style.display = 'block';
+    arrow.className = 'tour__arrow ' + (pointsUp ? 'tour__arrow--up' : 'tour__arrow--down');
+    arrow.style.left = Math.min(Math.max(cx, 22), vw - 28 - 14) + 'px';
+  }
+
+  function render() {
+    const s = steps[i];
+    q('.tour__mascot').src = `assets/mascots/${s.mascot || 'wave'}.png`;
+    q('.tour__n').textContent = `Шаг ${i + 1} из ${steps.length}`;
+    q('.tour__title').textContent = s.title;
+    q('.tour__text').textContent = s.text;
+    q('.tour__next').textContent = i + 1 < steps.length ? 'Далее' : 'Понятно';
+    root.querySelectorAll('.tour__dots i').forEach((d, k) => d.classList.toggle('on', k === i));
+    tg.haptic('light');
+
+    const el = document.querySelector(s.sel);
+    el?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    if (s.take > 1) {
+      const last = [...document.querySelectorAll(s.sel)].slice(0, s.take).pop();
+      if (last) last.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+    place();
+    setTimeout(place, 120);
+    setTimeout(place, 420);
+  }
+
+  const onMove = () => place();
+  window.addEventListener('resize', onMove);
+  window.addEventListener('scroll', onMove, true);
+  cleanupScroll = () => {
+    window.removeEventListener('resize', onMove);
+    window.removeEventListener('scroll', onMove, true);
   };
-  box.querySelector('[data-ok]').onclick = close;
-  bg.onclick = close;
+
+  render();
 }
 
-// Показывает нужные подсказки для экрана — по одной, очередью.
+// Тур для экрана — только при первом заходе
 export function maybeShowTips(screen) {
-  const queue = (screen === 'home' ? ['menu', 'home'] : [screen]).filter(k => !tipSeen(k));
-  if (!queue.length) return;
-  const next = () => { const k = queue.shift(); if (k) showTip(k, next); };
-  setTimeout(next, 420);           // даём экрану отрисоваться
+  if (!TOURS[screen] || tipSeen(screen)) return;
+  setTimeout(() => startTour(screen), 450);      // даём экрану отрисоваться
 }
 
-export function tipsList() { return Object.keys(TIPS); }
+export function tourFor(screen) { return TOURS[screen]; }
