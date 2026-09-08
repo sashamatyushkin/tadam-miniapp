@@ -1,9 +1,9 @@
 // ── Онбординг: привет → кому дарим → первая дата ─────────────────────
-import { state, save, track, addDate } from '../store.js?v=2609090119';
-import { CATEGORIES, RELATIONS, REMINDER_TYPES } from '../config.js?v=2609090119';
-import { mascot, esc, toast } from '../ui.js?v=2609090119';
-import { tg } from '../tg.js?v=2609090119';
-import { go } from '../app.js?v=2609090119';
+import { state, save, track, addDate } from '../store.js?v=2609090130';
+import { CATEGORIES, RELATIONS, REMINDER_TYPES } from '../config.js?v=2609090130';
+import { mascot, esc, toast } from '../ui.js?v=2609090130';
+import { tg } from '../tg.js?v=2609090130';
+import { go } from '../app.js?v=2609090130';
 
 let step = 0;
 let picked = null;

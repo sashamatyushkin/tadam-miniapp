@@ -1,8 +1,8 @@
 // ── Механика «Намекни»: карточка-намёк уходит в чат Telegram ─────────
-import { createHint, track } from '../store.js?v=2609090119';
-import { deepLink } from '../config.js?v=2609090119';
-import { sheet, esc, toast, mascot } from '../ui.js?v=2609090119';
-import { tg } from '../tg.js?v=2609090119';
+import { createHint, track } from '../store.js?v=2609090130';
+import { deepLink } from '../config.js?v=2609090130';
+import { sheet, esc, toast, mascot } from '../ui.js?v=2609090130';
+import { tg } from '../tg.js?v=2609090130';
 
 export function openHint({ ideaId, title, desc, wishlistId }) {
   sheet(`

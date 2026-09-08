@@ -3,9 +3,9 @@
 // В production источник истины — backend: доступ, лимиты, розыгрыш колеса,
 // рефералы и платежи проверяются сервером, клиент лишь отображает результат.
 
-import { tg } from './tg.js?v=2609090119';
-import { CONFIG, WHEEL } from './config.js?v=2609090119';
-import { api, apiAvailable } from './api.js?v=2609090119';
+import { tg } from './tg.js?v=2609090130';
+import { CONFIG, WHEEL } from './config.js?v=2609090130';
+import { api, apiAvailable } from './api.js?v=2609090130';
 
 const KEY = 'tadam_state_v1';
 const CHUNK = 3500; // лимит значения Telegram CloudStorage — 4096 символов
@@ -84,7 +84,7 @@ async function saveCloud(json) {
   if (parts.length > 40) {                              // защита от переполнения — не пишем
     if (!warnedOverflow) {
       warnedOverflow = true;
-      import('./ui.js?v=2609090119').then(m => m.toast('Данных стало много — почисти старые вишлисты, иначе новое не сохранится'));
+      import('./ui.js?v=2609090130').then(m => m.toast('Данных стало много — почисти старые вишлисты, иначе новое не сохранится'));
     }
     return;
   }
@@ -94,6 +94,21 @@ async function saveCloud(json) {
   await tg.cloudSet('st_meta', String(parts.length));
   for (let i = parts.length; i < lastPartCount; i++) await tg.cloudRemove('st_' + i); // чистим хвост
   lastPartCount = parts.length;
+}
+
+// Раньше здесь был Object.assign(state, blank(), data) — поверхностное слияние.
+// Сохранённый объект целиком заменял вложенный из blank(), поэтому у пользователя
+// со старым состоянием новые поля не появлялись: например state.referral становился
+// {code} без invited[], и экран приглашений падал на .length. Сливаем рекурсивно:
+// сохранённые значения выигрывают, отсутствующие ключи берутся из значений по умолчанию.
+function deepMerge(target, defaults, data) {
+  for (const key of new Set([...Object.keys(defaults), ...Object.keys(data)])) {
+    const d = defaults[key], v = data[key];
+    const plain = x => x && typeof x === 'object' && !Array.isArray(x);
+    if (plain(d) && plain(v)) target[key] = deepMerge({}, d, v);
+    else target[key] = v === undefined ? d : v;
+  }
+  return target;
 }
 
 export async function load() {
@@ -109,7 +124,7 @@ export async function load() {
   if (!data) {
     try { data = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { data = null; }
   }
-  if (data && data.v === 1) Object.assign(state, blank(), data);
+  if (data && data.v === 1) deepMerge(state, blank(), data);
   if (!state.referral.code) state.referral.code = 'r' + token().slice(0, 8);
   ready = true;
   return state;

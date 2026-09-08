@@ -1,12 +1,12 @@
 // ── Главная: поводы ──────────────────────────────────────────────────
-import { CATEGORIES } from '../config.js?v=2609090119';
-import { state, categoryOpen, isPremium, track, questComplete } from '../store.js?v=2609090119';
-import { esc, mascot } from '../ui.js?v=2609090119';
-import { tg } from '../tg.js?v=2609090119';
-import { go } from '../app.js?v=2609090119';
-import { maybeShowTips } from './coach.js?v=2609090119';
-import { storiesRow, bindStories } from './stories.js?v=2609090119';
-import { openLockSheet } from './extra.js?v=2609090119';
+import { CATEGORIES } from '../config.js?v=2609090130';
+import { state, categoryOpen, isPremium, track, questComplete } from '../store.js?v=2609090130';
+import { esc, mascot } from '../ui.js?v=2609090130';
+import { tg } from '../tg.js?v=2609090130';
+import { go } from '../app.js?v=2609090130';
+import { maybeShowTips } from './coach.js?v=2609090130';
+import { storiesRow, bindStories } from './stories.js?v=2609090130';
+import { openLockSheet } from './extra.js?v=2609090130';
 
 export function render() {
   track('home_viewed', { premium: isPremium() });
