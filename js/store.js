@@ -37,6 +37,7 @@ function blank() {
     ugc: null,
     seen: {},
     tips: {},                       // какие обучающие подсказки уже показаны
+    storiesSeen: {},                // просмотренные сторис
     settings: { reminders: true, analytics: true },
     events: []
   };

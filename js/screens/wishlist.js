@@ -1,7 +1,7 @@
 // ── Вишлисты: свой список, шеринг и намёки ───────────────────────────
 import { state, save, track, createWishlist, removeItem, wishlistLimit, isPremium } from '../store.js';
 import { deepLink } from '../config.js';
-import { esc, mascot, sheet, toast, confirmSheet } from '../ui.js';
+import { esc, mascot, sheet, toast, confirmSheet, plural } from '../ui.js';
 import { tg } from '../tg.js';
 import { go, back } from '../app.js';
 import { maybeShowTips } from './coach.js';
@@ -130,23 +130,40 @@ function addOwn(wl) {
   });
 }
 
+// Текст, который увидит близкий. Не «мой вишлист №2», а нормальное человеческое сообщение.
+export function shareText(wl) {
+  const n = wl.items.length;
+  const what = n ? `там уже ${n} ${plural(n, 'идея', 'идеи', 'идей')}` : 'загляни в подборку';
+  return `Привет! Слушай, если не знаешь, что мне подарить — вот моя подборка, ${what} 🎁 Переходи и забирай любую`;
+}
+
 function shareSheet(wl) {
   const url = deepLink('w_' + wl.shareToken);
+  const text = shareText(wl);
   sheet(`
     <div class="stack">
-      <h3 class="h2">Ссылка на вишлист</h3>
-      <p class="small muted">Ссылка не раскрывает твой Telegram ID. Её можно отозвать в любой момент — старая перестанет открываться.</p>
-      <div class="card small" style="word-break:break-all">${esc(url)}</div>
+      <h3 class="h2">Поделиться вишлистом</h3>
+      <p class="small muted">Вот такое сообщение уйдёт близкому:</p>
+      <div class="chat">
+        <div class="hintcard" style="margin:0">
+          <div class="hintcard__brand">🎁 та-дам</div>
+          <div class="hintcard__box">
+            <div class="small">${esc(text)}</div>
+            <div class="small muted" style="margin-top:6px;word-break:break-all">${esc(url)}</div>
+          </div>
+        </div>
+      </div>
+      <p class="small muted">Ссылка не раскрывает твой Telegram ID и в любой момент отзывается — старая перестаёт открываться.</p>
       <button class="btn" id="send">Отправить в Telegram</button>
       <button class="btn btn--soft" id="copy">Скопировать</button>
       <button class="btn btn--ghost" id="revoke">Отозвать и создать новую</button>
     </div>`, (el, close) => {
     el.querySelector('#send').onclick = () => {
       wl.shared = true; save(); track('wishlist_shared', { wl: wl.id });
-      tg.share(url, `Мой вишлист в Та-дам: ${wl.title} 🎁`); close();
+      tg.share(url, text); close();
     };
     el.querySelector('#copy').onclick = async () => {
-      try { await navigator.clipboard.writeText(url); toast('Скопировано'); } catch (e) { toast(url); }
+      try { await navigator.clipboard.writeText(text + '\n' + url); toast('Скопировано'); } catch (e) { toast(url); }
     };
     el.querySelector('#revoke').onclick = () => {
       const a = new Uint8Array(16); crypto.getRandomValues(a);

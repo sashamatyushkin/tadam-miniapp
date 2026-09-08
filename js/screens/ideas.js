@@ -29,11 +29,28 @@ function chipRow(items, active, kind, locked) {
   </div>`;
 }
 
+export function cover(i, cls) {
+  const c = CATEGORIES.find(x => x.id === i.cat);
+  const bg = i.photo ? '#F2E6D5' : (c?.bg || 'linear-gradient(150deg,#F74101,#FF8A4C)');
+  return `<div class="cover ${cls}" style="background:${bg}">${
+    i.photo ? `<img src="${esc(i.photo)}" alt="" loading="lazy">` : i.icon
+  }</div>`;
+}
+
+// Ссылка «где купить»: точная партнёрская, если задана в базе,
+// иначе честный поиск по названию — партнёрские ссылки добавляются через админку.
+export function buyLink(i) {
+  return i.buy
+    ? { url: i.buy, label: 'Где купить', exact: true }
+    : { url: 'https://yandex.ru/search/?text=' + encodeURIComponent(i.title + ' купить'), label: 'Найти, где купить', exact: false };
+}
+
 function ideaRow(i, n) {
   const b = BUDGETS.find(x => x.id === i.budget);
   return `
     <div class="idea" data-idea="${i.id}">
       <div class="idea__num">${n}</div>
+      ${cover(i, 'cover--thumb')}
       <div class="idea__body">
         <div class="idea__title">${esc(i.title)}</div>
         <div class="idea__desc">${esc(i.desc)}</div>
@@ -178,16 +195,21 @@ export function openIdea(ideaId) {
   if (!i) return;
   track('gift_idea_opened', { id: i.id });
   const b = BUDGETS.find(x => x.id === i.budget);
+  const buy = buyLink(i);
   sheet(`
     <div class="stack">
+      ${cover(i, 'cover--big')}
       <div class="idea__tags">
         <span class="tag tag--budget">${esc(b.name)}</span>
         ${i.recipients.map(r => `<span class="tag">${esc(RECIPIENTS.find(x => x.id === r)?.name || r)}</span>`).join('')}
+        ${i.interests.map(id => `<span class="tag tag--ice">${esc(INTERESTS.find(x => x.id === id)?.name || id)}</span>`).join('')}
       </div>
       <h3 class="h1">${esc(i.title)}</h3>
-      <p class="muted">${esc(i.desc)}</p>
+      <p class="muted">${esc(i.long || i.desc)}</p>
       <button class="btn" id="fav">${inWishlist(i.id) ? 'Уже в вишлисте' : 'В вишлист 💖'}</button>
       <button class="btn btn--soft" id="hint">Намекнуть другу 💌</button>
+      <button class="btn btn--ghost" id="buy">${esc(buy.label)} →</button>
+      ${buy.exact ? '' : '<div class="buyline">🔎 откроем поиск по названию</div>'}
     </div>`, (el, close) => {
     el.querySelector('#fav').onclick = () => {
       if (inWishlist(i.id)) return toast('Уже в вишлисте');
@@ -195,5 +217,9 @@ export function openIdea(ideaId) {
       tg.haptic('success'); toast('Та-дам! Идея в вишлисте 🎁'); close();
     };
     el.querySelector('#hint').onclick = () => { close(); openHint({ ideaId: i.id, title: i.title, desc: i.desc }); };
+    el.querySelector('#buy').onclick = () => {
+      track('buy_link_opened', { id: i.id, exact: buy.exact });
+      if (tg.raw?.openLink) tg.raw.openLink(buy.url); else window.open(buy.url, '_blank');
+    };
   });
 }

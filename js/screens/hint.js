@@ -26,7 +26,9 @@ export function openHint({ ideaId, title, desc, wishlistId }) {
     </div>`, (el, close) => {
     const h = createHint({ ideaId: ideaId || null, wishlistId: wishlistId || null, title });
     const url = deepLink(ideaId ? 'h_' + ideaId : 'w_' + h.token);
-    const text = `Та-дам! Кажется, это идеальный подарок: «${title}» 🎁`;
+    const text = wishlistId
+      ? `Привет! Слушай, если не знаешь, что мне подарить — вот моя подборка, начни с «${title}» 🎁 Переходи и забирай`
+      : `Привет! Кажется, это тот самый подарок: «${title}» 🎁 Глянь, я собрал идею в Та-дам`;
     el.querySelector('#send').onclick = () => {
       track('hint_shared', { id: h.id });
       tg.haptic('success');

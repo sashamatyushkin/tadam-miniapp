@@ -5,6 +5,7 @@ import { esc, mascot } from '../ui.js';
 import { tg } from '../tg.js';
 import { go } from '../app.js';
 import { maybeShowTips } from './coach.js';
+import { storiesRow, bindStories } from './stories.js';
 
 export function render() {
   track('home_viewed', { premium: isPremium() });
@@ -23,6 +24,7 @@ export function render() {
         <h1 class="bups topbar__title" style="color:var(--mango)">кому дарим?</h1>
         <button class="iconbtn" id="quest" title="Заполни и получи">🎁</button>
       </div>
+      ${storiesRow()}
       <div class="wrap">
         <div class="search" id="searchbox">
           <span>🔍</span><input placeholder="Найти идею подарка…" readonly>
@@ -63,6 +65,7 @@ export function render() {
         <div class="spacer"></div>
       </div>`,
     mount(app) {
+      bindStories(app);
       maybeShowTips('home');
       app.querySelector('#searchbox').onclick = () => go('search', {});
       app.querySelector('#quest').onclick = () => go('quest', {});

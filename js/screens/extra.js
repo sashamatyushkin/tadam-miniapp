@@ -355,6 +355,12 @@ export function renderSettings() {
         <button class="btn btn--soft" id="saveP">Сохранить</button>
         <div class="spacer"></div>
         <button class="btn btn--ghost" id="reset" style="color:#B3341A">Удалить мои данные</button>
+        <div class="spacer"></div>
+        <div class="card" style="border-style:dashed">
+          <div style="font-weight:800">🧪 Режим тестирования</div>
+          <p class="small muted">Одна кнопка — приложение возвращается к самому первому запуску: онбординг, три бесплатных повода, пустые вишлисты и даты, доступный спин и подсказки заново.</p>
+          <button class="btn btn--soft" id="testreset">Сбросить всё до первого запуска</button>
+        </div>
         <p class="small muted center">Версия ${esc(CONFIG.version)}</p>
       </div>`,
     mount(app) {
@@ -370,6 +376,13 @@ export function renderSettings() {
         state.profile.name = app.querySelector('#name').value.trim();
         state.profile.dreamGift = app.querySelector('#dream').value.trim();
         save(); toast('Сохранили');
+      };
+      app.querySelector('#testreset').onclick = () => {
+        resetAll();                                   // чистим и локальное, и облачное состояние
+        track('test_reset', {});
+        tg.haptic('success');
+        toast('Всё сброшено — начинаем с нуля 🧪');
+        go('onboarding', {}, true);
       };
       app.querySelector('#reset').onclick = () => confirmSheet(
         'Удалить все данные?', 'Вишлисты, даты и награды исчезнут навсегда', 'Удалить',
