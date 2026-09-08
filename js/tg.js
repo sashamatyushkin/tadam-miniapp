@@ -11,12 +11,31 @@ export const tg = {
   init() {
     if (!raw) return;
     raw.ready();
-    raw.expand();
-    try { raw.disableVerticalSwipes?.(); } catch (e) {}
+    raw.expand();                                   // на всю высоту, без «шторки»
+    try { raw.disableVerticalSwipes?.(); } catch (e) {}   // чтобы свайп по списку не схлопывал окно
     try { raw.setHeaderColor?.('#FBF3E8'); raw.setBackgroundColor?.('#FBF3E8'); } catch (e) {}
+    try { raw.setBottomBarColor?.('#FBF3E8'); } catch (e) {}
+
     this.applySafeArea();
     raw.onEvent?.('safeAreaChanged', () => this.applySafeArea());
+    raw.onEvent?.('contentSafeAreaChanged', () => this.applySafeArea());
     raw.onEvent?.('viewportChanged', () => this.applySafeArea());
+    raw.onEvent?.('fullscreenChanged', () => this.applySafeArea());
+
+    this.goFullscreen();
+  },
+
+  // Полноэкранный режим (Bot API 8.0+). Где не поддерживается — остаётся expand(),
+  // то есть приложение всё равно открывается на всю высоту.
+  goFullscreen() {
+    if (!raw?.requestFullscreen) return;
+    if (raw.isVersionAtLeast && !raw.isVersionAtLeast('8.0')) return;
+    if (raw.isFullscreen) return;
+    raw.onEvent?.('fullscreenFailed', e => {
+      console.warn('[tadam] fullscreen недоступен:', e?.error || 'unknown');
+      try { raw.expand(); } catch (err) {}
+    });
+    try { raw.requestFullscreen(); } catch (e) { /* остаёмся в expanded */ }
   },
 
   applySafeArea() {
