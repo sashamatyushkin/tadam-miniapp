@@ -11,6 +11,7 @@ import * as Wheel from './screens/wheel.js';
 import * as Profile from './screens/profile.js';
 import * as Dates from './screens/dates.js';
 import * as Extra from './screens/extra.js';
+import { dismissTour } from './screens/coach.js';
 
 const ROUTES = {
   onboarding: Onboarding.render,
@@ -65,6 +66,7 @@ export function back() {
 }
 
 function paint(fn, params) {
+  dismissTour();
   const app = $('#app');
   const view = fn(params) || {};
   app.innerHTML = `<div class="screen">${view.html || ''}</div>`;

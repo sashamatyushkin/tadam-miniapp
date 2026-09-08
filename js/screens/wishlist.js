@@ -2,10 +2,39 @@
 import { state, save, track, createWishlist, removeItem, wishlistLimit, isPremium } from '../store.js';
 import { deepLink } from '../config.js';
 import { esc, mascot, sheet, toast, confirmSheet, plural } from '../ui.js';
+import { IDEAS } from '../data/ideas.js';
+import { cover } from './ideas.js';
 import { tg } from '../tg.js';
 import { go, back } from '../app.js';
 import { maybeShowTips } from './coach.js';
 import { openHint } from './hint.js';
+
+
+// Пустой вишлист показываем не голой надписью, а примерами: человек сразу видит,
+// как список будет выглядеть, когда в нём появятся его желания.
+const SAMPLE_IDS = ['birthday-7', 'anniv-6', 'birthday-6'];
+function ghostList() {
+  const samples = SAMPLE_IDS.map(id => IDEAS.find(i => i.id === id)).filter(Boolean);
+  return `
+    <div class="ghosts">
+      <div class="ghosts__list">
+        ${samples.map(i => `
+          <div class="ghost">
+            ${cover(i, 'cover--thumb')}
+            <div class="ghost__t">
+              <div class="ghost__name">${esc(i.title)}</div>
+              <div class="ghost__sub">${esc(i.desc)}</div>
+            </div>
+            <span class="ghost__tag">ПРИМЕР</span>
+          </div>`).join('')}
+      </div>
+      <div class="ghosts__cap">
+        ${mascot('sleep', 'mascot--sm')}
+        <h3 class="h2" style="margin-top:6px">Пока тут пусто</h3>
+        <p class="muted small">Вот так список будет выглядеть, когда сохранишь первые идеи</p>
+      </div>
+    </div>`;
+}
 
 export function render() {
   const wls = state.wishlists;
@@ -27,7 +56,9 @@ export function render() {
             <span class="row__v">${w.items.length}</span>
             <span class="row__chev">›</span>
           </button>`).join('')}</div>`
-        : `<div class="empty">${mascot('sleep', 'mascot--lg')}<h3 class="h2">Тут пока пусто</h3><p class="muted small">Сохрани первую идею из подборки</p></div>`}
+        : ghostList()}
+        <div class="spacer"></div>
+        <button class="btn" id="find">Найти первую идею</button>
         <div class="spacer"></div>
         <button class="btn btn--soft" id="new">Новый вишлист</button>
         <p class="small muted center" style="margin-top:8px">${isPremium() ? 'Premium: безлимит вишлистов' : `Осталось слотов: ${Math.max(0, wishlistLimit() - wls.length)} из ${wishlistLimit()}`}</p>
@@ -36,6 +67,7 @@ export function render() {
       maybeShowTips('wishlist');
       app.querySelectorAll('[data-wl]').forEach(b => b.onclick = () => go('wl', { id: b.dataset.wl }));
       app.querySelector('#new').onclick = newWishlist;
+      app.querySelector('#find')?.addEventListener('click', () => go('home', {}, true));
     }
   };
 }
@@ -79,7 +111,7 @@ export function renderOne({ id, tab }) {
             <button class="idea__fav" data-hint="${it.id}">💌</button>
             <button class="idea__fav" data-del="${it.id}">✕</button>
           </div>`).join('')}</div>`
-        : `<div class="empty">${mascot('sleep', 'mascot--md')}<h3 class="h2">Пока пусто</h3><p class="muted small">Добавь своё желание или сохрани идею из подборки</p></div>`}
+        : ghostList()}
 
         <div class="spacer"></div>
         <button class="btn" id="hintAll">💌 Намекнуть другу</button>

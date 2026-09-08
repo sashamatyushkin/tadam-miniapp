@@ -3,7 +3,8 @@ import { tg } from './tg.js';
 
 export const $ = (sel, root = document) => root.querySelector(sel);
 export const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-export const mascot = (name, cls = 'mascot--md') => `<img class="mascot ${cls}" src="assets/mascots/${name}.png" alt="" loading="lazy">`;
+export const mascot = (name, cls = 'mascot--md') =>
+  `<img class="mascot ${cls}" src="assets/mascots/${name}.png" alt="" loading="lazy" decoding="async">`;
 
 export function toast(text) {
   const root = $('#toast-root');

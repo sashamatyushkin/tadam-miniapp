@@ -6,6 +6,7 @@ import { esc, mascot, sheet, toast, closeSheet } from '../ui.js';
 import { tg } from '../tg.js';
 import { go, back } from '../app.js';
 import { openHint } from './hint.js';
+import { maybeShowTips } from './coach.js';
 
 let f = { rec: null, budget: null, interest: null };
 let query = '';
@@ -96,7 +97,7 @@ export function render({ id }) {
       ${chipRow(RECIPIENTS, f.rec, 'rec', !premium)}
       ${chipRow(BUDGETS, f.budget, 'budget', !premium)}
       ${chipRow(INTERESTS, f.interest, 'interest', !premium)}
-      <div class="wrap">
+      <div class="wrap" id="ideaList">
         ${list.length ? visible.map((i, n) => ideaRow(i, n + 1)).join('') : emptyBlock()}
         ${list.length > shown ? '<button class="btn btn--soft" id="more" style="margin-top:14px">Показать ещё</button>' : ''}
         ${(!premium && list.length) ? `
@@ -150,6 +151,7 @@ export function renderSearch() {
 }
 
 function mountList(app, catId, premium) {
+  maybeShowTips('ideas');
   app.querySelectorAll('[data-f]').forEach(b => {
     b.onclick = () => {
       if (!premium) { track('locked_filter_clicked', {}); tg.haptic('warning'); return go('paywall', { from: 'filters' }); }

@@ -11,7 +11,7 @@
   --r-lg:22px; --r-md:16px; --r-sm:12px;
   --pad:16px;
   --safe-top:var(--tg-safe-top,0px); --safe-bottom:var(--tg-safe-bottom,0px);
-  --tab-h:64px;
+  --tab-h:62px; --tab-gap:14px;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0;height:100%}
@@ -23,6 +23,7 @@ body{
 }
 img{max-width:100%;display:block}
 button,input,textarea,select{font:inherit;color:inherit}
+button{touch-action:manipulation}
 h1,h2,h3,h4{margin:0}
 .bups{font-family:'Bups','Nunito',sans-serif;font-weight:400;letter-spacing:.02em;line-height:1.15}
 
@@ -36,11 +37,12 @@ h1,h2,h3,h4{margin:0}
 @keyframes blink{0%,100%{opacity:.25;transform:scale(.85)}50%{opacity:1;transform:scale(1)}}
 
 /* ── layout ─────────────────────────────────────────────────────── */
-.app{min-height:100%;padding:calc(var(--safe-top) + 8px) 0 calc(var(--tab-h) + var(--safe-bottom) + 16px)}
+.app{min-height:100%;padding:calc(var(--safe-top) + 8px) 0 calc(var(--tab-h) + var(--tab-gap) + var(--safe-bottom) + 22px)}
 .app--nonav{padding-bottom:calc(var(--safe-bottom) + 24px)}
 .wrap{padding:0 var(--pad)}
-.screen{animation:fade .22s ease}
-@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.screen{animation:fade .17s ease-out}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 .stack{display:grid;gap:12px}
 .center{text-align:center}
 .muted{color:var(--muted)}
@@ -100,7 +102,8 @@ h1,h2,h3,h4{margin:0}
 .chip--lock{opacity:.6}
 
 /* ── список идей ────────────────────────────────────────────────── */
-.idea{display:flex;gap:12px;padding:14px 0;border-bottom:1px solid var(--line);cursor:pointer}
+.idea{display:flex;gap:12px;padding:14px 0;border-bottom:1px solid var(--line);cursor:pointer;
+  content-visibility:auto;contain-intrinsic-size:auto 104px}
 .idea:last-child{border-bottom:0}
 .idea__num{color:var(--mango);font-weight:800;font-size:13px;min-width:18px;padding-top:2px}
 .idea__body{flex:1;min-width:0}
@@ -110,7 +113,7 @@ h1,h2,h3,h4{margin:0}
 .tag{font-size:11px;font-weight:700;padding:4px 9px;border-radius:999px;background:#F2E6D5;color:var(--coffee)}
 .tag--budget{background:var(--mango);color:#fff}
 .tag--ice{background:var(--ice);color:#173F63}
-.idea__fav{border:0;background:transparent;font-size:19px;cursor:pointer;padding:0 2px;line-height:1}
+.idea__fav{border:0;background:transparent;font-size:19px;cursor:pointer;padding:0 2px;line-height:1;align-self:center}
 
 /* ── пустое состояние ───────────────────────────────────────────── */
 .empty{text-align:center;padding:32px 8px}
@@ -180,15 +183,20 @@ h1,h2,h3,h4{margin:0}
 .sheet__grip{width:40px;height:4px;border-radius:999px;background:#E0CDB6;margin:4px auto 14px}
 
 /* ── тосты ──────────────────────────────────────────────────────── */
-#toast-root{position:fixed;left:0;right:0;bottom:calc(var(--tab-h) + var(--safe-bottom) + 14px);display:grid;justify-items:center;gap:8px;z-index:120;pointer-events:none;padding:0 16px}
+#toast-root{position:fixed;left:0;right:0;bottom:calc(var(--tab-h) + var(--tab-gap) + var(--safe-bottom) + 14px);display:grid;justify-items:center;gap:8px;z-index:120;pointer-events:none;padding:0 16px}
 .toast{background:var(--coffee);color:#FFF3E6;padding:11px 16px;border-radius:999px;font-size:14px;font-weight:700;animation:fade .18s;max-width:100%}
 
-/* ── таббар ─────────────────────────────────────────────────────── */
+/* ── таббар: плавающая плашка с полукруглыми краями ─────────────── */
 .tabbar[hidden]{display:none}
-.tabbar{position:fixed;left:0;right:0;bottom:0;height:calc(var(--tab-h) + var(--safe-bottom));padding-bottom:var(--safe-bottom);background:rgba(251,243,232,.96);backdrop-filter:blur(10px);border-top:1px solid var(--line);display:flex;z-index:60}
-.tab{flex:1;border:0;background:transparent;display:grid;place-items:center;gap:2px;padding:8px 0;cursor:pointer;color:var(--muted);font-size:10px;font-weight:700}
+.tabbar{position:fixed;left:14px;right:14px;bottom:calc(var(--tab-gap) + var(--safe-bottom));
+  height:var(--tab-h);border-radius:calc(var(--tab-h) / 2);display:flex;align-items:center;padding:0 5px;z-index:60;
+  background:rgba(255,252,246,.86);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);
+  border:1px solid var(--line);box-shadow:0 14px 30px -12px rgba(112,39,32,.45)}
+.tab{flex:1;border:0;background:transparent;display:grid;place-items:center;gap:2px;padding:8px 0 7px;
+  cursor:pointer;color:var(--muted);font-size:10px;font-weight:700;border-radius:22px;touch-action:manipulation}
 .tab span{font-size:19px;line-height:1}
 .tab--on{color:var(--mango)}
+.tab:active{transform:scale(.94)}
 
 /* ── прочее ─────────────────────────────────────────────────────── */
 .paywall-box{background:var(--ice);border-radius:var(--r-lg);padding:18px;text-align:center}
@@ -203,7 +211,7 @@ h1,h2,h3,h4{margin:0}
 
 /* ── обучающий тур: подсветка области + блюр вокруг ─────────────── */
 .tour{position:fixed;inset:0;z-index:140}
-.tour__blur{position:absolute;-webkit-backdrop-filter:blur(6px) saturate(.92);backdrop-filter:blur(6px) saturate(.92)}
+.tour__blur{position:absolute;-webkit-backdrop-filter:blur(5px);backdrop-filter:blur(5px)}
 /* затемнение рисуем огромной тенью вокруг выреза: так у него настоящее скругление */
 .tour__dim{position:absolute;background:transparent;box-shadow:0 0 0 9999px rgba(112,39,32,.52);
   transition:all .32s cubic-bezier(.3,.8,.4,1)}
@@ -273,3 +281,15 @@ h1,h2,h3,h4{margin:0}
 .stv__cta:active{background:#fff}
 .stv__tap{position:absolute;top:64px;bottom:96px;width:38%;z-index:1}
 .stv__tap--l{left:0}.stv__tap--r{right:0;width:62%}
+
+/* ── пустой вишлист: примеры того, как он будет выглядеть ────────── */
+.ghosts{position:relative;margin-top:6px}
+.ghosts__list{opacity:.5;filter:saturate(.7);pointer-events:none;user-select:none}
+.ghost{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px dashed var(--line);
+  border-radius:16px;background:var(--surface);margin-bottom:8px}
+.ghost__t{flex:1;min-width:0}
+.ghost__name{font-weight:800;font-size:14px}
+.ghost__sub{font-size:12px;color:var(--muted)}
+.ghost__tag{font-size:9px;font-weight:800;letter-spacing:.06em;color:var(--muted);
+  border:1px solid var(--line);border-radius:999px;padding:3px 7px}
+.ghosts__cap{text-align:center;margin-top:12px}

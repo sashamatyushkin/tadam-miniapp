@@ -8,28 +8,32 @@ import { tg } from '../tg.js';
 
 // sel — что подсветить, pad — отступ вокруг, place — где предпочтительно карточка
 const TOURS = {
+  // Первый экран после онбординга — человек уже внутри повода. Три шага, ничего лишнего.
+  ideas: [
+    { sel: '.idea', take: 2, pad: 6, radius: 18, place: 'below', mascot: 'search',
+      title: 'вот идеи',
+      text: 'Список под твой повод: название, во сколько обойдётся и кому зайдёт. Нажми на любую — расскажу подробнее и покажу, где искать.' },
+    { sel: '.chips', take: 3, pad: 4, radius: 22, place: 'below', mascot: 'think',
+      title: 'сузь под человека',
+      text: 'Кому дарим, сколько готов потратить и что он любит. Три фильтра — и остаются только подходящие идеи.' },
+    { sel: '.idea__fav', pad: 8, radius: 999, place: 'below', mascot: 'heart',
+      title: 'сердечко — в вишлист',
+      text: 'Понравилась идея — жми сердечко. Она сохранится, и потом ей можно намекнуть близкому.' }
+  ],
+  // На главной объясняем устройство приложения: поводы, поиск и меню.
   home: [
-    { sel: '.cats .cat', take: 4, pad: 8, radius: 26, place: 'below', mascot: 'search',
-      title: 'повод — главная дверь',
-      text: 'Выбери, по какому случаю ищешь подарок. Три повода открыты сразу, остальные — под замком premium. Внутри повода идеи можно сузить фильтрами: кому, бюджет, интересы.' },
+    { sel: '.cats .cat', take: 4, pad: 8, radius: 26, place: 'below', mascot: 'wave',
+      title: 'поводы',
+      text: 'Главный экран — это поводы. Три открыты сразу, остальные под замком premium. Повод определяет подборку идей.' },
     { sel: '.search', pad: 6, radius: 999, place: 'below', mascot: 'think',
-      title: 'или ищи словом',
-      text: 'Напиши «кофе», «плед» или «фотосессия» — покажу идеи из всех открытых поводов.' },
-    { sel: '[data-tab="home"]', pad: 4, radius: 16, place: 'above', mascot: 'wave',
-      title: 'главная',
-      text: 'Сюда возвращаешься за новой идеей: все поводы и поиск.' },
-    { sel: '[data-tab="wishlist"]', pad: 4, radius: 16, place: 'above', mascot: 'heart',
-      title: 'вишлист',
-      text: 'Твои желания и сохранённые идеи. Отсюда же уходит намёк близкому.' },
-    { sel: '[data-tab="wheel"]', pad: 4, radius: 16, place: 'above', mascot: 'wow',
-      title: 'колесо',
-      text: 'Бесплатный спин раз в день: категория на 24 часа, подборка или скидка на premium.' },
-    { sel: '[data-tab="profile"]', pad: 4, radius: 16, place: 'above', mascot: 'notes',
-      title: 'профиль',
-      text: 'Важные даты и напоминания, твой доступ, награды и настройки.' }
+      title: 'найти идею подарка',
+      text: 'Если знаешь, чего примерно хочешь, — напиши словом: «кофе», «плед», «фотосессия».' },
+    { sel: '#tabbar', pad: 8, radius: 34, place: 'above', mascot: 'notes',
+      title: 'четыре раздела',
+      text: 'Главная — поводы и поиск. Вишлист — твои желания и намёки. Колесо — бесплатный спин раз в день. Профиль — важные даты, доступ и награды.' }
   ],
   wishlist: [
-    { sel: '.rows, .empty', take: 3, pad: 8, radius: 24, place: 'below', maxH: 0.42, mascot: 'heart',
+    { sel: '.rows, .ghosts', take: 1, pad: 8, radius: 24, place: 'below', maxH: 0.42, mascot: 'heart',
       title: 'тут копятся желания',
       text: 'Сохраняй идеи из подборок сердечком или добавляй свои — например «плёночный фотоаппарат».' },
     { sel: '#hintAll', pad: 6, radius: 999, place: 'above', mascot: 'bubble',
@@ -53,6 +57,8 @@ const TOURS = {
 };
 
 let active = false;
+let pending = 0;          // отложенный запуск тура
+let dismiss = null;       // как убрать открытый тур при уходе с экрана
 
 function topSafe() {
   const v = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--safe-top')) || 0;
@@ -100,13 +106,15 @@ export function startTour(name, onDone) {
 
   let i = 0, cleanupScroll = null;
 
-  function finish() {
+  function finish(silent) {
     cleanupScroll?.();
     root.remove();
     active = false;
-    markTip(name);
+    dismiss = null;
+    if (!silent) markTip(name);              // ушёл с экрана — покажем тур в следующий раз
     onDone?.();
   }
+  dismiss = () => finish(true);
   function next() { if (i + 1 < steps.length) { i++; render(); } else finish(); }
 
   q('.tour__skip').onclick = e => { e.stopPropagation(); track('coach_skipped', { name, step: i }); finish(); };
@@ -181,20 +189,21 @@ export function startTour(name, onDone) {
     tg.haptic('light');
 
     const el = document.querySelector(s.sel);
-    el?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    el?.scrollIntoView({ block: 'center', behavior: 'auto' });   // мгновенно: плавная прокрутка тут даёт дёрганье
     if (s.take > 1) {
       const last = [...document.querySelectorAll(s.sel)].slice(0, s.take).pop();
-      if (last) last.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      if (last) last.scrollIntoView({ block: 'nearest', behavior: 'auto' });
     }
     place();
-    setTimeout(place, 120);
-    setTimeout(place, 420);
+    requestAnimationFrame(place);
   }
 
-  const onMove = () => place();
+  let raf = 0;
+  const onMove = () => { if (raf) return; raf = requestAnimationFrame(() => { raf = 0; place(); }); };
   window.addEventListener('resize', onMove);
   window.addEventListener('scroll', onMove, true);
   cleanupScroll = () => {
+    cancelAnimationFrame(raf);
     window.removeEventListener('resize', onMove);
     window.removeEventListener('scroll', onMove, true);
   };
@@ -205,7 +214,15 @@ export function startTour(name, onDone) {
 // Тур для экрана — только при первом заходе
 export function maybeShowTips(screen) {
   if (!TOURS[screen] || tipSeen(screen)) return;
-  setTimeout(() => startTour(screen), 450);      // даём экрану отрисоваться
+  clearTimeout(pending);
+  pending = setTimeout(() => startTour(screen), 300);   // даём экрану отрисоваться
+}
+
+// Уход с экрана: снимаем и запланированный, и открытый тур — иначе подсветка
+// осталась бы висеть над уже другим экраном.
+export function dismissTour() {
+  clearTimeout(pending); pending = 0;
+  dismiss?.();
 }
 
 export function tourFor(screen) { return TOURS[screen]; }
