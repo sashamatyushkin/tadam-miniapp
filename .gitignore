@@ -1,2 +1,4 @@
 bot/.env
+server/.env
+server/data/
 .DS_Store

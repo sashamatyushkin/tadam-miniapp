@@ -1,15 +1,16 @@
 // ── Квест, paywall, рефералы, UGC, друзья бренда, настройки, намёк ───
-import { CONFIG, CATEGORIES, BRAND_FRIENDS, RECIPIENTS, INTERESTS, deepLink, TELEGRAM } from '../config.js?v=2609090106';
-import { IDEAS, IDEAS_BY_CAT } from '../data/ideas.js?v=2609090106';
+import { CONFIG, CATEGORIES, BRAND_FRIENDS, RECIPIENTS, INTERESTS, deepLink, TELEGRAM } from '../config.js?v=2609090119';
+import { IDEAS, IDEAS_BY_CAT } from '../data/ideas.js?v=2609090119';
 import {
   state, save, track, questSteps, questComplete, issueQuestReward,
   isPremium, accessLabel, grantAccess, activeDiscount, resetAll, resetTips,
   addToWishlist, defaultWishlist, inWishlist
-} from '../store.js?v=2609090106';
-import { esc, mascot, sheet, toast, confirmSheet, plural } from '../ui.js?v=2609090106';
-import { tg } from '../tg.js?v=2609090106';
-import { go } from '../app.js?v=2609090106';
-import { openHint } from './hint.js?v=2609090106';
+} from '../store.js?v=2609090119';
+import { esc, mascot, sheet, toast, confirmSheet, plural } from '../ui.js?v=2609090119';
+import { tg } from '../tg.js?v=2609090119';
+import { go } from '../app.js?v=2609090119';
+import { openHint } from './hint.js?v=2609090119';
+import { api, apiAvailable } from '../api.js?v=2609090119';
 
 // ── «Заполни и получи» ───────────────────────────────────────────────
 export function renderQuest() {
@@ -252,7 +253,7 @@ export function renderInvite() {
 }
 
 // ── Награды (переиспользуем экран колеса) ────────────────────────────
-export { renderRewards } from './wheel.js?v=2609090106';
+export { renderRewards } from './wheel.js?v=2609090119';
 
 // ── Друзья бренда ────────────────────────────────────────────────────
 export function renderFriends() {
@@ -345,7 +346,7 @@ function ugcForm() {
   });
 }
 
-// ── Полученный намёк (открыт по ссылке) ──────────────────────────────
+// ── Полученный намёк на одну идею (открыт по ссылке h_<idea>) ────────
 export function renderHint({ id }) {
   track('hint_opened', { id });
   const idea = IDEAS.find(i => i.id === id);
@@ -378,6 +379,55 @@ export function renderHint({ id }) {
         track('recipient_app_opened', {});
         go(state.onboarded ? 'home' : 'onboarding', {}, true);
       };
+    }
+  };
+}
+
+// ── Полученный вишлист (открыт по ссылке w_<token>) ───────────────────
+// Раньше токен терялся ещё в роутинге (app.js) и сюда никогда не доходил —
+// получатель всегда видел заглушку «Подарок-сюрприз», даже если отправитель
+// честно ждал, что откроется настоящий список. Теперь запрашиваем его с backend;
+// без backend честно говорим об этом, а не показываем то же самое молча.
+export function renderSharedWishlist({ wl }) {
+  track('hint_opened', { wl });
+  return {
+    hideNav: true, hideBack: true,
+    html: `
+      <div class="wrap center" style="padding-top:22px" id="wlBox">
+        ${mascot('heart', 'mascot--md')}
+        <h1 class="bups" style="font-size:26px;color:var(--mango)">с тобой поделились вишлистом 🎁</h1>
+        <div class="card" style="text-align:left;margin-top:14px" id="wlBody">
+          <div class="small muted">Загружаем список…</div>
+        </div>
+        <div class="spacer"></div>
+        <button class="btn btn--soft" id="open">Открыть Та-дам</button>
+        <p class="small muted" style="margin-top:12px">Личные данные отправителя не показываются</p>
+      </div>`,
+    async mount(app) {
+      app.querySelector('#open').onclick = () => {
+        track('recipient_app_opened', {});
+        go(state.onboarded ? 'home' : 'onboarding', {}, true);
+      };
+      const body = app.querySelector('#wlBody');
+      if (!apiAvailable()) {
+        body.innerHTML = `<div class="small muted">В этой тестовой сборке backend не запущен, поэтому список не открывается по ссылке — только у отправителя в приложении. Расскажи ему лично, что он хотел подарить 🙂</div>`;
+        return;
+      }
+      const r = await api.wishlistPublic(wl);
+      if (!r || !r.ok) {
+        body.innerHTML = `<div class="small muted">Эта ссылка больше не работает — отправитель мог её отозвать.</div>`;
+        return;
+      }
+      body.innerHTML = `
+        <div class="small muted">${esc(r.title)}</div>
+        <div class="stack" style="margin-top:8px;gap:8px">
+          ${r.items.length ? r.items.map(i => `
+            <div style="padding:8px 0;border-bottom:1px solid var(--line)">
+              <div style="font-weight:800;font-size:15px">${esc(i.title)}</div>
+              ${i.desc ? `<div class="small muted">${esc(i.desc)}</div>` : ''}
+            </div>`).join('')
+            : '<div class="small muted">Список пока пуст</div>'}
+        </div>`;
     }
   };
 }

@@ -1,0 +1,11 @@
+{
+  "name": "tadam-server",
+  "private": true,
+  "type": "module",
+  "version": "0.1.0",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "start": "node --env-file=.env index.js",
+    "test": "node --env-file=.env test-wheel.js"
+  }
+}

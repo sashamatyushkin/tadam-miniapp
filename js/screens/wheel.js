@@ -1,11 +1,22 @@
 // ── Колесо фортуны ───────────────────────────────────────────────────
 // ПРОТОТИП: розыгрыш считается на клиенте (crypto.getRandomValues) по весам
 // из config.js. В production результат приходит с backend (см. README, п. «Колесо»).
-import { WHEEL, CATEGORIES, CONFIG } from '../config.js?v=2609090106';
-import { state, spin, spinsAvailable, track, redeemCategory, isPremium } from '../store.js?v=2609090106';
-import { esc, mascot, sheet, toast } from '../ui.js?v=2609090106';
-import { tg } from '../tg.js?v=2609090106';
-import { go } from '../app.js?v=2609090106';
+import { WHEEL, CATEGORIES, CONFIG } from '../config.js?v=2609090119';
+import { state, spin, applyServerSpin, spinsAvailable, track, redeemCategory, isPremium } from '../store.js?v=2609090119';
+import { esc, mascot, sheet, toast } from '../ui.js?v=2609090119';
+import { tg } from '../tg.js?v=2609090119';
+import { go } from '../app.js?v=2609090119';
+import { api, apiAvailable } from '../api.js?v=2609090119';
+
+// Идемпотентный ключ на одну попытку — если запрос уйдёт повторно (двойной тап,
+// обрыв связи и повтор), сервер вернёт тот же результат, а не разыграет заново.
+async function doSpin() {
+  if (apiAvailable()) {
+    const r = await api.spin(crypto.randomUUID());
+    if (r) return r.ok ? applyServerSpin(r.reward) : null; // r.ok===false — сервер честно сказал «спинов нет»
+  }
+  return spin();                                            // сервер недоступен — локальный прототип-режим
+}
 
 const N = WHEEL.rewards.length;
 const STEP = 360 / N;
@@ -55,12 +66,12 @@ export function render() {
     mount(app) {
       const svg = app.querySelector('.wheel');
       let turns = 0;
-      app.querySelector('#spin').onclick = () => {
+      app.querySelector('#spin').onclick = async () => {
         const btn = app.querySelector('#spin');
         btn.disabled = true;
         track('spin_started', {});
-        const res = spin();                       // ← результат считается ДО анимации
-        if (!res) { toast('Спины закончились. Возвращайся завтра ✨'); return; }
+        const res = await doSpin();                // ← результат известен ДО анимации (сервер или локально)
+        if (!res) { toast('Спины закончились. Возвращайся завтра ✨'); btn.disabled = false; return; }
         turns += 5;
         const target = turns * 360 - (res.index * STEP + STEP / 2);
         svg.style.transform = `rotate(${target}deg)`;

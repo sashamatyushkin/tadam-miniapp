@@ -2,6 +2,21 @@
 // Значения НЕ зашиты в компоненты: в проде этот файл заменяется ответом API
 // (админка → БД). Здесь он играет роль «сервера конфигурации» прототипа.
 
+// Адрес backend API. Пусто → приложение работает полностью офлайн-локально,
+// как раньше (никто из тестировщиков без запущенного сервера ничего не потеряет).
+// На время тестовой сессии можно не редактировать файл, а передать адрес прямо
+// в ссылке: ?api=https://<туннель>.trycloudflare.com — так каждый тестовый прогон
+// (адрес туннеля меняется) не требует нового коммита. Сохраняется в localStorage,
+// чтобы держался между перезаходами в это тестовое окно.
+function resolveApiBase() {
+  try {
+    const fromUrl = new URLSearchParams(location.search).get('api');
+    if (fromUrl) { localStorage.setItem('tadam_api_base', fromUrl); return fromUrl; }
+    return localStorage.getItem('tadam_api_base') || '';
+  } catch (e) { return ''; }
+}
+export const API_BASE = resolveApiBase();
+
 export const CONFIG = {
   version: '0.1.0-prototype',
   limits: {

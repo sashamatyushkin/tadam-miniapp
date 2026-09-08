@@ -1,13 +1,14 @@
 // ── Вишлисты: свой список, шеринг и намёки ───────────────────────────
-import { state, save, track, createWishlist, removeItem, wishlistLimit, isPremium } from '../store.js?v=2609090106';
-import { deepLink } from '../config.js?v=2609090106';
-import { esc, mascot, sheet, toast, confirmSheet, plural } from '../ui.js?v=2609090106';
-import { IDEAS } from '../data/ideas.js?v=2609090106';
-import { cover } from './ideas.js?v=2609090106';
-import { tg } from '../tg.js?v=2609090106';
-import { go, back } from '../app.js?v=2609090106';
-import { maybeShowTips } from './coach.js?v=2609090106';
-import { openHint } from './hint.js?v=2609090106';
+import { state, save, track, createWishlist, removeItem, wishlistLimit, isPremium } from '../store.js?v=2609090119';
+import { deepLink } from '../config.js?v=2609090119';
+import { esc, mascot, sheet, toast, confirmSheet, plural } from '../ui.js?v=2609090119';
+import { IDEAS } from '../data/ideas.js?v=2609090119';
+import { cover } from './ideas.js?v=2609090119';
+import { tg } from '../tg.js?v=2609090119';
+import { go, back } from '../app.js?v=2609090119';
+import { maybeShowTips } from './coach.js?v=2609090119';
+import { openHint } from './hint.js?v=2609090119';
+import { api, apiAvailable } from '../api.js?v=2609090119';
 
 
 // Пустой вишлист показываем не голой надписью, а примерами: человек сразу видит,
@@ -185,22 +186,31 @@ function shareSheet(wl) {
           </div>
         </div>
       </div>
-      <p class="small muted">Ссылка не раскрывает твой Telegram ID и в любой момент отзывается — старая перестаёт открываться.</p>
+      <p class="small muted">${apiAvailable()
+        ? 'Ссылка не раскрывает твой Telegram ID и в любой момент отзывается — старая перестаёт открываться.'
+        : 'В этой тестовой сборке backend не запущен: ссылка откроется только у тебя самого. Для настоящей отправки нужен запущенный server (см. README).'}</p>
       <button class="btn" id="send">Отправить в Telegram</button>
       <button class="btn btn--soft" id="copy">Скопировать</button>
       <button class="btn btn--ghost" id="revoke">Отозвать и создать новую</button>
     </div>`, (el, close) => {
+    // Публикуем на backend, чтобы ссылка реально открывала список у получателя,
+    // а не заглушку. Без backend — просто честно предупреждаем в подписи ниже.
+    const syncNow = () => { if (apiAvailable()) api.wishlistSync(wl.shareToken, wl.title, wl.items); };
     el.querySelector('#send').onclick = () => {
       wl.shared = true; save(); track('wishlist_shared', { wl: wl.id });
+      syncNow();
       tg.share(url, text); close();
     };
     el.querySelector('#copy').onclick = async () => {
+      syncNow();
       try { await navigator.clipboard.writeText(text + '\n' + url); toast('Скопировано'); } catch (e) { toast(url); }
     };
     el.querySelector('#revoke').onclick = () => {
+      const oldToken = wl.shareToken;
       const a = new Uint8Array(16); crypto.getRandomValues(a);
       wl.shareToken = [...a].map(b => b.toString(16).padStart(2, '0')).join('');
       wl.shared = false; save(); track('share_link_revoked', { wl: wl.id });
+      if (apiAvailable()) api.wishlistRevoke(oldToken); // старая ссылка перестаёт открываться и на сервере
       close(); toast('Старая ссылка больше не работает');
     };
   });

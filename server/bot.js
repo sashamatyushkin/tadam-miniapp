@@ -1,19 +1,16 @@
-// ── Telegram-бот «Та-дам» ────────────────────────────────────────────
-// Long polling — для локального запуска и тестов.
-// В production: webhook + secret token, очередь напоминаний, общая БД с Mini App.
-//
-// Запуск:  BOT_TOKEN=... node bot/bot.js
-// Токен берётся ТОЛЬКО из переменной окружения и никогда не коммитится.
+// ── Бот: команды и deep links (long polling) ───────────────────────────
+// Перенесено из bot/bot.js в единый процесс с API и планировщиком напоминаний —
+// они разделяют одну БД и один процесс проще эксплуатировать локально.
+import { upsertUser } from './db.js';
 
 const TOKEN = process.env.BOT_TOKEN;
 const WEBAPP = (process.env.WEBAPP_URL || 'https://sashamatyushkin.github.io/tadam-miniapp/').replace(/\/?$/, '/');
-if (!TOKEN) { console.error('Нужна переменная BOT_TOKEN'); process.exit(1); }
 
-const API = `https://api.telegram.org/bot${TOKEN}`;
-const seen = new Set();                        // идемпотентность по update_id
+const API = () => `https://api.telegram.org/bot${TOKEN}`;
+const seen = new Set();
 
 const call = (m, body) =>
-  fetch(`${API}/${m}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+  fetch(`${API()}/${m}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
     .then(r => r.json())
     .catch(e => ({ ok: false, description: e.message }));
 
@@ -23,25 +20,23 @@ const appButton = (text, param) => ({
 
 async function onMessage(msg) {
   const chat = msg.chat.id;
+  if (msg.from) upsertUser(msg.from); // тот же пользователь, что придёт потом с initData из Mini App
   const text = (msg.text || '').trim();
   const [cmd, arg] = text.split(/\s+/);
 
   if (cmd === '/start') {
-    // Намёк: /start h_<id идеи>
     if (arg && arg.startsWith('h_')) {
       return call('sendMessage', {
         chat_id: chat, reply_markup: appButton('Посмотреть в Та-дам →', arg),
         text: 'Тебе намекнули 💌\nКто-то из близких сохранил идею подарка специально для тебя.'
       });
     }
-    // Вишлист: /start w_<токен>
     if (arg && arg.startsWith('w_')) {
       return call('sendMessage', {
         chat_id: chat, reply_markup: appButton('Открыть вишлист →', arg),
         text: 'С тобой поделились вишлистом 🎁'
       });
     }
-    // Реферал: /start r<код>
     const ref = arg && arg.startsWith('r') ? '\n\nТы пришёл по приглашению — крути колесо, там ждёт спин 🎲' : '';
     return call('sendMessage', {
       chat_id: chat, reply_markup: appButton('🎁 Открыть Та-дам', arg || ''),
@@ -55,14 +50,10 @@ async function onMessage(msg) {
       text: 'Открывай приложение и выбирай повод — дальше всё за пару касаний.\n\nСобери вишлист, намекни близким, добавь важные даты и крути колесо раз в день.\n\nЕсли что-то сломалось — просто напиши сюда, прочитаем.'
     });
 
-  // Скрытые команды: в меню их нет, но они работают —
-  // /terms, /support и /paysupport обязательны для ботов с платежами.
   if (cmd === '/terms')
     return call('sendMessage', { chat_id: chat, text: 'Условия и политика приватности — в приложении: «Профиль → Настройки → Условия и приватность».\n' + WEBAPP });
-
   if (cmd === '/support')
     return call('sendMessage', { chat_id: chat, text: 'Напиши прямо сюда, что случилось — разберёмся 🙌' });
-
   if (cmd === '/paysupport')
     return call('sendMessage', { chat_id: chat, text: 'Вопросы по оплате: напиши дату, сумму и что пошло не так — вернёмся с ответом.\nСейчас приложение работает в режиме прототипа: оплата не списывается.' });
 
@@ -72,19 +63,25 @@ async function onMessage(msg) {
   });
 }
 
-let offset = 0;
+let offset = 0, running = false;
 async function loop() {
+  if (!running) return;
   try {
-    const r = await fetch(`${API}/getUpdates?timeout=30&offset=${offset}`).then(x => x.json());
+    const r = await fetch(`${API()}/getUpdates?timeout=30&offset=${offset}`).then(x => x.json());
     for (const u of r.result || []) {
       offset = u.update_id + 1;
-      if (seen.has(u.update_id)) continue;      // повторная доставка не создаёт дубликат
+      if (seen.has(u.update_id)) continue;
       seen.add(u.update_id);
       if (u.message) await onMessage(u.message);
     }
-  } catch (e) { console.error('poll error:', e.message); }
-  setTimeout(loop, 300);
+  } catch (e) { console.error('[bot] poll error:', e.message); }
+  if (running) setTimeout(loop, 300);
 }
 
-console.log('Бот запущен. Mini App URL:', WEBAPP);
-loop();
+export function startBot() {
+  if (!TOKEN) { console.error('[bot] нет BOT_TOKEN — бот не запущен'); return; }
+  running = true;
+  console.log('[bot] запущен. Mini App URL:', WEBAPP);
+  loop();
+}
+export function stopBot() { running = false; }

@@ -3,8 +3,9 @@
 // В production источник истины — backend: доступ, лимиты, розыгрыш колеса,
 // рефералы и платежи проверяются сервером, клиент лишь отображает результат.
 
-import { tg } from './tg.js?v=2609090106';
-import { CONFIG, WHEEL } from './config.js?v=2609090106';
+import { tg } from './tg.js?v=2609090119';
+import { CONFIG, WHEEL } from './config.js?v=2609090119';
+import { api, apiAvailable } from './api.js?v=2609090119';
 
 const KEY = 'tadam_state_v1';
 const CHUNK = 3500; // лимит значения Telegram CloudStorage — 4096 символов
@@ -83,7 +84,7 @@ async function saveCloud(json) {
   if (parts.length > 40) {                              // защита от переполнения — не пишем
     if (!warnedOverflow) {
       warnedOverflow = true;
-      import('./ui.js?v=2609090106').then(m => m.toast('Данных стало много — почисти старые вишлисты, иначе новое не сохранится'));
+      import('./ui.js?v=2609090119').then(m => m.toast('Данных стало много — почисти старые вишлисты, иначе новое не сохранится'));
     }
     return;
   }
@@ -167,6 +168,19 @@ export function grantAccess(productId, source) {
   }
   track('entitlement_issued', { product: productId, source });
   save();
+  // Зеркалим на сервер: только он проверяет premium для колеса/будущих платежей —
+  // без этого «покупка» была бы правдой только на этом устройстве.
+  if (apiAvailable() && source !== 'server') api.grantTest(productId);
+}
+
+// Подтягиваем доступ, выданный сервером (например другим устройством или тестовой
+// покупкой) — источнику 'server' не даём заново дублироваться обратно на сервер.
+export async function syncAccessFromServer() {
+  if (!apiAvailable()) return;
+  const r = await api.access();
+  if (!r || !r.ok) return;
+  if (r.type !== 'free') state.access = { type: r.type, until: r.until, source: 'server' };
+  save();
 }
 
 export function categoryOpen(cat) {
@@ -212,9 +226,21 @@ export function removeItem(wl, itemId) {
 
 // ── важные даты ──────────────────────────────────────────────────────
 export function addDate(d) {
-  state.dates.push({ id: uid(), offsets: CONFIG.reminders.defaultOffsets.slice(), ...d });
+  const row = { id: uid(), offsets: CONFIG.reminders.defaultOffsets.slice(), ...d };
+  state.dates.push(row);
   track('important_date_added', { type: d.type });
   save();
+  // Зеркалим на backend без ожидания: у бота на сервере есть эта дата — только он
+  // может прислать напоминание, даже когда телефон выключен и Mini App закрыт.
+  if (apiAvailable()) api.dateCreate(row);
+  return row;
+}
+
+export function removeDate(id) {
+  state.dates = state.dates.filter(d => d.id !== id);
+  track('important_date_removed', {});
+  save();
+  if (apiAvailable()) api.dateDelete(id);
 }
 export function daysUntil(dateStr) {
   const [y, m, day] = dateStr.split('-').map(Number);
@@ -262,8 +288,9 @@ function secureRandom() {
 }
 
 // В production этот расчёт целиком выполняется на сервере (см. README).
-export function spin() {
-  if (spinsAvailable() <= 0) { track('spin_rejected', { reason: 'no_spins' }); return null; }
+// Общая часть между локальным и серверным розыгрышем: списание сегодняшней/бонусной
+// попытки. Сам выбор награды (что именно выпало) — разный: локально RNG, с сервера — уже готовый код.
+function advanceSpinCounter() {
   if (state.wheel.lastSpinDate !== todayStr()) {
     state.wheel.lastSpinDate = todayStr();
     state.wheel.freeUsedToday = false;
@@ -271,6 +298,11 @@ export function spin() {
   }
   if (!state.wheel.freeUsedToday) state.wheel.freeUsedToday = true;
   else state.wheel.bonusSpins = Math.max(0, state.wheel.bonusSpins - 1);
+}
+
+export function spin() {
+  if (spinsAvailable() <= 0) { track('spin_rejected', { reason: 'no_spins' }); return null; }
+  advanceSpinCounter();
 
   const pool = WHEEL.rewards.filter(r => r.weight > 0);
   const total = pool.reduce((s, r) => s + r.weight, 0);
@@ -280,7 +312,21 @@ export function spin() {
   const res = { code: picked.code, title: picked.title, at: Date.now(), ruleVersion: WHEEL.ruleVersion };
   state.wheel.history.push(res);
   applyReward(picked.code);
-  track('spin_completed', { code: picked.code, ruleVersion: WHEEL.ruleVersion });
+  track('spin_completed', { code: picked.code, ruleVersion: WHEEL.ruleVersion, source: 'local' });
+  save();
+  return { reward: picked, index: WHEEL.rewards.indexOf(picked) };
+}
+
+// Тот же спин, но выбор награды уже сделал backend (криптостойкий RNG, честные лимиты,
+// идемпотентность по ключу — см. server/wheel.js). Используется, когда сервер доступен.
+export function applyServerSpin(code) {
+  const picked = WHEEL.rewards.find(r => r.code === code);
+  if (!picked) return null;
+  advanceSpinCounter();
+  const res = { code: picked.code, title: picked.title, at: Date.now(), ruleVersion: WHEEL.ruleVersion };
+  state.wheel.history.push(res);
+  applyReward(picked.code);
+  track('spin_completed', { code: picked.code, ruleVersion: WHEEL.ruleVersion, source: 'server' });
   save();
   return { reward: picked, index: WHEEL.rewards.indexOf(picked) };
 }

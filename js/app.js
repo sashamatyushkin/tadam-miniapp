@@ -1,17 +1,18 @@
 // ── Точка входа и роутер ─────────────────────────────────────────────
-import { tg } from './tg.js?v=2609090106';
-import { load, save, state, track, registerReferral } from './store.js?v=2609090106';
-import { $, closeSheet, sheetOpen } from './ui.js?v=2609090106';
+import { tg } from './tg.js?v=2609090119';
+import { load, save, state, track, registerReferral, syncAccessFromServer } from './store.js?v=2609090119';
+import { api, apiAvailable } from './api.js?v=2609090119';
+import { $, closeSheet, sheetOpen } from './ui.js?v=2609090119';
 
-import * as Onboarding from './screens/onboarding.js?v=2609090106';
-import * as Home from './screens/home.js?v=2609090106';
-import * as Ideas from './screens/ideas.js?v=2609090106';
-import * as Wishlist from './screens/wishlist.js?v=2609090106';
-import * as Wheel from './screens/wheel.js?v=2609090106';
-import * as Profile from './screens/profile.js?v=2609090106';
-import * as Dates from './screens/dates.js?v=2609090106';
-import * as Extra from './screens/extra.js?v=2609090106';
-import { dismissTour } from './screens/coach.js?v=2609090106';
+import * as Onboarding from './screens/onboarding.js?v=2609090119';
+import * as Home from './screens/home.js?v=2609090119';
+import * as Ideas from './screens/ideas.js?v=2609090119';
+import * as Wishlist from './screens/wishlist.js?v=2609090119';
+import * as Wheel from './screens/wheel.js?v=2609090119';
+import * as Profile from './screens/profile.js?v=2609090119';
+import * as Dates from './screens/dates.js?v=2609090119';
+import * as Extra from './screens/extra.js?v=2609090119';
+import { dismissTour } from './screens/coach.js?v=2609090119';
 
 const ROUTES = {
   onboarding: Onboarding.render,
@@ -35,6 +36,7 @@ const ROUTES = {
   support: Extra.renderSupport,
   terms: Extra.renderTerms,
   hint: Extra.renderHint,
+  sharedWishlist: Extra.renderSharedWishlist,
   notfound: Extra.renderNotFound
 };
 
@@ -94,6 +96,10 @@ async function boot() {
   tg.init();
   await load();
 
+  // Не блокируем запуск: если backend недоступен или тормозит, приложение
+  // продолжает работать локально, как и раньше.
+  if (apiAvailable()) { api.auth(); syncAccessFromServer(); }
+
   const sp = tg.startParam();
   registerReferral(sp);
 
@@ -102,7 +108,10 @@ async function boot() {
   const splash = $('#splash');
   setTimeout(() => { splash.classList.add('splash--hide'); setTimeout(() => splash.remove(), 400); }, 550);
 
-  if (sp && (sp.startsWith('h_') || sp.startsWith('w_'))) { go('hint', { id: sp.startsWith('h_') ? sp.slice(2) : null }, true); return; }
+  // Токен вишлиста раньше терялся здесь: h_<idea> и w_<token> вели на один и тот же
+  // экран с id=null, поэтому полученный вишлист всегда показывал заглушку.
+  if (sp && sp.startsWith('h_')) { go('hint', { id: sp.slice(2) }, true); return; }
+  if (sp && sp.startsWith('w_')) { go('sharedWishlist', { wl: sp.slice(2) }, true); return; }
   if (!state.onboarded) { go('onboarding', {}, true); return; }
   go('home', {}, true);
 }

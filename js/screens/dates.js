@@ -1,9 +1,10 @@
 // ── Важные даты и напоминания ────────────────────────────────────────
-import { state, save, addDate, daysUntil, datesLimit, isPremium, track } from '../store.js?v=2609090106';
-import { RELATIONS, REMINDER_TYPES, CONFIG } from '../config.js?v=2609090106';
-import { esc, mascot, toast, confirmSheet, plural, fmtDate } from '../ui.js?v=2609090106';
-import { tg } from '../tg.js?v=2609090106';
-import { go } from '../app.js?v=2609090106';
+import { state, save, addDate, removeDate, daysUntil, datesLimit, isPremium, track } from '../store.js?v=2609090119';
+import { RELATIONS, REMINDER_TYPES, CONFIG } from '../config.js?v=2609090119';
+import { esc, mascot, toast, confirmSheet, plural, fmtDate } from '../ui.js?v=2609090119';
+import { tg } from '../tg.js?v=2609090119';
+import { go } from '../app.js?v=2609090119';
+import { apiAvailable } from '../api.js?v=2609090119';
 
 export function render() {
   const list = state.dates.slice().sort((a, b) => daysUntil(a.date) - daysUntil(b.date));
@@ -28,7 +29,9 @@ export function render() {
           <div style="font-weight:800">Когда напоминаем</div>
           <p class="small muted">За ${CONFIG.reminders.defaultOffsets.join(', ')} ${plural(CONFIG.reminders.defaultOffsets.at(-1), 'день', 'дня', 'дней')} до события — сообщением от бота с готовой подборкой.</p>
           <p class="small muted">Напоминания: ${state.settings.reminders ? 'включены' : 'выключены'} · изменить в «Настройках»</p>
-          <p class="small muted">В прототипе даты сохраняются, но сообщения шлёт бот на сервере (см. README).</p>
+          <p class="small muted">${apiAvailable()
+            ? 'Напоминания шлёт бот с сервера — работает, даже если приложение закрыто.'
+            : 'В этой тестовой сессии backend не запущен: дата сохранится на телефоне, но напоминание не придёт.'}</p>
         </div>
       </div>`,
     mount(app) {
@@ -41,8 +44,8 @@ export function render() {
       };
       app.querySelectorAll('[data-del]').forEach(b => b.onclick = () => {
         confirmSheet('Удалить дату?', 'Напоминания по ней больше не придут', 'Удалить', () => {
-          state.dates = state.dates.filter(d => d.id !== b.dataset.del);
-          track('important_date_removed', {}); save(); go('dates', {}, true);
+          removeDate(b.dataset.del);
+          go('dates', {}, true);
         });
       });
     }
