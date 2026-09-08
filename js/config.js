@@ -84,15 +84,19 @@ export const RELATIONS = [
 // ── Ссылки Telegram ──────────────────────────────────────────────────
 // Заполняется после создания бота в BotFather: t.me/<bot>/<app>
 export const TELEGRAM = {
-  botUsername: '',        // например: TadamGiftBot  (без @)
-  appName: '',            // короткое имя Mini App из /newapp, например: app
-  supportUrl: 'https://t.me/'
+  botUsername: 'tadamapp_bot',  // без @
+  appName: '',                  // короткое имя из /newapp, если создашь именованный Mini App
+  supportUrl: 'https://t.me/tadamapp_bot'
 };
 
+// Ссылка-намёк/приглашение.
+// 1) есть именованный Mini App (/newapp) → t.me/<bot>/<app>?startapp=… — открывает приложение сразу;
+// 2) иначе t.me/<bot>?start=… — бот встречает получателя и даёт кнопку с этим же параметром;
+// 3) вне Telegram — обычная веб-ссылка.
 export function deepLink(startParam) {
   if (TELEGRAM.botUsername && TELEGRAM.appName)
     return `https://t.me/${TELEGRAM.botUsername}/${TELEGRAM.appName}?startapp=${startParam}`;
   if (TELEGRAM.botUsername)
-    return `https://t.me/${TELEGRAM.botUsername}?startapp=${startParam}`;
+    return `https://t.me/${TELEGRAM.botUsername}?start=${startParam}`;
   return location.origin + location.pathname + '?startapp=' + startParam;
 }
