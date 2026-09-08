@@ -1,11 +1,11 @@
 // ── Колесо фортуны ───────────────────────────────────────────────────
 // ПРОТОТИП: розыгрыш считается на клиенте (crypto.getRandomValues) по весам
 // из config.js. В production результат приходит с backend (см. README, п. «Колесо»).
-import { WHEEL, CATEGORIES, CONFIG } from '../config.js?v=2609081709';
-import { state, spin, spinsAvailable, track, redeemCategory, isPremium } from '../store.js?v=2609081709';
-import { esc, mascot, sheet, toast } from '../ui.js?v=2609081709';
-import { tg } from '../tg.js?v=2609081709';
-import { go } from '../app.js?v=2609081709';
+import { WHEEL, CATEGORIES, CONFIG } from '../config.js?v=2609090106';
+import { state, spin, spinsAvailable, track, redeemCategory, isPremium } from '../store.js?v=2609090106';
+import { esc, mascot, sheet, toast } from '../ui.js?v=2609090106';
+import { tg } from '../tg.js?v=2609090106';
+import { go } from '../app.js?v=2609090106';
 
 const N = WHEEL.rewards.length;
 const STEP = 360 / N;

@@ -1,9 +1,9 @@
 // ── Важные даты и напоминания ────────────────────────────────────────
-import { state, save, addDate, daysUntil, datesLimit, isPremium, track } from '../store.js?v=2609081709';
-import { RELATIONS, REMINDER_TYPES, CONFIG } from '../config.js?v=2609081709';
-import { esc, mascot, toast, confirmSheet, plural, fmtDate } from '../ui.js?v=2609081709';
-import { tg } from '../tg.js?v=2609081709';
-import { go } from '../app.js?v=2609081709';
+import { state, save, addDate, daysUntil, datesLimit, isPremium, track } from '../store.js?v=2609090106';
+import { RELATIONS, REMINDER_TYPES, CONFIG } from '../config.js?v=2609090106';
+import { esc, mascot, toast, confirmSheet, plural, fmtDate } from '../ui.js?v=2609090106';
+import { tg } from '../tg.js?v=2609090106';
+import { go } from '../app.js?v=2609090106';
 
 export function render() {
   const list = state.dates.slice().sort((a, b) => daysUntil(a.date) - daysUntil(b.date));

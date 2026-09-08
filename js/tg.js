@@ -105,5 +105,12 @@ export const tg = {
       if (!cs) return res(false);
       cs.setItem(key, value, (err, ok) => res(!err && ok));
     });
+  },
+  cloudRemove(key) {
+    return new Promise(res => {
+      const cs = raw?.CloudStorage;
+      if (!cs) return res(false);
+      cs.removeItem(key, (err, ok) => res(!err && ok));
+    });
   }
 };

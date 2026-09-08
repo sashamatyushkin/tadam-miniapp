@@ -1,17 +1,17 @@
 // ── Точка входа и роутер ─────────────────────────────────────────────
-import { tg } from './tg.js?v=2609081709';
-import { load, save, state, track, registerReferral } from './store.js?v=2609081709';
-import { $, closeSheet, sheetOpen } from './ui.js?v=2609081709';
+import { tg } from './tg.js?v=2609090106';
+import { load, save, state, track, registerReferral } from './store.js?v=2609090106';
+import { $, closeSheet, sheetOpen } from './ui.js?v=2609090106';
 
-import * as Onboarding from './screens/onboarding.js?v=2609081709';
-import * as Home from './screens/home.js?v=2609081709';
-import * as Ideas from './screens/ideas.js?v=2609081709';
-import * as Wishlist from './screens/wishlist.js?v=2609081709';
-import * as Wheel from './screens/wheel.js?v=2609081709';
-import * as Profile from './screens/profile.js?v=2609081709';
-import * as Dates from './screens/dates.js?v=2609081709';
-import * as Extra from './screens/extra.js?v=2609081709';
-import { dismissTour } from './screens/coach.js?v=2609081709';
+import * as Onboarding from './screens/onboarding.js?v=2609090106';
+import * as Home from './screens/home.js?v=2609090106';
+import * as Ideas from './screens/ideas.js?v=2609090106';
+import * as Wishlist from './screens/wishlist.js?v=2609090106';
+import * as Wheel from './screens/wheel.js?v=2609090106';
+import * as Profile from './screens/profile.js?v=2609090106';
+import * as Dates from './screens/dates.js?v=2609090106';
+import * as Extra from './screens/extra.js?v=2609090106';
+import { dismissTour } from './screens/coach.js?v=2609090106';
 
 const ROUTES = {
   onboarding: Onboarding.render,
@@ -108,6 +108,8 @@ async function boot() {
 }
 
 window.addEventListener('error', e => console.error('[tadam]', e.message));
-document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
+// Мгновенно, без debounce: при закрытии Mini App таймер 600 мс не успевает сработать
+document.addEventListener('visibilitychange', () => { if (document.hidden) save(true); });
+window.addEventListener('pagehide', () => save(true));
 
 boot();

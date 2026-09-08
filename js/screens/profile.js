@@ -1,9 +1,9 @@
 // ── Профиль ──────────────────────────────────────────────────────────
-import { state, isPremium, accessLabel, track, resetAll } from '../store.js?v=2609081709';
-import { esc, toast } from '../ui.js?v=2609081709';
-import { tg } from '../tg.js?v=2609081709';
-import { go } from '../app.js?v=2609081709';
-import { maybeShowTips } from './coach.js?v=2609081709';
+import { state, isPremium, accessLabel, track } from '../store.js?v=2609090106';
+import { esc } from '../ui.js?v=2609090106';
+import { tg } from '../tg.js?v=2609090106';
+import { go } from '../app.js?v=2609090106';
+import { maybeShowTips } from './coach.js?v=2609090106';
 
 export function render() {
   const u = tg.user();
@@ -32,18 +32,14 @@ export function render() {
           <button class="row" data-go="support"><span class="row__ico">💬</span><span class="row__t">Поддержка</span><span class="row__chev">›</span></button>
         </div>
         <div class="spacer"></div>
-        <button class="btn btn--ghost small" id="testreset">🧪 Сбросить всё до первого запуска</button>
         <p class="small muted center">Та-дам · прототип · ${esc(state.profile.tz)}</p>
       </div>`,
     mount(app) {
       track('profile_viewed', {});
       maybeShowTips('profile');
       app.querySelectorAll('[data-go]').forEach(b => b.onclick = () => go(b.dataset.go, {}));
-      app.querySelector('#testreset').onclick = () => {
-        resetAll(); track('test_reset', { from: 'profile' });
-        tg.haptic('success'); toast('Всё сброшено — начинаем с нуля 🧪');
-        go('onboarding', {}, true);
-      };
+      // Сброс до первого запуска — только в Настройках, за подтверждением:
+      // случайный тап на главном экране профиля не должен стирать данные.
     }
   };
 }

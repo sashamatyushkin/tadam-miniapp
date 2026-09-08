@@ -1,18 +1,32 @@
 // ── Подборка идей: фильтры, пагинация, paywall, пустое состояние ─────
-import { CATEGORIES, RECIPIENTS, BUDGETS, INTERESTS, CONFIG } from '../config.js?v=2609081709';
-import { IDEAS, IDEAS_BY_CAT } from '../data/ideas.js?v=2609081709';
-import { state, isPremium, categoryOpen, track, inWishlist, addToWishlist, defaultWishlist, save, totalWishlistItems } from '../store.js?v=2609081709';
-import { esc, mascot, sheet, toast, closeSheet } from '../ui.js?v=2609081709';
-import { tg } from '../tg.js?v=2609081709';
-import { go, back } from '../app.js?v=2609081709';
-import { openHint } from './hint.js?v=2609081709';
-import { maybeShowTips, maybeShowTips as _t } from './coach.js?v=2609081709';
+import { CATEGORIES, RECIPIENTS, BUDGETS, INTERESTS, CONFIG } from '../config.js?v=2609090106';
+import { IDEAS, IDEAS_BY_CAT } from '../data/ideas.js?v=2609090106';
+import { state, isPremium, categoryOpen, track, inWishlist, addToWishlist, defaultWishlist, save, totalWishlistItems } from '../store.js?v=2609090106';
+import { esc, mascot, sheet, toast, closeSheet, plural } from '../ui.js?v=2609090106';
+import { tg } from '../tg.js?v=2609090106';
+import { go, back } from '../app.js?v=2609090106';
+import { openHint } from './hint.js?v=2609090106';
+import { maybeShowTips, maybeShowTips as _t } from './coach.js?v=2609090106';
 
+// f/query/shown осознанно живут на уровне модуля — так они переживают повторный рендер
+// одной и той же категории при клике по чипу фильтра. Но именно поэтому раньше они же
+// «протекали» в другую категорию или в поиск: см. сброс по смене экрана ниже.
 let f = { rec: null, budget: null, interest: null };
 let query = '';
+let lastCatId = null;         // какую категорию рендерили последней
 
 const PAGE = 20;
 let shown = PAGE;
+
+// Мягкая персонализация: идеи по интересам профиля поднимаются наверх, но список
+// не сужается — в отличие от чип-фильтров, тут нечего «снимать», если промахнулись.
+function sortByProfile(list) {
+  const my = state.profile.interests;
+  if (!my.length) return list;
+  return list.map((idea, i) => ({ idea, i, hit: idea.interests.some(x => my.includes(x)) ? 0 : 1 }))
+    .sort((a, b) => a.hit - b.hit || a.i - b.i)
+    .map(x => x.idea);
+}
 
 function apply(list) {
   return list.filter(i =>
@@ -80,13 +94,29 @@ export function render({ id }) {
   if (!cat) return { html: '<div class="wrap"><p>Повод не найден</p></div>' };
   if (!categoryOpen(cat)) return {
     html: '', hideNav: false,
-    mount: () => { go('home', {}, true); import('./extra.js?v=2609081709').then(m => m.openLockSheet(id)); }
+    mount: () => { go('home', {}, true); import('./extra.js?v=2609090106').then(m => m.openLockSheet(id)); }
   };
+
+  // Другая категория (или пришли из поиска) — старые фильтры и поисковый запрос не тащим за собой.
+  if (id !== lastCatId) {
+    f = { rec: null, budget: null, interest: null };
+    query = ''; shown = PAGE;
+    // Подставляем «кому обычно даришь» из профиля как стартовый фильтр — только premium:
+    // у free-пользователя чипы фильтров заблокированы, и молча сузить список без
+    // возможности снять фильтр было бы нечестно.
+    if (isPremium() && state.profile.giveTo[0] && RECIPIENTS.some(r => r.id === state.profile.giveTo[0])) {
+      f.rec = state.profile.giveTo[0];
+    }
+  }
+  lastCatId = id;
 
   const all = IDEAS_BY_CAT[id] || [];
   const premium = isPremium();
   const limited = premium ? all : all.slice(0, CONFIG.limits.freeIdeasPerCategory);
-  const list = apply(limited);
+  // Считаем из фактических данных категории, а не из константы — так «ещё N» никогда
+  // не наврёт. Когда появится БД, `all.length` будет приходить уже оттуда.
+  const hiddenCount = premium ? 0 : Math.max(0, all.length - limited.length);
+  const list = sortByProfile(apply(limited));
   const visible = list.slice(0, shown);
   track('category_impression', { cat: id, count: list.length });
   if (!list.length) track('no_results', { cat: id, filters: f });
@@ -103,10 +133,10 @@ export function render({ id }) {
       <div class="wrap" id="ideaList">
         ${list.length ? visible.map((i, n) => ideaRow(i, n + 1)).join('') : emptyBlock()}
         ${list.length > shown ? '<button class="btn btn--soft" id="more" style="margin-top:14px">Показать ещё</button>' : ''}
-        ${(!premium && list.length) ? `
+        ${(!premium && hiddenCount > 0) ? `
           <div class="info center" style="margin-top:18px">
-            <div class="bups" style="font-size:20px;color:#173F63">та-дам! ещё ${Math.max(20, 40 - CONFIG.limits.freeIdeasPerCategory)} идей</div>
-            <p class="small" style="margin:8px 0 14px">Ты посмотрел ${CONFIG.limits.freeIdeasPerCategory} бесплатных. Открой все идеи и фильтры.</p>
+            <div class="bups" style="font-size:20px;color:#173F63">та-дам! ещё ${hiddenCount} ${plural(hiddenCount, 'идея', 'идеи', 'идей')}</div>
+            <p class="small" style="margin:8px 0 14px">Ты посмотрел ${limited.length} бесплатных. Открой все идеи и фильтры.</p>
             <button class="btn" id="pw">Открыть за 149 ₽</button>
           </div>` : ''}
         <div class="spacer"></div>
@@ -116,6 +146,7 @@ export function render({ id }) {
 }
 
 export function renderSearch() {
+  lastCatId = null;             // возврат в любую категорию после поиска начнётся с чистых фильтров
   const premium = isPremium();
   const openCats = CATEGORIES.filter(c => categoryOpen(c)).map(c => c.id);
   const pool = IDEAS.filter(i => openCats.includes(i.cat) && (premium || i.order < CONFIG.limits.freeIdeasPerCategory));

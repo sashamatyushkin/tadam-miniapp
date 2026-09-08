@@ -1,13 +1,15 @@
 /* ── Та-дам · дизайн-система (брендбук) ───────────────────────────── */
-@font-face{font-family:'Bups';src:url('assets/fonts/bups-Regular.otf') format('opentype');font-weight:400;font-display:swap}
-@font-face{font-family:'Nunito';src:url('assets/fonts/Nunito-Regular.ttf') format('truetype');font-weight:400;font-display:swap}
-@font-face{font-family:'Nunito';src:url('assets/fonts/Nunito-SemiBold.ttf') format('truetype');font-weight:600;font-display:swap}
-@font-face{font-family:'Nunito';src:url('assets/fonts/Nunito-Bold.ttf') format('truetype');font-weight:700;font-display:swap}
-@font-face{font-family:'Nunito';src:url('assets/fonts/Nunito-ExtraBold.ttf') format('truetype');font-weight:800;font-display:swap}
+/* WOFF2, сабсет кириллица+латиница (fonttools). Было 636 КБ в TTF/OTF на 5 файлов — стало ~88 КБ */
+@font-face{font-family:'Bups';src:url('assets/fonts/bups-Regular.woff2') format('woff2');font-weight:400;font-display:swap}
+@font-face{font-family:'Nunito';src:url('assets/fonts/Nunito-Regular.woff2') format('woff2');font-weight:400;font-display:swap}
+@font-face{font-family:'Nunito';src:url('assets/fonts/Nunito-SemiBold.woff2') format('woff2');font-weight:600;font-display:swap}
+@font-face{font-family:'Nunito';src:url('assets/fonts/Nunito-Bold.woff2') format('woff2');font-weight:700;font-display:swap}
+@font-face{font-family:'Nunito';src:url('assets/fonts/Nunito-ExtraBold.woff2') format('woff2');font-weight:800;font-display:swap}
 
 :root{
+  color-scheme:light; /* иначе системные select/date внутри светлой карточки могли отрисоваться тёмными */
   --mango:#F74101; --mango-dark:#D93700; --oat:#FBF3E8; --coffee:#702720; --ice:#CBE5FE;
-  --surface:#FFFCF6; --line:#EADDCB; --muted:#9A7F72; --ok:#2E8B57;
+  --surface:#FFFCF6; --line:#EADDCB; --muted:#7A5F52; --ok:#2E8B57;
   --r-lg:22px; --r-md:16px; --r-sm:12px;
   --pad:16px;
   --safe-top:var(--tg-safe-top,0px); --safe-bottom:var(--tg-safe-bottom,0px);
@@ -62,8 +64,11 @@ h1,h2,h3,h4{margin:0}
 .cat-header .iconbtn{background:rgba(255,255,255,.18);color:#fff}
 
 /* ── buttons ────────────────────────────────────────────────────── */
-.btn{display:block;width:100%;padding:15px 18px;border:0;border-radius:999px;background:var(--mango);color:#fff;font-weight:700;font-size:16px;cursor:pointer;transition:transform .12s,background .12s;text-align:center;text-decoration:none}
-.btn:active{transform:scale(.975);background:var(--mango-dark)}
+/* Фон кнопки — mango-dark, а не mango: тот же брендовый оранжевый (уже используется
+   как pressed-состояние), но белый текст 16px на нём проходит контраст 4.5:1, на чистом
+   mango — только 3.68:1 */
+.btn{display:block;width:100%;padding:15px 18px;border:0;border-radius:999px;background:var(--mango-dark);color:#fff;font-weight:700;font-size:16px;cursor:pointer;transition:transform .12s,background .12s;text-align:center;text-decoration:none}
+.btn:active{transform:scale(.975);filter:brightness(.92)}
 .btn--ghost{background:transparent;color:var(--coffee);font-weight:700}
 .btn--soft{background:#F2E6D5;color:var(--coffee)}
 .btn--ice{background:var(--ice);color:#194B77}
@@ -81,8 +86,13 @@ h1,h2,h3,h4{margin:0}
 /* ── категории ──────────────────────────────────────────────────── */
 .cats{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .cat{position:relative;border:0;border-radius:var(--r-lg);padding:14px;min-height:104px;display:flex;flex-direction:column;justify-content:space-between;align-items:flex-start;color:#FFF6EA;cursor:pointer;text-align:left;overflow:hidden}
-.cat__emoji{font-size:22px}
-.cat__name{font-family:'Bups','Nunito',sans-serif;font-size:16px;line-height:1.1;text-shadow:0 1px 0 rgba(0,0,0,.06)}
+/* На светлых концах градиентов (например «ребёнку», «новоселье») белый текст почти
+   не читался — 1.5:1 вместо нужных 4.5:1. Тёмная подложка снизу решает это на любом фоне,
+   не трогая сам градиент повода. */
+.cat::before{content:'';position:absolute;left:0;right:0;bottom:0;height:60%;
+  background:linear-gradient(to top,rgba(0,0,0,.34),transparent);pointer-events:none}
+.cat__emoji{font-size:22px;position:relative}
+.cat__name{font-family:'Bups','Nunito',sans-serif;font-size:16px;line-height:1.1;text-shadow:0 1px 3px rgba(0,0,0,.35);position:relative}
 .cat__badge{position:absolute;top:10px;right:10px;background:#fff;color:var(--coffee);font-size:9px;font-weight:800;letter-spacing:.04em;padding:3px 7px;border-radius:999px}
 .cat__lock{position:absolute;top:9px;right:10px;font-size:14px;opacity:.95}
 .cat--locked{filter:saturate(.85)}
@@ -98,6 +108,7 @@ h1,h2,h3,h4{margin:0}
 .chips{display:flex;gap:8px;overflow-x:auto;padding:2px var(--pad) 10px;scrollbar-width:none}
 .chips::-webkit-scrollbar{display:none}
 .chip{flex:0 0 auto;border:1px solid var(--line);background:var(--surface);color:var(--coffee);padding:8px 14px;border-radius:999px;font-size:13px;font-weight:700;cursor:pointer}
+.chipset{display:flex;flex-wrap:wrap;gap:8px}
 .chip--on{background:var(--mango);border-color:var(--mango);color:#fff}
 .chip--lock{opacity:.6}
 
@@ -123,11 +134,19 @@ h1,h2,h3,h4{margin:0}
 .mascot{display:block;margin:0 auto}
 .mascot--lg{width:180px}
 .mascot--md{width:120px}
+.mascot--sm{width:72px}
 .mascot--sm{width:64px}
 
 /* ── онбординг ──────────────────────────────────────────────────── */
-.onb{min-height:calc(100vh - var(--safe-top) - 8px);display:flex;flex-direction:column;padding:calc(var(--safe-top) + 28px) var(--pad) calc(var(--safe-bottom) + 22px)}
-.onb__body{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;gap:14px}
+.onb{min-height:calc(100vh - var(--safe-top) - 8px);display:flex;flex-direction:column;padding:calc(var(--safe-top) + 20px) var(--pad) calc(var(--safe-bottom) + 16px)}
+.onb__body{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;gap:14px;min-height:0}
+/* форма даты: контент прижат к верху и максимально сжат, чтобы кнопки
+   поместились без прокрутки даже под верхней панелью Telegram fullscreen */
+.onb__body--compact{justify-content:flex-start;gap:6px;padding-top:0}
+.onb__body--compact .field-stack{width:100%;text-align:left;margin-top:10px}
+.onb__body--compact .field{margin-bottom:8px}
+.onb__body--compact .field label{font-size:12px}
+.onb__body--compact .field input,.onb__body--compact .field select{padding:10px 12px}
 .dots{display:flex;gap:7px;justify-content:center;margin:18px 0}
 .dots i{width:7px;height:7px;border-radius:999px;background:#E0CDB6}
 .dots i.on{width:20px;background:var(--mango)}

@@ -3,13 +3,19 @@
 // В production источник истины — backend: доступ, лимиты, розыгрыш колеса,
 // рефералы и платежи проверяются сервером, клиент лишь отображает результат.
 
-import { tg } from './tg.js?v=2609081709';
-import { CONFIG, WHEEL } from './config.js?v=2609081709';
+import { tg } from './tg.js?v=2609090106';
+import { CONFIG, WHEEL } from './config.js?v=2609090106';
 
 const KEY = 'tadam_state_v1';
 const CHUNK = 3500; // лимит значения Telegram CloudStorage — 4096 символов
 
-const todayStr = () => new Date().toISOString().slice(0, 10);
+// Дата в часовом поясе пользователя, а не в UTC — иначе новый спин в Москве
+// открывался бы в 03:00, а не в полночь.
+const todayStr = () => {
+  try {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: state.profile.tz || 'UTC', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  } catch (e) { return new Date().toISOString().slice(0, 10); }
+};
 const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 const token = () => {
   const a = new Uint8Array(16);
@@ -47,31 +53,58 @@ export const state = blank();
 let ready = false;
 
 // ── персистентность ──────────────────────────────────────────────────
+// Критично: раньше «не удалось прочитать» и «данных ещё нет» не различались —
+// сбой сети на старте вёл к тихой перезаписи облака пустым состоянием.
+// Теперь `loadCloud` явно возвращает 'empty' (правда пусто) отдельно от
+// null (что-то не прочиталось), и запись в облако блокируется, пока
+// чтение не подтвердится хотя бы раз в этой сессии.
+let cloudReadOk = false;      // true — только после успешного подтверждённого чтения
+let lastPartCount = 0;        // сколько частей писали в прошлый раз — чтобы стереть хвост
+
 async function loadCloud() {
   const meta = await tg.cloudGet('st_meta');
-  if (!meta) return null;
+  if (meta == null) return 'empty';                    // ключа нет — это правда первый запуск
   const n = parseInt(meta, 10);
-  if (!n || n > 40) return null;
+  if (!n || n > 40) return null;                        // повреждённые метаданные — не трогаем
   let s = '';
   for (let i = 0; i < n; i++) {
     const part = await tg.cloudGet('st_' + i);
-    if (part == null) return null;
+    if (part == null) return null;                      // meta обещала часть — её нет: сбой чтения
     s += part;
   }
-  try { return JSON.parse(s); } catch (e) { return null; }
+  try { const data = JSON.parse(s); lastPartCount = n; return data; }
+  catch (e) { return null; }
 }
 
+let warnedOverflow = false;
 async function saveCloud(json) {
   const parts = [];
   for (let i = 0; i < json.length; i += CHUNK) parts.push(json.slice(i, i + CHUNK));
-  if (parts.length > 40) return;                       // защита от переполнения
-  await tg.cloudSet('st_meta', String(parts.length));
+  if (parts.length > 40) {                              // защита от переполнения — не пишем
+    if (!warnedOverflow) {
+      warnedOverflow = true;
+      import('./ui.js?v=2609090106').then(m => m.toast('Данных стало много — почисти старые вишлисты, иначе новое не сохранится'));
+    }
+    return;
+  }
+  // Части — сначала, метаданные — последними: если запись прервётся,
+  // старое `st_meta` продолжит указывать на старые, ещё целые части.
   for (let i = 0; i < parts.length; i++) await tg.cloudSet('st_' + i, parts[i]);
+  await tg.cloudSet('st_meta', String(parts.length));
+  for (let i = parts.length; i < lastPartCount; i++) await tg.cloudRemove('st_' + i); // чистим хвост
+  lastPartCount = parts.length;
 }
 
 export async function load() {
   let data = null;
-  if (tg.inTelegram) data = await loadCloud();
+  if (tg.inTelegram) {
+    const r = await loadCloud();
+    if (r === 'empty') { data = null; cloudReadOk = true; }         // честно пусто — можно писать
+    else if (r) { data = r; cloudReadOk = true; }                    // прочитали — можно писать
+    else { cloudReadOk = false; }                                    // сбой — писать в облако нельзя
+  } else {
+    cloudReadOk = true;                                              // вне Telegram облака нет — не блокируем localStorage
+  }
   if (!data) {
     try { data = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { data = null; }
   }
@@ -82,12 +115,13 @@ export async function load() {
 }
 
 let saveTimer = null;
-export function save() {
+export function save(immediate) {
   if (!ready) return;
   const json = JSON.stringify(state);
-  try { localStorage.setItem(KEY, json); } catch (e) {}
+  try { localStorage.setItem(KEY, json); } catch (e) {}              // локально пишем всегда
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => { if (tg.inTelegram) saveCloud(json); }, 600);
+  const flush = () => { if (tg.inTelegram && cloudReadOk) saveCloud(json); };
+  if (immediate) flush(); else saveTimer = setTimeout(flush, 600);
 }
 
 export function resetAll() {

@@ -1,15 +1,15 @@
 // ── Квест, paywall, рефералы, UGC, друзья бренда, настройки, намёк ───
-import { CONFIG, CATEGORIES, BRAND_FRIENDS, deepLink, TELEGRAM } from '../config.js?v=2609081709';
-import { IDEAS, IDEAS_BY_CAT } from '../data/ideas.js?v=2609081709';
+import { CONFIG, CATEGORIES, BRAND_FRIENDS, RECIPIENTS, INTERESTS, deepLink, TELEGRAM } from '../config.js?v=2609090106';
+import { IDEAS, IDEAS_BY_CAT } from '../data/ideas.js?v=2609090106';
 import {
   state, save, track, questSteps, questComplete, issueQuestReward,
   isPremium, accessLabel, grantAccess, activeDiscount, resetAll, resetTips,
   addToWishlist, defaultWishlist, inWishlist
-} from '../store.js?v=2609081709';
-import { esc, mascot, sheet, toast, confirmSheet, plural } from '../ui.js?v=2609081709';
-import { tg } from '../tg.js?v=2609081709';
-import { go } from '../app.js?v=2609081709';
-import { openHint } from './hint.js?v=2609081709';
+} from '../store.js?v=2609090106';
+import { esc, mascot, sheet, toast, confirmSheet, plural } from '../ui.js?v=2609090106';
+import { tg } from '../tg.js?v=2609090106';
+import { go } from '../app.js?v=2609090106';
+import { openHint } from './hint.js?v=2609090106';
 
 // ── «Заполни и получи» ───────────────────────────────────────────────
 export function renderQuest() {
@@ -205,11 +205,12 @@ export function renderAccess() {
         </div>
         <div class="spacer"></div>
         <button class="btn" id="go">Придумать подарок</button>
-        <button class="btn btn--ghost" id="rest">Восстановить покупку</button>
       </div>`,
     mount(app) {
       app.querySelector('#go').onclick = () => go('home', {}, true);
-      app.querySelector('#rest').onclick = () => { track('purchase_restored', {}); toast('Доступ восстановлен из твоего профиля'); };
+      // «Восстановить покупку» отсюда убрали: доступ пока хранится только на этом устройстве,
+      // восстанавливать реально нечего — кнопка обещала то, чего приложение не умеет.
+      // Появится вместе с backend и entitlements (см. отчёт аудита, пункт 2.9).
     }
   };
 }
@@ -251,7 +252,7 @@ export function renderInvite() {
 }
 
 // ── Награды (переиспользуем экран колеса) ────────────────────────────
-export { renderRewards } from './wheel.js?v=2609081709';
+export { renderRewards } from './wheel.js?v=2609090106';
 
 // ── Друзья бренда ────────────────────────────────────────────────────
 export function renderFriends() {
@@ -396,6 +397,20 @@ export function renderSettings() {
         <div class="spacer"></div>
         <div class="field"><label>Как тебя звать</label><input id="name" value="${esc(state.profile.name)}" placeholder="Имя" maxlength="30"></div>
         <div class="field"><label>Подарок мечты</label><input id="dream" value="${esc(state.profile.dreamGift)}" placeholder="Что бы ты хотел?" maxlength="60"></div>
+        <div class="field">
+          <label>Кому обычно даришь</label>
+          <p class="small muted" style="margin:0 0 8px">Подставим этот фильтр в подборках заранее — менять можно всегда</p>
+          <div class="chipset" id="giveTo">
+            ${RECIPIENTS.map(r => `<button type="button" class="chip ${state.profile.giveTo.includes(r.id) ? 'chip--on' : ''}" data-v="${r.id}">${esc(r.name)}</button>`).join('')}
+          </div>
+        </div>
+        <div class="field">
+          <label>Интересы</label>
+          <p class="small muted" style="margin:0 0 8px">Такие идеи будем поднимать выше в списке</p>
+          <div class="chipset" id="interests">
+            ${INTERESTS.map(i => `<button type="button" class="chip ${state.profile.interests.includes(i.id) ? 'chip--on' : ''}" data-v="${i.id}">${esc(i.name)}</button>`).join('')}
+          </div>
+        </div>
         <button class="btn btn--soft" id="saveP">Сохранить</button>
         <div class="spacer"></div>
         <button class="btn btn--ghost" id="reset" style="color:#B3341A">Удалить мои данные</button>
@@ -416,10 +431,17 @@ export function renderSettings() {
       });
       app.querySelector('[data-go]').onclick = () => go('terms', {});
       app.querySelector('#tips').onclick = () => { resetTips(); toast('Подсказки вернулись — загляни на Главную'); go('home', {}, true); };
+      // Множественный выбор чипов: переключаем класс на лету, не перерисовывая экран —
+      // иначе фокус с полей слетал бы при каждом тапе.
+      app.querySelectorAll('#giveTo [data-v], #interests [data-v]').forEach(b => {
+        b.onclick = () => { b.classList.toggle('chip--on'); tg.haptic('light'); };
+      });
       app.querySelector('#saveP').onclick = () => {
         state.profile.name = app.querySelector('#name').value.trim();
         state.profile.dreamGift = app.querySelector('#dream').value.trim();
-        save(); toast('Сохранили');
+        state.profile.giveTo = [...app.querySelectorAll('#giveTo .chip--on')].map(b => b.dataset.v);
+        state.profile.interests = [...app.querySelectorAll('#interests .chip--on')].map(b => b.dataset.v);
+        save(); toast('Сохранили — учтём в подборках');
       };
       app.querySelector('#testreset').onclick = () => {
         resetAll();                                   // чистим и локальное, и облачное состояние

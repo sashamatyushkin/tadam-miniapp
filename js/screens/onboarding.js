@@ -1,9 +1,9 @@
 // ── Онбординг: привет → кому дарим → первая дата ─────────────────────
-import { state, save, track, addDate } from '../store.js?v=2609081709';
-import { CATEGORIES, RELATIONS, REMINDER_TYPES } from '../config.js?v=2609081709';
-import { mascot, esc, toast } from '../ui.js?v=2609081709';
-import { tg } from '../tg.js?v=2609081709';
-import { go } from '../app.js?v=2609081709';
+import { state, save, track, addDate } from '../store.js?v=2609090106';
+import { CATEGORIES, RELATIONS, REMINDER_TYPES } from '../config.js?v=2609090106';
+import { mascot, esc, toast } from '../ui.js?v=2609090106';
+import { tg } from '../tg.js?v=2609090106';
+import { go } from '../app.js?v=2609090106';
 
 let step = 0;
 let picked = null;
@@ -29,7 +29,7 @@ function hello() {
         </div>
         ${dots(0)}
         <button class="btn" id="go">Поехали</button>
-        <button class="btn btn--ghost" id="skip">Уже есть аккаунт</button>
+        <button class="btn btn--ghost" id="skip">Пропустить знакомство</button>
       </div>`,
     mount(app) {
       app.querySelector('#go').onclick = () => {
@@ -86,11 +86,11 @@ function firstDate() {
     hideNav: true, hideBack: true,
     html: `
       <div class="onb">
-        <div class="onb__body" style="justify-content:flex-start;padding-top:8px">
-          ${mascot('notes', 'mascot--md')}
-          <h2 class="bups" style="font-size:26px;color:var(--mango)">первая дата</h2>
-          <p class="muted small">Добавь день рождения близкого — напомним заранее, чтобы не бежать за подарком в последний вечер</p>
-          <div style="width:100%;text-align:left;margin-top:14px">
+        <div class="onb__body onb__body--compact">
+          ${mascot('notes', 'mascot--sm')}
+          <h2 class="bups" style="font-size:22px;color:var(--mango);margin:2px 0 0">первая дата</h2>
+          <p class="muted small" style="margin:0">Добавь день рождения близкого — напомним заранее</p>
+          <div class="field-stack">
             <div class="field"><label>Кого поздравляем</label><input id="n" placeholder="Например, мама Аня" maxlength="40"></div>
             <div class="field"><label>Кем приходится</label>
               <select id="rel">${RELATIONS.map(r => `<option value="${r.id}">${r.name}</option>`).join('')}</select>
