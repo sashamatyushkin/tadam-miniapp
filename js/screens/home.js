@@ -6,6 +6,7 @@ import { tg } from '../tg.js';
 import { go } from '../app.js';
 import { maybeShowTips } from './coach.js';
 import { storiesRow, bindStories } from './stories.js';
+import { openLockSheet } from './extra.js';
 
 export function render() {
   track('home_viewed', { premium: isPremium() });
@@ -76,7 +77,7 @@ export function render() {
           const c = CATEGORIES.find(x => x.id === b.dataset.cat);
           tg.haptic('light');
           if (categoryOpen(c)) { track('category_opened', { cat: c.id }); go('cat', { id: c.id }); }
-          else { track('locked_category_clicked', { cat: c.id }); go('paywall', { from: 'category', cat: c.id }); }
+          else { track('locked_category_clicked', { cat: c.id }); openLockSheet(c.id); }
         };
       });
     }

@@ -32,6 +32,12 @@ const TOURS = {
       title: 'четыре раздела',
       text: 'Главная — поводы и поиск. Вишлист — твои желания и намёки. Колесо — бесплатный спин раз в день. Профиль — важные даты, доступ и награды.' }
   ],
+  // Появилось первое желание — объясняем, что с ним делать дальше.
+  firstsave: [
+    { sel: '[data-tab="wishlist"]', pad: 6, radius: 20, place: 'above', mascot: 'heart',
+      title: 'идея сохранена',
+      text: 'Она теперь в твоём вишлисте — вот здесь. Оттуда можно намекнуть близкому одной кнопкой или отправить весь список ссылкой.' }
+  ],
   wishlist: [
     { sel: '.rows, .ghosts', take: 1, pad: 8, radius: 24, place: 'below', maxH: 0.42, mascot: 'heart',
       title: 'тут копятся желания',
@@ -181,7 +187,10 @@ export function startTour(name, onDone) {
   function render() {
     const s = steps[i];
     q('.tour__mascot').src = `assets/mascots/${s.mascot || 'wave'}.png`;
-    q('.tour__n').textContent = `Шаг ${i + 1} из ${steps.length}`;
+    const single = steps.length === 1;                 // одиночная подсказка — без «шаг 1 из 1»
+    q('.tour__n').textContent = single ? 'подсказка' : `Шаг ${i + 1} из ${steps.length}`;
+    q('.tour__dots').style.display = single ? 'none' : '';
+    q('.tour__skip').style.display = single ? 'none' : '';
     q('.tour__title').textContent = s.title;
     q('.tour__text').textContent = s.text;
     q('.tour__next').textContent = i + 1 < steps.length ? 'Далее' : 'Понятно';

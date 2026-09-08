@@ -293,3 +293,17 @@ h1,h2,h3,h4{margin:0}
 .ghost__tag{font-size:9px;font-weight:800;letter-spacing:.06em;color:var(--muted);
   border:1px solid var(--line);border-radius:999px;padding:3px 7px}
 .ghosts__cap{text-align:center;margin-top:12px}
+
+/* ── замок повода: что внутри ───────────────────────────────────── */
+.lockhead{position:relative;border-radius:20px;padding:20px 16px;text-align:center;color:#FFF6EA}
+.lockhead__emoji{font-size:34px}
+.lockhead__name{font-size:22px;margin-top:4px}
+.lockhead__lock{position:absolute;top:12px;right:14px;font-size:16px}
+.peek{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:4px 14px}
+.peek__row{display:flex;align-items:center;gap:11px;padding:11px 0;border-bottom:1px solid var(--line)}
+.peek__row:last-child{border-bottom:0}
+.peek__ico{font-size:20px;width:26px;text-align:center}
+.peek__t{flex:1;min-width:0}
+.peek__name{font-weight:800;font-size:14px}
+.peek__desc{font-size:12px;color:var(--muted);filter:blur(3.2px);user-select:none}
+.peek__lock{font-size:13px;opacity:.5}

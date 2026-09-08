@@ -165,6 +165,8 @@ export function addToWishlist(wl, item) {
   save();
   return true;
 }
+export const totalWishlistItems = () => state.wishlists.reduce((n, w) => n + w.items.length, 0);
+
 export function inWishlist(ideaId) {
   return state.wishlists.some(w => w.items.some(i => i.ideaId === ideaId));
 }

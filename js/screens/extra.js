@@ -1,12 +1,12 @@
 // ── Квест, paywall, рефералы, UGC, друзья бренда, настройки, намёк ───
 import { CONFIG, CATEGORIES, BRAND_FRIENDS, deepLink, TELEGRAM } from '../config.js';
-import { IDEAS } from '../data/ideas.js';
+import { IDEAS, IDEAS_BY_CAT } from '../data/ideas.js';
 import {
   state, save, track, questSteps, questComplete, issueQuestReward,
   isPremium, accessLabel, grantAccess, activeDiscount, resetAll, resetTips,
   addToWishlist, defaultWishlist, inWishlist
 } from '../store.js';
-import { esc, mascot, sheet, toast, confirmSheet } from '../ui.js';
+import { esc, mascot, sheet, toast, confirmSheet, plural } from '../ui.js';
 import { tg } from '../tg.js';
 import { go } from '../app.js';
 import { openHint } from './hint.js';
@@ -69,6 +69,50 @@ function dreamSheet() {
       track('quest_step_completed', { step: 'dream' });
       save(); close(); go('quest', {}, true);
     };
+  });
+}
+
+// ── Замок повода: сначала объясняем, что внутри, потом ведём на оплату ──
+export function openLockSheet(catId) {
+  const cat = CATEGORIES.find(c => c.id === catId);
+  if (!cat) return go('paywall', { from: 'category' });
+  const list = IDEAS_BY_CAT[catId] || [];
+  const teaser = list.slice(0, 3);
+  const disc = activeDiscount();
+  const price = disc ? CONFIG.products[0].promoRub : CONFIG.products[0].priceRub;
+  track('locked_category_sheet', { cat: catId });
+
+  sheet(`
+    <div class="stack">
+      <div class="lockhead" style="background:${cat.bg}">
+        <div class="lockhead__emoji">${cat.emoji}</div>
+        <div class="bups lockhead__name">${esc(cat.name).replace(/\n/g, ' ')}</div>
+        <div class="lockhead__lock">🔒</div>
+      </div>
+      <p class="muted small center">Внутри ${list.length} ${plural(list.length, 'идея', 'идеи', 'идей')} под этот повод. Вот три из них:</p>
+      <div class="peek">
+        ${teaser.map(i => `
+          <div class="peek__row">
+            <div class="peek__ico">${i.icon}</div>
+            <div class="peek__t">
+              <div class="peek__name">${esc(i.title)}</div>
+              <div class="peek__desc">${esc(i.desc)}</div>
+            </div>
+            <span class="peek__lock">🔒</span>
+          </div>`).join('')}
+      </div>
+      <div class="card">
+        <div style="font-weight:800;margin-bottom:6px">Что откроется</div>
+        <div class="small">✦ Все 13 поводов, а не три</div>
+        <div class="small">✦ Фильтры: кому, бюджет, интересы</div>
+        <div class="small">✦ Безлимит вишлистов, дат и намёков</div>
+      </div>
+      <button class="btn" id="pay">Открыть за ${price} ₽ →</button>
+      ${disc ? '<p class="small center" style="color:var(--mango);font-weight:700">Скидка из колеса действует 24 часа 🎉</p>' : ''}
+      <button class="btn btn--ghost" id="later">Может, позже</button>
+    </div>`, (el, close) => {
+    el.querySelector('#pay').onclick = () => { close(); go('paywall', { from: 'lock_sheet', cat: catId }); };
+    el.querySelector('#later').onclick = close;
   });
 }
 

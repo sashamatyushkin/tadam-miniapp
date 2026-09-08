@@ -1,12 +1,12 @@
 // ── Подборка идей: фильтры, пагинация, paywall, пустое состояние ─────
 import { CATEGORIES, RECIPIENTS, BUDGETS, INTERESTS, CONFIG } from '../config.js';
 import { IDEAS, IDEAS_BY_CAT } from '../data/ideas.js';
-import { state, isPremium, categoryOpen, track, inWishlist, addToWishlist, defaultWishlist, save } from '../store.js';
+import { state, isPremium, categoryOpen, track, inWishlist, addToWishlist, defaultWishlist, save, totalWishlistItems } from '../store.js';
 import { esc, mascot, sheet, toast, closeSheet } from '../ui.js';
 import { tg } from '../tg.js';
 import { go, back } from '../app.js';
 import { openHint } from './hint.js';
-import { maybeShowTips } from './coach.js';
+import { maybeShowTips, maybeShowTips as _t } from './coach.js';
 
 let f = { rec: null, budget: null, interest: null };
 let query = '';
@@ -78,7 +78,10 @@ function emptyBlock() {
 export function render({ id }) {
   const cat = CATEGORIES.find(c => c.id === id);
   if (!cat) return { html: '<div class="wrap"><p>Повод не найден</p></div>' };
-  if (!categoryOpen(cat)) return { html: '', mount: () => go('paywall', { from: 'category', cat: id }, true) };
+  if (!categoryOpen(cat)) return {
+    html: '', hideNav: false,
+    mount: () => { go('home', {}, true); import('./extra.js').then(m => m.openLockSheet(id)); }
+  };
 
   const all = IDEAS_BY_CAT[id] || [];
   const premium = isPremium();
@@ -185,6 +188,7 @@ function bindCommon(app) {
       b.textContent = '❤️';
       tg.haptic('success');
       toast('Та-дам! Идея в вишлисте 🎁');
+      if (totalWishlistItems() === 1) maybeShowTips('firstsave');   // первое желание — объясняем, что дальше
     };
   });
   app.querySelectorAll('[data-idea]').forEach(row => {
@@ -217,6 +221,7 @@ export function openIdea(ideaId) {
       if (inWishlist(i.id)) return toast('Уже в вишлисте');
       addToWishlist(defaultWishlist(), { ideaId: i.id, title: i.title, desc: i.desc });
       tg.haptic('success'); toast('Та-дам! Идея в вишлисте 🎁'); close();
+      if (totalWishlistItems() === 1) maybeShowTips('firstsave');
     };
     el.querySelector('#hint').onclick = () => { close(); openHint({ ideaId: i.id, title: i.title, desc: i.desc }); };
     el.querySelector('#buy').onclick = () => {
