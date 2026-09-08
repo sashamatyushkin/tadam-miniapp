@@ -1,9 +1,9 @@
 // ── Онбординг: привет → кому дарим → первая дата ─────────────────────
-import { state, save, track, addDate } from '../store.js';
-import { CATEGORIES, RELATIONS, REMINDER_TYPES } from '../config.js';
-import { mascot, esc, toast } from '../ui.js';
-import { tg } from '../tg.js';
-import { go } from '../app.js';
+import { state, save, track, addDate } from '../store.js?v=2609081709';
+import { CATEGORIES, RELATIONS, REMINDER_TYPES } from '../config.js?v=2609081709';
+import { mascot, esc, toast } from '../ui.js?v=2609081709';
+import { tg } from '../tg.js?v=2609081709';
+import { go } from '../app.js?v=2609081709';
 
 let step = 0;
 let picked = null;
@@ -60,6 +60,8 @@ function occasion() {
         </div>
         ${dots(1)}
         <button class="btn" id="next" disabled>Дальше</button>
+        <!-- держим место второй кнопки: «Дальше» встаёт на тот же уровень, что «Поехали» -->
+        <div class="btn btn--ghost" aria-hidden="true" style="visibility:hidden">.</div>
       </div>`,
     mount(app) {
       const next = app.querySelector('#next');

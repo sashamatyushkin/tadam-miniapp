@@ -1,13 +1,13 @@
 // ── Вишлисты: свой список, шеринг и намёки ───────────────────────────
-import { state, save, track, createWishlist, removeItem, wishlistLimit, isPremium } from '../store.js';
-import { deepLink } from '../config.js';
-import { esc, mascot, sheet, toast, confirmSheet, plural } from '../ui.js';
-import { IDEAS } from '../data/ideas.js';
-import { cover } from './ideas.js';
-import { tg } from '../tg.js';
-import { go, back } from '../app.js';
-import { maybeShowTips } from './coach.js';
-import { openHint } from './hint.js';
+import { state, save, track, createWishlist, removeItem, wishlistLimit, isPremium } from '../store.js?v=2609081709';
+import { deepLink } from '../config.js?v=2609081709';
+import { esc, mascot, sheet, toast, confirmSheet, plural } from '../ui.js?v=2609081709';
+import { IDEAS } from '../data/ideas.js?v=2609081709';
+import { cover } from './ideas.js?v=2609081709';
+import { tg } from '../tg.js?v=2609081709';
+import { go, back } from '../app.js?v=2609081709';
+import { maybeShowTips } from './coach.js?v=2609081709';
+import { openHint } from './hint.js?v=2609081709';
 
 
 // Пустой вишлист показываем не голой надписью, а примерами: человек сразу видит,

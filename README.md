@@ -102,6 +102,15 @@ Backend (PostgreSQL, платежи Stars, напоминания, админк�
 4. BotFather → *Bot Settings* → *Menu Button* → новый URL (или тем же вызовом `setChatMenuButton`).
 5. Перевести бота с long polling на webhook с secret token.
 
+## 3.2. Обновление версии (обязательно перед каждым деплоем)
+
+```bash
+python3 tools/bump.py
+```
+
+Проставляет свежую версию во все импорты и ссылки. Без этого браузер и Telegram
+до десяти минут отдают старые модули из кеша, и правки «не видно».
+
 ## 4. Локальный запуск
 
 ```bash

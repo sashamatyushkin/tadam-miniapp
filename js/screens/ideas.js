@@ -1,12 +1,12 @@
 // ── Подборка идей: фильтры, пагинация, paywall, пустое состояние ─────
-import { CATEGORIES, RECIPIENTS, BUDGETS, INTERESTS, CONFIG } from '../config.js';
-import { IDEAS, IDEAS_BY_CAT } from '../data/ideas.js';
-import { state, isPremium, categoryOpen, track, inWishlist, addToWishlist, defaultWishlist, save, totalWishlistItems } from '../store.js';
-import { esc, mascot, sheet, toast, closeSheet } from '../ui.js';
-import { tg } from '../tg.js';
-import { go, back } from '../app.js';
-import { openHint } from './hint.js';
-import { maybeShowTips, maybeShowTips as _t } from './coach.js';
+import { CATEGORIES, RECIPIENTS, BUDGETS, INTERESTS, CONFIG } from '../config.js?v=2609081709';
+import { IDEAS, IDEAS_BY_CAT } from '../data/ideas.js?v=2609081709';
+import { state, isPremium, categoryOpen, track, inWishlist, addToWishlist, defaultWishlist, save, totalWishlistItems } from '../store.js?v=2609081709';
+import { esc, mascot, sheet, toast, closeSheet } from '../ui.js?v=2609081709';
+import { tg } from '../tg.js?v=2609081709';
+import { go, back } from '../app.js?v=2609081709';
+import { openHint } from './hint.js?v=2609081709';
+import { maybeShowTips, maybeShowTips as _t } from './coach.js?v=2609081709';
 
 let f = { rec: null, budget: null, interest: null };
 let query = '';
@@ -80,7 +80,7 @@ export function render({ id }) {
   if (!cat) return { html: '<div class="wrap"><p>Повод не найден</p></div>' };
   if (!categoryOpen(cat)) return {
     html: '', hideNav: false,
-    mount: () => { go('home', {}, true); import('./extra.js').then(m => m.openLockSheet(id)); }
+    mount: () => { go('home', {}, true); import('./extra.js?v=2609081709').then(m => m.openLockSheet(id)); }
   };
 
   const all = IDEAS_BY_CAT[id] || [];

@@ -1,15 +1,15 @@
 // ── Квест, paywall, рефералы, UGC, друзья бренда, настройки, намёк ───
-import { CONFIG, CATEGORIES, BRAND_FRIENDS, deepLink, TELEGRAM } from '../config.js';
-import { IDEAS, IDEAS_BY_CAT } from '../data/ideas.js';
+import { CONFIG, CATEGORIES, BRAND_FRIENDS, deepLink, TELEGRAM } from '../config.js?v=2609081709';
+import { IDEAS, IDEAS_BY_CAT } from '../data/ideas.js?v=2609081709';
 import {
   state, save, track, questSteps, questComplete, issueQuestReward,
   isPremium, accessLabel, grantAccess, activeDiscount, resetAll, resetTips,
   addToWishlist, defaultWishlist, inWishlist
-} from '../store.js';
-import { esc, mascot, sheet, toast, confirmSheet, plural } from '../ui.js';
-import { tg } from '../tg.js';
-import { go } from '../app.js';
-import { openHint } from './hint.js';
+} from '../store.js?v=2609081709';
+import { esc, mascot, sheet, toast, confirmSheet, plural } from '../ui.js?v=2609081709';
+import { tg } from '../tg.js?v=2609081709';
+import { go } from '../app.js?v=2609081709';
+import { openHint } from './hint.js?v=2609081709';
 
 // ── «Заполни и получи» ───────────────────────────────────────────────
 export function renderQuest() {
@@ -251,7 +251,7 @@ export function renderInvite() {
 }
 
 // ── Награды (переиспользуем экран колеса) ────────────────────────────
-export { renderRewards } from './wheel.js';
+export { renderRewards } from './wheel.js?v=2609081709';
 
 // ── Друзья бренда ────────────────────────────────────────────────────
 export function renderFriends() {

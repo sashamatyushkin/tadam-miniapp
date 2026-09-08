@@ -3,8 +3,8 @@
 // В production источник истины — backend: доступ, лимиты, розыгрыш колеса,
 // рефералы и платежи проверяются сервером, клиент лишь отображает результат.
 
-import { tg } from './tg.js';
-import { CONFIG, WHEEL } from './config.js';
+import { tg } from './tg.js?v=2609081709';
+import { CONFIG, WHEEL } from './config.js?v=2609081709';
 
 const KEY = 'tadam_state_v1';
 const CHUNK = 3500; // лимит значения Telegram CloudStorage — 4096 символов
