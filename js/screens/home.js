@@ -4,6 +4,7 @@ import { state, categoryOpen, isPremium, track, questComplete } from '../store.j
 import { esc, mascot } from '../ui.js';
 import { tg } from '../tg.js';
 import { go } from '../app.js';
+import { maybeShowTips } from './coach.js';
 
 export function render() {
   track('home_viewed', { premium: isPremium() });
@@ -62,6 +63,7 @@ export function render() {
         <div class="spacer"></div>
       </div>`,
     mount(app) {
+      maybeShowTips('home');
       app.querySelector('#searchbox').onclick = () => go('search', {});
       app.querySelector('#quest').onclick = () => go('quest', {});
       app.querySelector('#questBtn')?.addEventListener('click', () => go('quest', {}));

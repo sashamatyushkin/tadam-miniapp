@@ -4,6 +4,7 @@ import { deepLink } from '../config.js';
 import { esc, mascot, sheet, toast, confirmSheet } from '../ui.js';
 import { tg } from '../tg.js';
 import { go, back } from '../app.js';
+import { maybeShowTips } from './coach.js';
 import { openHint } from './hint.js';
 
 export function render() {
@@ -32,6 +33,7 @@ export function render() {
         <p class="small muted center" style="margin-top:8px">${isPremium() ? 'Premium: безлимит вишлистов' : `Осталось слотов: ${Math.max(0, wishlistLimit() - wls.length)} из ${wishlistLimit()}`}</p>
       </div>`,
     mount(app) {
+      maybeShowTips('wishlist');
       app.querySelectorAll('[data-wl]').forEach(b => b.onclick = () => go('wl', { id: b.dataset.wl }));
       app.querySelector('#new').onclick = newWishlist;
     }
@@ -87,6 +89,7 @@ export function renderOne({ id, tab }) {
         <button class="btn btn--ghost" id="share">${wl.shared ? 'Ссылка активна · управлять' : 'Поделиться ссылкой'}</button>
       </div>`,
     mount(app) {
+      if (tab) maybeShowTips('wishlist');
       app.querySelector('#add').onclick = () => addOwn(wl);
       app.querySelector('#hintAll').onclick = () => {
         const first = wl.items[0];

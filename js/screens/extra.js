@@ -3,7 +3,7 @@ import { CONFIG, CATEGORIES, BRAND_FRIENDS, deepLink, TELEGRAM } from '../config
 import { IDEAS } from '../data/ideas.js';
 import {
   state, save, track, questSteps, questComplete, issueQuestReward,
-  isPremium, accessLabel, grantAccess, activeDiscount, resetAll,
+  isPremium, accessLabel, grantAccess, activeDiscount, resetAll, resetTips,
   addToWishlist, defaultWishlist, inWishlist
 } from '../store.js';
 import { esc, mascot, sheet, toast, confirmSheet } from '../ui.js';
@@ -346,6 +346,7 @@ export function renderSettings() {
         <div class="rows">
           <button class="row" data-t="reminders"><span class="row__ico">🔔</span><span class="row__t">Напоминания о датах</span><span class="row__v">${state.settings.reminders ? 'вкл' : 'выкл'}</span></button>
           <button class="row" data-t="analytics"><span class="row__ico">📊</span><span class="row__t">Аналитика использования</span><span class="row__v">${state.settings.analytics ? 'вкл' : 'выкл'}</span></button>
+          <button class="row" id="tips"><span class="row__ico">💡</span><span class="row__t">Показать подсказки заново</span><span class="row__chev">›</span></button>
           <button class="row" data-go="terms"><span class="row__ico">📄</span><span class="row__t">Условия и приватность</span><span class="row__chev">›</span></button>
         </div>
         <div class="spacer"></div>
@@ -364,6 +365,7 @@ export function renderSettings() {
         save(); go('settings', {}, true);
       });
       app.querySelector('[data-go]').onclick = () => go('terms', {});
+      app.querySelector('#tips').onclick = () => { resetTips(); toast('Подсказки вернулись — загляни на Главную'); go('home', {}, true); };
       app.querySelector('#saveP').onclick = () => {
         state.profile.name = app.querySelector('#name').value.trim();
         state.profile.dreamGift = app.querySelector('#dream').value.trim();

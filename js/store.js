@@ -36,6 +36,7 @@ function blank() {
     hints: [],
     ugc: null,
     seen: {},
+    tips: {},                       // какие обучающие подсказки уже показаны
     settings: { reminders: true, analytics: true },
     events: []
   };
@@ -101,6 +102,11 @@ export function track(name, params = {}) {
   if (state.events.length > 300) state.events.splice(0, state.events.length - 300);
   save();
 }
+
+// ── обучающие подсказки ──────────────────────────────────────────────
+export const tipSeen = key => !!state.tips[key];
+export function markTip(key) { state.tips[key] = Date.now(); track('coach_completed', { key }); save(); }
+export function resetTips() { state.tips = {}; save(); }
 
 // ── доступ ───────────────────────────────────────────────────────────
 export const isPremium = () =>

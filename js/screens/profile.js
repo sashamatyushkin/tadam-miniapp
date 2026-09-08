@@ -3,6 +3,7 @@ import { state, isPremium, accessLabel, track } from '../store.js';
 import { esc } from '../ui.js';
 import { tg } from '../tg.js';
 import { go } from '../app.js';
+import { maybeShowTips } from './coach.js';
 
 export function render() {
   const u = tg.user();
@@ -35,6 +36,7 @@ export function render() {
       </div>`,
     mount(app) {
       track('profile_viewed', {});
+      maybeShowTips('profile');
       app.querySelectorAll('[data-go]').forEach(b => b.onclick = () => go(b.dataset.go, {}));
     }
   };
