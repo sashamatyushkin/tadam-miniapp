@@ -1,10 +1,10 @@
 /* ── Та-дам · дизайн-система (брендбук) ───────────────────────────── */
 /* WOFF2, сабсет кириллица+латиница (fonttools). Было 636 КБ в TTF/OTF на 5 файлов — стало ~88 КБ */
-@font-face{font-family:'Bups';src:url('assets/fonts/bups-Regular.woff2?v=2609091220') format('woff2');font-weight:400;font-display:swap}
-@font-face{font-family:'Nunito';src:url('assets/fonts/Nunito-Regular.woff2?v=2609091220') format('woff2');font-weight:400;font-display:swap}
-@font-face{font-family:'Nunito';src:url('assets/fonts/Nunito-SemiBold.woff2?v=2609091220') format('woff2');font-weight:600;font-display:swap}
-@font-face{font-family:'Nunito';src:url('assets/fonts/Nunito-Bold.woff2?v=2609091220') format('woff2');font-weight:700;font-display:swap}
-@font-face{font-family:'Nunito';src:url('assets/fonts/Nunito-ExtraBold.woff2?v=2609091220') format('woff2');font-weight:800;font-display:swap}
+@font-face{font-family:'Bups';src:url('assets/fonts/bups-Regular.woff2?v=2609091228') format('woff2');font-weight:400;font-display:swap}
+@font-face{font-family:'Nunito';src:url('assets/fonts/Nunito-Regular.woff2?v=2609091228') format('woff2');font-weight:400;font-display:swap}
+@font-face{font-family:'Nunito';src:url('assets/fonts/Nunito-SemiBold.woff2?v=2609091228') format('woff2');font-weight:600;font-display:swap}
+@font-face{font-family:'Nunito';src:url('assets/fonts/Nunito-Bold.woff2?v=2609091228') format('woff2');font-weight:700;font-display:swap}
+@font-face{font-family:'Nunito';src:url('assets/fonts/Nunito-ExtraBold.woff2?v=2609091228') format('woff2');font-weight:800;font-display:swap}
 
 :root{
   color-scheme:light; /* иначе системные select/date внутри светлой карточки могли отрисоваться тёмными */
@@ -46,6 +46,10 @@ h1,h2,h3,h4{margin:0}
 .wrap{padding:0 var(--pad)}
 .screen{animation:fade .17s ease-out}
 @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+/* На полноэкранных шагах (онбординг) макет от экрана к экрану один и тот же —
+   сдвиг на 4 px там читается как рывок, поэтому оставляем только проявление. */
+.app--nonav .screen{animation-name:fadeIn}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
 @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 .stack{display:grid;gap:12px}
 .center{text-align:center}
@@ -133,7 +137,7 @@ h1,h2,h3,h4{margin:0}
 .empty img{width:150px;margin:0 auto 14px}
 
 /* ── маскот ─────────────────────────────────────────────────────── */
-.mascot{display:block;margin:0 auto}
+.mascot{display:block;margin:0 auto;height:auto}
 .mascot--lg{width:180px}
 .mascot--md{width:120px}
 .mascot--sm{width:72px}
@@ -156,6 +160,7 @@ h1,h2,h3,h4{margin:0}
 .onb__body--compact .field{margin-bottom:8px}
 .onb__body--compact .field label{font-size:12px}
 .onb__body--compact .field input,.onb__body--compact .field select{padding:10px 12px}
+.cat--on{box-shadow:inset 0 0 0 3px var(--coffee),0 4px 14px rgba(112,39,32,.22)}
 .dots{display:flex;gap:7px;justify-content:center;margin:18px 0}
 .dots i{width:7px;height:7px;border-radius:999px;background:#E0CDB6}
 .dots i.on{width:20px;background:var(--mango)}

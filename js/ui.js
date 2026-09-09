@@ -1,10 +1,21 @@
 // ── UI-примитивы ─────────────────────────────────────────────────────
-import { tg } from './tg.js?v=2609091220';
+import { tg } from './tg.js?v=2609091228';
 
 export const $ = (sel, root = document) => root.querySelector(sel);
 export const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-export const mascot = (name, cls = 'mascot--md') =>
-  `<img class="mascot ${cls}" src="assets/mascots/${name}.png" alt="" loading="lazy" decoding="async">`;
+// Натуральные размеры PNG-маскотов. Без width/height браузер до загрузки
+// картинки считает её высоту нулевой — центрированный контент собирается выше,
+// а в момент загрузки прыгает вниз. С атрибутами место резервируется сразу.
+const MASCOT_SIZE = {
+  alert: [213, 257], bubble: [260, 230], cool: [249, 247], heart: [184, 246],
+  notes: [209, 249], peek: [159, 242], run: [259, 249], search: [260, 223],
+  sleep: [260, 234], think: [221, 253], wave: [260, 250], wow: [260, 252]
+};
+export const mascot = (name, cls = 'mascot--md') => {
+  const [w, h] = MASCOT_SIZE[name] || [240, 240];
+  // loading="eager": маскот всегда в первом экране, ленивая загрузка только добавляла рывок
+  return `<img class="mascot ${cls}" src="assets/mascots/${name}.png" alt="" width="${w}" height="${h}" loading="eager" decoding="async">`;
+};
 
 export function toast(text) {
   const root = $('#toast-root');

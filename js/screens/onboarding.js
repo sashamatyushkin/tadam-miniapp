@@ -1,9 +1,9 @@
 // ── Онбординг: привет → кому дарим → первая дата ─────────────────────
-import { state, save, track, addDate } from '../store.js?v=2609091220';
-import { CATEGORIES, RELATIONS, REMINDER_TYPES } from '../config.js?v=2609091220';
-import { mascot, esc, toast } from '../ui.js?v=2609091220';
-import { tg } from '../tg.js?v=2609091220';
-import { go } from '../app.js?v=2609091220';
+import { state, save, track, addDate } from '../store.js?v=2609091228';
+import { CATEGORIES, RELATIONS, REMINDER_TYPES } from '../config.js?v=2609091228';
+import { mascot, esc, toast } from '../ui.js?v=2609091228';
+import { tg } from '../tg.js?v=2609091228';
+import { go } from '../app.js?v=2609091228';
 
 let step = 0;
 let picked = null;
@@ -68,9 +68,8 @@ function occasion() {
       app.querySelectorAll('[data-cat]').forEach(b => {
         b.onclick = () => {
           picked = b.dataset.cat;
-          app.querySelectorAll('[data-cat]').forEach(x => x.style.outline = '');
-          b.style.outline = '3px solid var(--coffee)';
-          b.style.outlineOffset = '2px';
+          app.querySelectorAll('[data-cat]').forEach(x => x.classList.remove('cat--on'));
+          b.classList.add('cat--on');
           next.disabled = false;
           tg.haptic('light');
           track('first_occasion_selected', { cat: picked });

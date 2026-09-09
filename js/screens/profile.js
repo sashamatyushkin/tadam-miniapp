@@ -1,9 +1,9 @@
 // ── Профиль ──────────────────────────────────────────────────────────
-import { state, isPremium, accessLabel, track } from '../store.js?v=2609091220';
-import { esc } from '../ui.js?v=2609091220';
-import { tg } from '../tg.js?v=2609091220';
-import { go } from '../app.js?v=2609091220';
-import { maybeShowTips } from './coach.js?v=2609091220';
+import { state, isPremium, accessLabel, track } from '../store.js?v=2609091228';
+import { esc } from '../ui.js?v=2609091228';
+import { tg } from '../tg.js?v=2609091228';
+import { go } from '../app.js?v=2609091228';
+import { maybeShowTips } from './coach.js?v=2609091228';
 
 export function render() {
   const u = tg.user();
