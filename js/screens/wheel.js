@@ -1,12 +1,12 @@
 // ── Колесо фортуны ───────────────────────────────────────────────────
 // ПРОТОТИП: розыгрыш считается на клиенте (crypto.getRandomValues) по весам
 // из config.js. В production результат приходит с backend (см. README, п. «Колесо»).
-import { WHEEL, CATEGORIES, CONFIG } from '../config.js?v=2609090130';
-import { state, spin, applyServerSpin, spinsAvailable, track, redeemCategory, isPremium } from '../store.js?v=2609090130';
-import { esc, mascot, sheet, toast } from '../ui.js?v=2609090130';
-import { tg } from '../tg.js?v=2609090130';
-import { go } from '../app.js?v=2609090130';
-import { api, apiAvailable } from '../api.js?v=2609090130';
+import { WHEEL, CATEGORIES, CONFIG } from '../config.js?v=2609091153';
+import { state, spin, applyServerSpin, spinsAvailable, track, redeemCategory, isPremium } from '../store.js?v=2609091153';
+import { esc, mascot, sheet, toast } from '../ui.js?v=2609091153';
+import { tg } from '../tg.js?v=2609091153';
+import { go } from '../app.js?v=2609091153';
+import { api, apiAvailable } from '../api.js?v=2609091153';
 
 // Идемпотентный ключ на одну попытку — если запрос уйдёт повторно (двойной тап,
 // обрыв связи и повтор), сервер вернёт тот же результат, а не разыграет заново.

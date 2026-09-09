@@ -17,6 +17,14 @@ h = re.sub(r'styles\.css(\?v=[^"\']*)?', f'styles.css?v={ver}', h)
 h = re.sub(r'js/app\.js(\?v=[^"\']*)?', f'js/app.js?v={ver}', h)
 idx.write_text(h)
 
+# styles.css: версия у шрифтов. Без неё браузер и WebView Telegram продолжают
+# отдавать шрифт из кеша, даже когда файл на сервере уже другой — именно так
+# пользователь неделю видел системный шрифт вместо Bups.
+css = root / 'styles.css'
+c = css.read_text()
+c = re.sub(r'(assets/fonts/[A-Za-z0-9\-]+\.woff2)(\?v=[^\'\")]*)?', rf'\1?v={ver}', c)
+css.write_text(c)
+
 # все относительные импорты в js/
 count = 0
 for f in sorted(root.glob('js/**/*.js')):

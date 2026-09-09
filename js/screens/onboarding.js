@@ -1,9 +1,9 @@
 // ── Онбординг: привет → кому дарим → первая дата ─────────────────────
-import { state, save, track, addDate } from '../store.js?v=2609090130';
-import { CATEGORIES, RELATIONS, REMINDER_TYPES } from '../config.js?v=2609090130';
-import { mascot, esc, toast } from '../ui.js?v=2609090130';
-import { tg } from '../tg.js?v=2609090130';
-import { go } from '../app.js?v=2609090130';
+import { state, save, track, addDate } from '../store.js?v=2609091153';
+import { CATEGORIES, RELATIONS, REMINDER_TYPES } from '../config.js?v=2609091153';
+import { mascot, esc, toast } from '../ui.js?v=2609091153';
+import { tg } from '../tg.js?v=2609091153';
+import { go } from '../app.js?v=2609091153';
 
 let step = 0;
 let picked = null;
@@ -46,7 +46,7 @@ function occasion() {
     hideNav: true, hideBack: true,
     html: `
       <div class="onb">
-        <div class="onb__body" style="justify-content:flex-start;padding-top:8px">
+        <div class="onb__body">
           ${mascot('think', 'mascot--md')}
           <h2 class="bups" style="font-size:26px;color:var(--mango)">кому дарим?</h2>
           <p class="muted small">Выбери повод — покажу идеи прямо сейчас</p>

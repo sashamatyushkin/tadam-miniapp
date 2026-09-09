@@ -1,16 +1,16 @@
 // ── Квест, paywall, рефералы, UGC, друзья бренда, настройки, намёк ───
-import { CONFIG, CATEGORIES, BRAND_FRIENDS, RECIPIENTS, INTERESTS, deepLink, TELEGRAM } from '../config.js?v=2609090130';
-import { IDEAS, IDEAS_BY_CAT } from '../data/ideas.js?v=2609090130';
+import { CONFIG, CATEGORIES, BRAND_FRIENDS, RECIPIENTS, INTERESTS, deepLink, TELEGRAM } from '../config.js?v=2609091153';
+import { IDEAS, IDEAS_BY_CAT } from '../data/ideas.js?v=2609091153';
 import {
   state, save, track, questSteps, questComplete, issueQuestReward,
   isPremium, accessLabel, grantAccess, activeDiscount, resetAll, resetTips,
   addToWishlist, defaultWishlist, inWishlist
-} from '../store.js?v=2609090130';
-import { esc, mascot, sheet, toast, confirmSheet, plural } from '../ui.js?v=2609090130';
-import { tg } from '../tg.js?v=2609090130';
-import { go } from '../app.js?v=2609090130';
-import { openHint } from './hint.js?v=2609090130';
-import { api, apiAvailable } from '../api.js?v=2609090130';
+} from '../store.js?v=2609091153';
+import { esc, mascot, sheet, toast, confirmSheet, plural } from '../ui.js?v=2609091153';
+import { tg } from '../tg.js?v=2609091153';
+import { go } from '../app.js?v=2609091153';
+import { openHint } from './hint.js?v=2609091153';
+import { api, apiAvailable } from '../api.js?v=2609091153';
 
 // ── «Заполни и получи» ───────────────────────────────────────────────
 export function renderQuest() {
@@ -253,7 +253,7 @@ export function renderInvite() {
 }
 
 // ── Награды (переиспользуем экран колеса) ────────────────────────────
-export { renderRewards } from './wheel.js?v=2609090130';
+export { renderRewards } from './wheel.js?v=2609091153';
 
 // ── Друзья бренда ────────────────────────────────────────────────────
 export function renderFriends() {
