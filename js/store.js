@@ -3,9 +3,9 @@
 // В production источник истины — backend: доступ, лимиты, розыгрыш колеса,
 // рефералы и платежи проверяются сервером, клиент лишь отображает результат.
 
-import { tg } from './tg.js?v=2609091153';
-import { CONFIG, WHEEL } from './config.js?v=2609091153';
-import { api, apiAvailable } from './api.js?v=2609091153';
+import { tg } from './tg.js?v=2609091220';
+import { CONFIG, WHEEL } from './config.js?v=2609091220';
+import { api, apiAvailable } from './api.js?v=2609091220';
 
 const KEY = 'tadam_state_v1';
 const CHUNK = 3500; // лимит значения Telegram CloudStorage — 4096 символов
@@ -84,7 +84,7 @@ async function saveCloud(json) {
   if (parts.length > 40) {                              // защита от переполнения — не пишем
     if (!warnedOverflow) {
       warnedOverflow = true;
-      import('./ui.js?v=2609091153').then(m => m.toast('Данных стало много — почисти старые вишлисты, иначе новое не сохранится'));
+      import('./ui.js?v=2609091220').then(m => m.toast('Данных стало много — почисти старые вишлисты, иначе новое не сохранится'));
     }
     return;
   }

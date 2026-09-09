@@ -1,10 +1,10 @@
 /* ── Та-дам · дизайн-система (брендбук) ───────────────────────────── */
 /* WOFF2, сабсет кириллица+латиница (fonttools). Было 636 КБ в TTF/OTF на 5 файлов — стало ~88 КБ */
-@font-face{font-family:'Bups';src:url('assets/fonts/bups-Regular.woff2?v=2609091153') format('woff2');font-weight:400;font-display:swap}
-@font-face{font-family:'Nunito';src:url('assets/fonts/Nunito-Regular.woff2?v=2609091153') format('woff2');font-weight:400;font-display:swap}
-@font-face{font-family:'Nunito';src:url('assets/fonts/Nunito-SemiBold.woff2?v=2609091153') format('woff2');font-weight:600;font-display:swap}
-@font-face{font-family:'Nunito';src:url('assets/fonts/Nunito-Bold.woff2?v=2609091153') format('woff2');font-weight:700;font-display:swap}
-@font-face{font-family:'Nunito';src:url('assets/fonts/Nunito-ExtraBold.woff2?v=2609091153') format('woff2');font-weight:800;font-display:swap}
+@font-face{font-family:'Bups';src:url('assets/fonts/bups-Regular.woff2?v=2609091220') format('woff2');font-weight:400;font-display:swap}
+@font-face{font-family:'Nunito';src:url('assets/fonts/Nunito-Regular.woff2?v=2609091220') format('woff2');font-weight:400;font-display:swap}
+@font-face{font-family:'Nunito';src:url('assets/fonts/Nunito-SemiBold.woff2?v=2609091220') format('woff2');font-weight:600;font-display:swap}
+@font-face{font-family:'Nunito';src:url('assets/fonts/Nunito-Bold.woff2?v=2609091220') format('woff2');font-weight:700;font-display:swap}
+@font-face{font-family:'Nunito';src:url('assets/fonts/Nunito-ExtraBold.woff2?v=2609091220') format('woff2');font-weight:800;font-display:swap}
 
 :root{
   color-scheme:light; /* иначе системные select/date внутри светлой карточки могли отрисоваться тёмными */
@@ -30,10 +30,12 @@ h1,h2,h3,h4{margin:0}
 .bups{font-family:'Bups','Nunito',sans-serif;font-weight:400;letter-spacing:.02em;line-height:1.15}
 
 /* ── splash ─────────────────────────────────────────────────────── */
-.splash{position:fixed;inset:0;background:var(--oat);display:grid;place-items:center;gap:24px;z-index:90;transition:opacity .35s}
+/* Логотип центрируем по самому экрану, а не по паре «логотип + точки»:
+   иначе точки утягивают его вверх и он стоит не по центру. */
+.splash{position:fixed;inset:0;background:var(--oat);z-index:90;transition:opacity .35s}
 .splash--hide{opacity:0;pointer-events:none}
-.splash__logo{width:200px}
-.splash__dots{display:flex;gap:8px}
+.splash__logo{width:min(240px,62vw);position:absolute;top:50%;left:50%;transform:translate(-50%,-50%)}
+.splash__dots{position:absolute;left:0;right:0;bottom:calc(var(--safe-bottom) + 56px);justify-content:center;display:flex;gap:8px}
 .splash__dots i{width:8px;height:8px;border-radius:50%;background:var(--mango);opacity:.35;animation:blink 1.1s infinite}
 .splash__dots i:nth-child(2){animation-delay:.16s}.splash__dots i:nth-child(3){animation-delay:.32s}
 @keyframes blink{0%,100%{opacity:.25;transform:scale(.85)}50%{opacity:1;transform:scale(1)}}
@@ -141,12 +143,15 @@ h1,h2,h3,h4{margin:0}
 /* Безопасную зону сверху и снизу уже задаёт .app — если добавить её здесь ещё раз,
    экран становится выше вьюпорта: появляется прокрутка, а контент уезжает вниз
    примерно на высоту шапки Telegram. Поэтому тут только собственные отступы. */
-.onb{min-height:calc(100vh - var(--safe-top) - var(--safe-bottom) - 32px);
-  display:flex;flex-direction:column;padding:0 var(--pad)}
-.onb__body{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;gap:14px;min-height:0}
-/* форма даты: контент прижат к верху и максимально сжат, чтобы кнопки
-   поместились без прокрутки даже под верхней панелью Telegram fullscreen */
-.onb__body--compact{justify-content:flex-start;gap:6px;padding-top:0}
+/* Высота фиксированная, а не min-height: при переходе между шагами страница не
+   меняет высоту, поэтому кнопки не прыгают и не появляется скачок прокрутки. */
+.onb{height:calc(100vh - var(--safe-top) - var(--safe-bottom) - 32px);
+  display:flex;flex-direction:column;padding:0 var(--pad) 26px}
+.onb__body{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;gap:14px;min-height:0;overflow:auto;scrollbar-width:none}
+.onb__body::-webkit-scrollbar{display:none}
+/* форма даты: сжатая по вертикали, но так же по центру, как остальные шаги —
+   при нехватке высоты прокручивается сама, не сдвигая кнопки */
+.onb__body--compact{justify-content:center;gap:6px;padding-top:0}
 .onb__body--compact .field-stack{width:100%;text-align:left;margin-top:10px}
 .onb__body--compact .field{margin-bottom:8px}
 .onb__body--compact .field label{font-size:12px}
@@ -197,6 +202,11 @@ h1,h2,h3,h4{margin:0}
 .field label{font-size:13px;font-weight:700}
 .field input,.field select,.field textarea{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:13px 14px;outline:none;width:100%}
 .field input:focus,.field textarea:focus,.field select:focus{border-color:var(--mango)}
+/* input[type=date] в iOS берёт ширину от своего содержимого и игнорирует width:100%
+   — без сброса appearance и min-width плашка «Дата» уезжала за правый край. */
+.field input[type=date]{-webkit-appearance:none;appearance:none;min-width:0;max-width:100%;display:block;height:48px;line-height:normal}
+.onb__body--compact .field input[type=date]{height:42px}
+.field,.field-stack{min-width:0}
 .opts{display:flex;flex-wrap:wrap;gap:8px}
 
 /* ── шторка ─────────────────────────────────────────────────────── */

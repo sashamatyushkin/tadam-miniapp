@@ -1,18 +1,18 @@
 // ── Точка входа и роутер ─────────────────────────────────────────────
-import { tg } from './tg.js?v=2609091153';
-import { load, save, state, track, registerReferral, syncAccessFromServer } from './store.js?v=2609091153';
-import { api, apiAvailable } from './api.js?v=2609091153';
-import { $, closeSheet, sheetOpen } from './ui.js?v=2609091153';
+import { tg } from './tg.js?v=2609091220';
+import { load, save, state, track, registerReferral, syncAccessFromServer } from './store.js?v=2609091220';
+import { api, apiAvailable } from './api.js?v=2609091220';
+import { $, closeSheet, sheetOpen } from './ui.js?v=2609091220';
 
-import * as Onboarding from './screens/onboarding.js?v=2609091153';
-import * as Home from './screens/home.js?v=2609091153';
-import * as Ideas from './screens/ideas.js?v=2609091153';
-import * as Wishlist from './screens/wishlist.js?v=2609091153';
-import * as Wheel from './screens/wheel.js?v=2609091153';
-import * as Profile from './screens/profile.js?v=2609091153';
-import * as Dates from './screens/dates.js?v=2609091153';
-import * as Extra from './screens/extra.js?v=2609091153';
-import { dismissTour } from './screens/coach.js?v=2609091153';
+import * as Onboarding from './screens/onboarding.js?v=2609091220';
+import * as Home from './screens/home.js?v=2609091220';
+import * as Ideas from './screens/ideas.js?v=2609091220';
+import * as Wishlist from './screens/wishlist.js?v=2609091220';
+import * as Wheel from './screens/wheel.js?v=2609091220';
+import * as Profile from './screens/profile.js?v=2609091220';
+import * as Dates from './screens/dates.js?v=2609091220';
+import * as Extra from './screens/extra.js?v=2609091220';
+import { dismissTour } from './screens/coach.js?v=2609091220';
 
 const ROUTES = {
   onboarding: Onboarding.render,
@@ -106,7 +106,7 @@ async function boot() {
   track('app_open', { platform: tg.raw?.platform || 'browser', source: sp || 'direct' });
 
   const splash = $('#splash');
-  setTimeout(() => { splash.classList.add('splash--hide'); setTimeout(() => splash.remove(), 400); }, 550);
+  setTimeout(() => { splash.classList.add('splash--hide'); setTimeout(() => splash.remove(), 400); }, 2400);   // держим сплэш ~2.4 с: успевают догрузиться шрифты, картинки и данные
 
   // Токен вишлиста раньше терялся здесь: h_<idea> и w_<token> вели на один и тот же
   // экран с id=null, поэтому полученный вишлист всегда показывал заглушку.
