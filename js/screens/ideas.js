@@ -1,12 +1,12 @@
 // ── Подборка идей: фильтры, пагинация, paywall, пустое состояние ─────
-import { CATEGORIES, RECIPIENTS, BUDGETS, INTERESTS, CONFIG } from '../config.js?v=2609091228';
-import { IDEAS, IDEAS_BY_CAT } from '../data/ideas.js?v=2609091228';
-import { state, isPremium, categoryOpen, track, inWishlist, addToWishlist, defaultWishlist, save, totalWishlistItems } from '../store.js?v=2609091228';
-import { esc, mascot, sheet, toast, closeSheet, plural } from '../ui.js?v=2609091228';
-import { tg } from '../tg.js?v=2609091228';
-import { go, back } from '../app.js?v=2609091228';
-import { openHint } from './hint.js?v=2609091228';
-import { maybeShowTips, maybeShowTips as _t } from './coach.js?v=2609091228';
+import { CATEGORIES, RECIPIENTS, BUDGETS, INTERESTS, CONFIG } from '../config.js?v=2609091241';
+import { IDEAS, IDEAS_BY_CAT } from '../data/ideas.js?v=2609091241';
+import { state, isPremium, categoryOpen, track, inWishlist, addToWishlist, defaultWishlist, save, totalWishlistItems } from '../store.js?v=2609091241';
+import { esc, mascot, sheet, toast, closeSheet, plural } from '../ui.js?v=2609091241';
+import { tg } from '../tg.js?v=2609091241';
+import { go, back } from '../app.js?v=2609091241';
+import { openHint } from './hint.js?v=2609091241';
+import { maybeShowTips, maybeShowTips as _t } from './coach.js?v=2609091241';
 
 // f/query/shown осознанно живут на уровне модуля — так они переживают повторный рендер
 // одной и той же категории при клике по чипу фильтра. Но именно поэтому раньше они же
@@ -94,7 +94,7 @@ export function render({ id }) {
   if (!cat) return { html: '<div class="wrap"><p>Повод не найден</p></div>' };
   if (!categoryOpen(cat)) return {
     html: '', hideNav: false,
-    mount: () => { go('home', {}, true); import('./extra.js?v=2609091228').then(m => m.openLockSheet(id)); }
+    mount: () => { go('home', {}, true); import('./extra.js?v=2609091241').then(m => m.openLockSheet(id)); }
   };
 
   // Другая категория (или пришли из поиска) — старые фильтры и поисковый запрос не тащим за собой.

@@ -1,12 +1,12 @@
 // ── Главная: поводы ──────────────────────────────────────────────────
-import { CATEGORIES } from '../config.js?v=2609091228';
-import { state, categoryOpen, isPremium, track, questComplete } from '../store.js?v=2609091228';
-import { esc, mascot } from '../ui.js?v=2609091228';
-import { tg } from '../tg.js?v=2609091228';
-import { go } from '../app.js?v=2609091228';
-import { maybeShowTips } from './coach.js?v=2609091228';
-import { storiesRow, bindStories } from './stories.js?v=2609091228';
-import { openLockSheet } from './extra.js?v=2609091228';
+import { CATEGORIES } from '../config.js?v=2609091241';
+import { state, categoryOpen, isPremium, track, questComplete } from '../store.js?v=2609091241';
+import { esc, mascot } from '../ui.js?v=2609091241';
+import { tg } from '../tg.js?v=2609091241';
+import { go } from '../app.js?v=2609091241';
+import { maybeShowTips } from './coach.js?v=2609091241';
+import { storiesRow, bindStories } from './stories.js?v=2609091241';
+import { openLockSheet } from './extra.js?v=2609091241';
 
 export function render() {
   track('home_viewed', { premium: isPremium() });
@@ -46,7 +46,7 @@ export function render() {
             const open = categoryOpen(c);
             const temp = !c.free && !isPremium() && state.tempCategories[c.id] > Date.now();
             return `
-            <button class="cat ${open ? '' : 'cat--locked'} ${c.hot ? 'cat--season' : ''}" data-cat="${c.id}" style="background:${c.bg}">
+            <button class="cat ${open ? '' : 'cat--locked'}" data-cat="${c.id}" style="background:${c.bg}">
               ${c.free ? '<span class="cat__badge">БЕСПЛАТНО</span>' : (open ? `<span class="cat__badge">${temp ? '24 ЧАСА' : 'ОТКРЫТО'}</span>` : '<span class="cat__lock">🔒</span>')}
               <div class="cat__emoji">${c.emoji}</div>
               <div class="cat__name">${esc(c.name).replace(/\n/g, '<br>')}</div>
