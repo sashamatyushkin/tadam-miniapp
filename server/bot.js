@@ -37,6 +37,12 @@ async function onMessage(msg) {
         text: 'С тобой поделились вишлистом 🎁'
       });
     }
+    if (arg === 'debug') {
+      return call('sendMessage', {
+        chat_id: chat, reply_markup: appButton('🧪 Запустить с нуля', 'debug'),
+        text: 'Тестовый запуск 🧪\nПриложение откроется с самого начала: знакомство, пустые вишлисты и даты, подсказки. Каждый раз, когда жмёшь кнопку, всё сбрасывается заново.'
+      });
+    }
     const ref = arg && arg.startsWith('r') ? '\n\nТы пришёл по приглашению — крути колесо, там ждёт спин 🎲' : '';
     return call('sendMessage', {
       chat_id: chat, reply_markup: appButton('🎁 Открыть Та-дам', arg || ''),

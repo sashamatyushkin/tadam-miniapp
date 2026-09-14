@@ -27,7 +27,9 @@ export const API_BASE = resolveApiBase();
 function resolveDebug() {
   try {
     const q = new URLSearchParams(location.search).get('debug');
-    if (q === '1') localStorage.setItem('tadam_debug', '1');
+    // Тестовая ссылка через бота: t.me/<бот>?start=debug → кнопка открывает приложение с startapp=debug
+    const sp = window.Telegram?.WebApp?.initDataUnsafe?.start_param || new URLSearchParams(location.search).get('startapp');
+    if (q === '1' || sp === 'debug') localStorage.setItem('tadam_debug', '1');
     if (q === '0') localStorage.removeItem('tadam_debug');
     return localStorage.getItem('tadam_debug') === '1';
   } catch (e) { return false; }

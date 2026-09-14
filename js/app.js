@@ -1,20 +1,20 @@
 // ── Точка входа и роутер ─────────────────────────────────────────────
-import { tg } from './tg.js?v=2609141956';
-import { load, save, state, track, registerReferral, syncAccessFromServer, syncReferral } from './store.js?v=2609141956';
-import { api, apiAvailable } from './api.js?v=2609141956';
-import { $, closeSheet, sheetOpen } from './ui.js?v=2609141956';
+import { tg } from './tg.js?v=2609142002';
+import { load, save, state, track, registerReferral, syncAccessFromServer, syncReferral, resetAll } from './store.js?v=2609142002';
+import { api, apiAvailable } from './api.js?v=2609142002';
+import { $, closeSheet, sheetOpen } from './ui.js?v=2609142002';
 
-import * as Onboarding from './screens/onboarding.js?v=2609141956';
-import * as Home from './screens/home.js?v=2609141956';
-import * as Ideas from './screens/ideas.js?v=2609141956';
-import * as Wishlist from './screens/wishlist.js?v=2609141956';
-import * as Wheel from './screens/wheel.js?v=2609141956';
-import * as Profile from './screens/profile.js?v=2609141956';
-import * as Dates from './screens/dates.js?v=2609141956';
-import * as Extra from './screens/extra.js?v=2609141956';
-import { dismissTour } from './screens/coach.js?v=2609141956';
-import { addAdminIdeas } from './data/ideas.js?v=2609141956';
-import { addAdminStories } from './screens/stories.js?v=2609141956';
+import * as Onboarding from './screens/onboarding.js?v=2609142002';
+import * as Home from './screens/home.js?v=2609142002';
+import * as Ideas from './screens/ideas.js?v=2609142002';
+import * as Wishlist from './screens/wishlist.js?v=2609142002';
+import * as Wheel from './screens/wheel.js?v=2609142002';
+import * as Profile from './screens/profile.js?v=2609142002';
+import * as Dates from './screens/dates.js?v=2609142002';
+import * as Extra from './screens/extra.js?v=2609142002';
+import { dismissTour } from './screens/coach.js?v=2609142002';
+import { addAdminIdeas } from './data/ideas.js?v=2609142002';
+import { addAdminStories } from './screens/stories.js?v=2609142002';
 
 const ROUTES = {
   onboarding: Onboarding.render,
@@ -107,6 +107,8 @@ async function boot() {
   if (apiAvailable()) { api.auth().then(() => syncReferral()); syncAccessFromServer(); loadAdminContent(); }
 
   const sp = tg.startParam();
+  // Тестовый запуск «с нуля»: каждый вход по debug-ссылке стирает данные и начинает со знакомства
+  if (sp === 'debug') { resetAll(); save(true); }
   registerReferral(sp);
 
   track('app_open', { platform: tg.raw?.platform || 'browser', source: sp || 'direct' });
