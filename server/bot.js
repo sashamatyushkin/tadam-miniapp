@@ -55,7 +55,7 @@ async function onMessage(msg) {
   if (cmd === '/support')
     return call('sendMessage', { chat_id: chat, text: 'Напиши прямо сюда, что случилось — разберёмся 🙌' });
   if (cmd === '/paysupport')
-    return call('sendMessage', { chat_id: chat, text: 'Вопросы по оплате: напиши дату, сумму и что пошло не так — вернёмся с ответом.\nСейчас приложение работает в режиме прототипа: оплата не списывается.' });
+    return call('sendMessage', { chat_id: chat, text: 'Вопросы по оплате: напиши дату, сумму и что пошло не так — вернёмся с ответом.\nОтветим в течение дня.' });
 
   return call('sendMessage', {
     chat_id: chat, reply_markup: appButton('🎁 Открыть Та-дам'),

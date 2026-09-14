@@ -1,16 +1,16 @@
 // ── Квест, paywall, рефералы, UGC, друзья бренда, настройки, намёк ───
-import { CONFIG, CATEGORIES, BRAND_FRIENDS, RECIPIENTS, INTERESTS, SOCIAL, deepLink, TELEGRAM } from '../config.js?v=2609141746';
-import { IDEAS, IDEAS_BY_CAT } from '../data/ideas.js?v=2609141746';
+import { CONFIG, CATEGORIES, BRAND_FRIENDS, RECIPIENTS, INTERESTS, SOCIAL, DEBUG, deepLink, TELEGRAM } from '../config.js?v=2609141932';
+import { IDEAS, IDEAS_BY_CAT } from '../data/ideas.js?v=2609141932';
 import {
   state, save, track, questSteps, questComplete, issueQuestReward,
   isPremium, accessLabel, grantAccess, activeDiscount, resetAll, resetTips,
   addToWishlist, defaultWishlist, inWishlist, planId, profileFilled
-} from '../store.js?v=2609141746';
-import { esc, mascot, sheet, toast, confirmSheet, plural } from '../ui.js?v=2609141746';
-import { tg } from '../tg.js?v=2609141746';
-import { go, back } from '../app.js?v=2609141746';
-import { openHint } from './hint.js?v=2609141746';
-import { api, apiAvailable } from '../api.js?v=2609141746';
+} from '../store.js?v=2609141932';
+import { esc, mascot, sheet, toast, confirmSheet, plural } from '../ui.js?v=2609141932';
+import { tg } from '../tg.js?v=2609141932';
+import { go, back } from '../app.js?v=2609141932';
+import { openHint } from './hint.js?v=2609141932';
+import { api, apiAvailable } from '../api.js?v=2609141932';
 
 // ── «Заполни и получи» ───────────────────────────────────────────────
 export function renderQuest() {
@@ -21,7 +21,7 @@ export function renderQuest() {
     html: `
       <div class="wrap center" style="padding-top:6px">
         ${mascot('alert', 'mascot--md')}
-        <h1 class="bups" style="font-size:30px;color:var(--mango)">заполни и получи</h1>
+        <h1 class="bups" style="font-size:32px;color:var(--mango)">заполни и получи</h1>
         <p class="muted small">Три шага — и premium-категория на 24 часа твоя</p>
       </div>
       <div class="wrap stack" style="margin-top:16px">
@@ -87,7 +87,7 @@ export function renderMe() {
     html: `
       <div class="wrap center" style="padding-top:6px">
         ${mascot('think', 'mascot--sm')}
-        <h1 class="bups" style="font-size:30px;color:var(--mango);margin-top:6px">мой профиль</h1>
+        <h1 class="bups" style="font-size:32px;color:var(--mango);margin-top:6px">мой профиль</h1>
         <p class="muted small">Минута — и подборки станут точнее</p>
       </div>
       <div class="wrap" style="margin-top:14px">
@@ -211,7 +211,7 @@ export function renderPaywall({ from } = {}) {
     html: `
       <div class="wrap center" style="padding-top:6px">
         ${mascot('cool', 'mascot--md')}
-        <h1 class="bups" style="font-size:30px;color:var(--mango)">открой все поводы</h1>
+        <h1 class="bups" style="font-size:32px;color:var(--mango)">открой все поводы</h1>
         <p class="muted small">Неделя — чтобы быстро найти подарок. Год — полный premium.</p>
       </div>
       <div class="wrap stack" style="margin-top:14px">
@@ -219,7 +219,7 @@ export function renderPaywall({ from } = {}) {
         ${disc ? '<p class="small center" style="color:var(--mango);font-weight:700">Скидка на неделю из колеса действует 24 часа 🎉</p>' : ''}
         <div class="section-title" style="margin:6px 0 0">Что входит</div>
         ${compareTable()}
-        <p class="small muted center">Оплата внутри Telegram — через Telegram Stars.<br>В этом прототипе оплата симулируется: деньги не списываются.</p>
+        <p class="small muted center">Оплата прямо в Telegram. Доступ открывается сразу после оплаты.</p>
       </div>`,
     mount(app) { bindPlans(app); }
   };
@@ -269,13 +269,18 @@ function payFlow(productId) {
   const price = (p.id === 'week' && activeDiscount()) ? p.promoRub : p.priceRub;
   sheet(`
     <div class="stack center">
-      <h3 class="h2">${esc(p.title)} · ${price} ₽ за ${p.per}</h3>
-      <p class="small muted">В боевой версии здесь откроется счёт Telegram Stars: invoice → pre_checkout_query → successful_payment, и доступ выдаст backend.<br><br>Сейчас это прототип: подтверди, чтобы посмотреть, как выглядит premium.</p>
-      <button class="btn" id="pay">Открыть доступ (демо)</button>
+      ${mascot('cool', 'mascot--sm')}
+      <h3 class="h2">Premium · ${esc(p.title.toLowerCase())}</h3>
+      <p class="muted">${esc(p.sub)}</p>
+      <div class="bups" style="font-size:36px;color:var(--mango)">${price} ₽</div>
+      <p class="small muted" style="margin-top:-8px">за ${p.per}</p>
+      <button class="btn" id="pay">Оплатить ${price} ₽</button>
       <button class="btn btn--ghost" id="no">Отмена</button>
     </div>`, (el, close) => {
     el.querySelector('#no').onclick = close;
     el.querySelector('#pay').onclick = () => {
+      // ВНИМАНИЕ: до подключения Telegram Stars доступ выдаётся без списания —
+      // это закрывается на сервере (invoice → pre_checkout_query → successful_payment).
       track('payment_started', { id: productId, demo: true });
       close();
       setTimeout(() => {
@@ -294,7 +299,7 @@ export function renderAccess() {
     html: `
       <div class="wrap center" style="padding-top:14px">
         ${mascot('alert', 'mascot--md')}
-        <h1 class="bups" style="font-size:31px;color:var(--mango)">та-дам!<br>всё открыто</h1>
+        <h1 class="bups" style="font-size:33px;color:var(--mango)">та-дам!<br>всё открыто</h1>
         <p class="muted small">Premium активен · ${esc(accessLabel())}</p>
       </div>
       <div class="wrap stack" style="margin-top:14px">
@@ -327,7 +332,7 @@ export function renderInvite() {
     html: `
       <div class="wrap center" style="padding-top:6px">
         ${mascot('bubble', 'mascot--md')}
-        <h1 class="bups" style="font-size:30px;color:var(--mango)">зови друзей</h1>
+        <h1 class="bups" style="font-size:32px;color:var(--mango)">зови друзей</h1>
         <p class="muted small">За каждого друга — дополнительный спин колеса</p>
       </div>
       <div class="wrap stack" style="margin-top:14px">
@@ -337,7 +342,6 @@ export function renderInvite() {
         <div class="card">
           <div style="font-weight:800">Как это работает</div>
           <p class="small muted">Друг открывает Та-дам по твоей ссылке впервые и проходит первый шаг знакомства — тебе приходит сообщение от бота и дополнительный спин. До ${CONFIG.limits.referralSpinsPerDay} друзей в сутки. Если открыть свою же ссылку, спин не начислится.</p>
-          ${apiAvailable() ? '' : '<p class="small muted">Сейчас сервер приложения не запущен, поэтому друзья пока не засчитываются. Всё заработает, как только приложение разместим на хостинге.</p>'}
         </div>
         <div class="rows">
           <div class="row"><span class="row__ico">👥</span><span class="row__t">Приглашено друзей</span><span class="row__v" id="invCount">${state.referral.invitedCount || 0}</span></div>
@@ -369,7 +373,7 @@ export function renderInvite() {
 }
 
 // ── Награды (переиспользуем экран колеса) ────────────────────────────
-export { renderRewards } from './wheel.js?v=2609141746';
+export { renderRewards } from './wheel.js?v=2609141932';
 
 // ── Друзья бренда ────────────────────────────────────────────────────
 export function renderFriends() {
@@ -386,7 +390,7 @@ export function renderFriends() {
         ${BRAND_FRIENDS.length ? '' : `
           <div class="empty" style="padding-bottom:8px">
             ${mascot('peek', 'mascot--md')}
-            <h3 class="bups" style="font-size:30px;color:var(--mango);margin-top:8px">упс, пока тут пусто</h3>
+            <h3 class="bups" style="font-size:32px;color:var(--mango);margin-top:8px">упс, пока тут пусто</h3>
             <p class="muted">Станешь первым другом?</p>
           </div>`}
         ${BRAND_FRIENDS.map(f => `
@@ -422,7 +426,7 @@ export function renderUgc() {
     html: `
       <div class="wrap center" style="padding-top:6px">
         ${mascot('run', 'mascot--md')}
-        <h1 class="bups" style="font-size:29px;color:var(--mango)">твори с та-дам</h1>
+        <h1 class="bups" style="font-size:31px;color:var(--mango)">твори с та-дам</h1>
         <p class="muted small">Снимаешь ролик с упоминанием — получаешь доступ и место в разделе «Друзья бренда»</p>
       </div>
       <div class="wrap stack" style="margin-top:14px">
@@ -477,7 +481,7 @@ export function renderHint({ id }) {
     html: `
       <div class="wrap center" style="padding-top:22px">
         ${mascot('bubble', 'mascot--md')}
-        <h1 class="bups" style="font-size:30px;color:var(--mango)">тебе намекнули 💌</h1>
+        <h1 class="bups" style="font-size:32px;color:var(--mango)">тебе намекнули 💌</h1>
         <div class="card" style="text-align:left;margin-top:14px">
           <div class="small muted">Идея из вишлиста близкого человека</div>
           <div style="font-weight:800;font-size:18px;margin-top:6px">${esc(idea ? idea.title : 'Подарок-сюрприз')}</div>
@@ -517,7 +521,7 @@ export function renderSharedWishlist({ wl }) {
     html: `
       <div class="wrap center" style="padding-top:22px" id="wlBox">
         ${mascot('heart', 'mascot--md')}
-        <h1 class="bups" style="font-size:30px;color:var(--mango)">с тобой поделились вишлистом 🎁</h1>
+        <h1 class="bups" style="font-size:32px;color:var(--mango)">с тобой поделились вишлистом 🎁</h1>
         <div class="card" style="text-align:left;margin-top:14px" id="wlBody">
           <div class="small muted">Загружаем список…</div>
         </div>
@@ -532,7 +536,7 @@ export function renderSharedWishlist({ wl }) {
       };
       const body = app.querySelector('#wlBody');
       if (!apiAvailable()) {
-        body.innerHTML = `<div class="small muted">В этой тестовой сборке backend не запущен, поэтому список не открывается по ссылке — только у отправителя в приложении. Расскажи ему лично, что он хотел подарить 🙂</div>`;
+        body.innerHTML = `<div class="small muted">Не получилось загрузить список. Попробуй открыть ссылку чуть позже.</div>`;
         return;
       }
       const r = await api.wishlistPublic(wl);
@@ -573,12 +577,12 @@ export function renderSettings() {
         <div class="spacer"></div>
         <button class="btn btn--ghost" id="reset" style="color:#B3341A">Удалить мои данные</button>
         <div class="spacer"></div>
-        <div class="card" style="border-style:dashed">
-          <div style="font-weight:800">🧪 Режим тестирования</div>
-          <p class="small muted">Одна кнопка — приложение возвращается к самому первому запуску: онбординг, три бесплатных повода, пустые вишлисты и даты, доступный спин и подсказки заново.</p>
+        ${DEBUG ? `<div class="card" style="border-style:dashed">
+          <div style="font-weight:800">Для тестирования</div>
+          <p class="small muted">Приложение вернётся к самому первому запуску: знакомство, пустые вишлисты и даты, доступный спин и подсказки.</p>
           <button class="btn btn--soft" id="testreset">Сбросить всё до первого запуска</button>
-        </div>
-        <p class="small muted center">Версия ${esc(CONFIG.version)}</p>
+        </div>` : ''}
+        <p class="small muted center">Та-дам · версия ${esc(CONFIG.version)}</p>
       </div>`,
     mount(app) {
       app.querySelectorAll('[data-t]').forEach(b => b.onclick = () => {
@@ -590,13 +594,13 @@ export function renderSettings() {
       app.querySelector('[data-go]').onclick = () => go('terms', {});
       app.querySelector('#tips').onclick = () => { resetTips(); toast('Подсказки вернулись — загляни на Главную'); go('home', {}, true); };
       app.querySelector('[data-me]').onclick = () => go('me', {});
-      app.querySelector('#testreset').onclick = () => {
+      app.querySelector('#testreset')?.addEventListener('click', () => {
         resetAll();                                   // чистим и локальное, и облачное состояние
         track('test_reset', {});
         tg.haptic('success');
-        toast('Всё сброшено — начинаем с нуля 🧪');
+        toast('Всё сброшено — начинаем с нуля');
         go('onboarding', {}, true);
-      };
+      });
       app.querySelector('#reset').onclick = () => confirmSheet(
         'Удалить все данные?', 'Вишлисты, даты и награды исчезнут навсегда', 'Удалить',
         () => { resetAll(); toast('Данные удалены'); go('onboarding', {}, true); }
@@ -613,7 +617,7 @@ export function renderSupport() {
         ${mascot('search', 'mascot--sm')}
         <div class="card">
           <div style="font-weight:800">Что-то пошло не так?</div>
-          <p class="small muted">Напиши нам в Telegram — ответим и починим. По вопросам оплаты используй команду /paysupport в боте.</p>
+          <p class="small muted">Напиши нам в Telegram — ответим и починим. С вопросами по оплате — туда же.</p>
         </div>
         <button class="btn" id="w">Написать в поддержку</button>
         <button class="btn btn--ghost" id="t">Условия и приватность</button>
@@ -635,7 +639,7 @@ export function renderTerms() {
       <div class="wrap stack small">
         <div class="card">
           <b>Что мы храним</b>
-          <p class="muted">Твои вишлисты, важные даты и настройки. В этом прототипе данные лежат в Telegram CloudStorage и в памяти твоего устройства, на наш сервер не уходят.</p>
+          <p class="muted">Профиль, вишлисты, важные даты и настройки — только чтобы подбирать идеи, присылать напоминания и сохранять твои списки между устройствами.</p>
         </div>
         <div class="card">
           <b>Приватность</b>
@@ -643,11 +647,11 @@ export function renderTerms() {
         </div>
         <div class="card">
           <b>Оплата</b>
-          <p class="muted">Premium — цифровой доступ. В боевой версии оплата проходит через Telegram Stars, доступ выдаётся после подтверждённого платежа. В прототипе оплата симулируется.</p>
+          <p class="muted">Premium — цифровой доступ на выбранный срок: неделя или год. Оплата проходит в Telegram, доступ открывается сразу после подтверждения платежа.</p>
         </div>
         <div class="card">
           <b>Колесо</b>
-          <p class="muted">Это не лотерея и не азартная игра: спины бесплатны, деньгами не оплачиваются. Вероятности задаются в конфигурации и раскрываются по запросу.</p>
+          <p class="muted">Это не лотерея и не азартная игра: спины бесплатные и не продаются. Шансы на призы раскроем по запросу в поддержку.</p>
         </div>
         <button class="btn btn--ghost" id="del">Удалить мои данные</button>
       </div>`,

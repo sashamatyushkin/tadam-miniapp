@@ -1,9 +1,9 @@
 // ── Онбординг: привет → кому дарим → первая дата ─────────────────────
-import { state, save, track, addDate, claimReferral } from '../store.js?v=2609141746';
-import { CATEGORIES, RELATIONS, REMINDER_TYPES } from '../config.js?v=2609141746';
-import { mascot, esc, toast } from '../ui.js?v=2609141746';
-import { tg } from '../tg.js?v=2609141746';
-import { go } from '../app.js?v=2609141746';
+import { state, save, track, addDate, claimReferral } from '../store.js?v=2609141932';
+import { CATEGORIES, RELATIONS, REMINDER_TYPES } from '../config.js?v=2609141932';
+import { mascot, esc, toast } from '../ui.js?v=2609141932';
+import { tg } from '../tg.js?v=2609141932';
+import { go } from '../app.js?v=2609141932';
 
 let step = 0;
 let picked = null;
@@ -51,7 +51,7 @@ function occasion() {
       <div class="onb">
         <div class="onb__body">
           ${mascot('think', 'mascot--md')}
-          <h2 class="bups" style="font-size:30px;color:var(--mango)">кому дарим?</h2>
+          <h2 class="bups" style="font-size:32px;color:var(--mango)">кому дарим?</h2>
           <p class="muted small">Выбери повод — покажу идеи прямо сейчас</p>
           <div class="cats" style="width:100%;margin-top:12px">
             ${CATEGORIES.filter(c => c.free).map(c => `
@@ -90,7 +90,7 @@ function firstDate() {
       <div class="onb">
         <div class="onb__body onb__body--compact">
           ${mascot('notes', 'mascot--sm')}
-          <h2 class="bups" style="font-size:26px;color:var(--mango);margin:2px 0 0">первая дата</h2>
+          <h2 class="bups" style="font-size:28px;color:var(--mango);margin:2px 0 0">первая дата</h2>
           <p class="muted small" style="margin:0">Добавь день рождения близкого — напомним заранее</p>
           <div class="field-stack">
             <div class="field"><label>Кого поздравляем</label><input id="n" placeholder="Например, мама Аня" maxlength="40"></div>

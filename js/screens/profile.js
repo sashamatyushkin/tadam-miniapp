@@ -1,9 +1,9 @@
 // ── Профиль ──────────────────────────────────────────────────────────
-import { state, isPremium, accessLabel, track, profileFilled } from '../store.js?v=2609141746';
-import { esc } from '../ui.js?v=2609141746';
-import { tg } from '../tg.js?v=2609141746';
-import { go } from '../app.js?v=2609141746';
-import { maybeShowTips } from './coach.js?v=2609141746';
+import { state, isPremium, accessLabel, track, profileFilled } from '../store.js?v=2609141932';
+import { esc } from '../ui.js?v=2609141932';
+import { tg } from '../tg.js?v=2609141932';
+import { go } from '../app.js?v=2609141932';
+import { maybeShowTips } from './coach.js?v=2609141932';
 
 export function render() {
   const u = tg.user();
@@ -35,7 +35,7 @@ export function render() {
           <button class="row" data-go="support"><span class="row__ico">💬</span><span class="row__t">Поддержка</span><span class="row__chev">›</span></button>
         </div>
         <div class="spacer"></div>
-        <p class="small muted center">Та-дам · прототип · ${esc(state.profile.tz)}</p>
+
       </div>`,
     mount(app) {
       track('profile_viewed', {});

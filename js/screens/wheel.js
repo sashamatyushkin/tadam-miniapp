@@ -1,12 +1,12 @@
 // ── Колесо фортуны ───────────────────────────────────────────────────
 // ПРОТОТИП: розыгрыш считается на клиенте (crypto.getRandomValues) по весам
 // из config.js. В production результат приходит с backend (см. README, п. «Колесо»).
-import { WHEEL, CATEGORIES, CONFIG } from '../config.js?v=2609141746';
-import { state, save, spin, applyServerSpin, spinsAvailable, track, redeemCategory, isPremium } from '../store.js?v=2609141746';
-import { esc, mascot, sheet, toast } from '../ui.js?v=2609141746';
-import { tg } from '../tg.js?v=2609141746';
-import { go } from '../app.js?v=2609141746';
-import { api, apiAvailable } from '../api.js?v=2609141746';
+import { WHEEL, CATEGORIES, CONFIG } from '../config.js?v=2609141932';
+import { state, save, spin, applyServerSpin, spinsAvailable, track, redeemCategory, isPremium } from '../store.js?v=2609141932';
+import { esc, mascot, sheet, toast } from '../ui.js?v=2609141932';
+import { tg } from '../tg.js?v=2609141932';
+import { go } from '../app.js?v=2609141932';
+import { api, apiAvailable } from '../api.js?v=2609141932';
 
 // Идемпотентный ключ на одну попытку — если запрос уйдёт повторно (двойной тап,
 // обрыв связи и повтор), сервер вернёт тот же результат, а не разыграет заново.
@@ -58,7 +58,7 @@ export function render() {
     tab: 'wheel',
     html: `
       <div class="wrap center" style="padding-top:8px">
-        <h1 class="bups" style="font-size:31px;color:var(--mango)">колесо фортуны</h1>
+        <h1 class="bups" style="font-size:33px;color:var(--mango)">колесо фортуны</h1>
       </div>
       <div class="wheel-wrap" id="ww">
         ${wheelSvg()}
@@ -108,7 +108,7 @@ function showResult(reward) {
   sheet(`
     <div class="center stack">
       ${mascot(empty ? 'sleep' : 'wow', 'mascot--md')}
-      <h3 class="bups" style="font-size:30px;color:var(--mango)">${empty ? 'почти!' : 'та-дам!'}</h3>
+      <h3 class="bups" style="font-size:32px;color:var(--mango)">${empty ? 'почти!' : 'та-дам!'}</h3>
       <p style="font-weight:800;font-size:17px">${esc(reward.title)}</p>
       <p class="muted small">${hintFor(reward.code)}</p>
       ${reward.code === 'category' ? '<button class="btn" id="use">Выбрать категорию</button>' : ''}

@@ -10,15 +10,20 @@ const WEBAPP = (process.env.WEBAPP_URL || 'https://sashamatyushkin.github.io/tad
 
 // Разрешённые источники: GitHub Pages (прод-фронтенд) и локальная разработка.
 // Список сузится до одного домена, когда появится боевой хостинг.
-const ALLOWED_ORIGINS = [
-  'https://sashamatyushkin.github.io',
-  'http://localhost:4173', 'http://127.0.0.1:4173',
-  'http://localhost:5173', 'http://127.0.0.1:5173'
-];
+// На боевом сервере список задаётся переменной ALLOWED_ORIGINS (через запятую) —
+// туда вписывается только домен фронтенда. Значения ниже — для локальной разработки.
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map(s => s.trim()).filter(Boolean)
+  : ['https://sashamatyushkin.github.io', 'http://localhost:4173', 'http://127.0.0.1:4173', 'http://localhost:5173', 'http://127.0.0.1:5173']);
+// Временные туннели cloudflared — только вне production
+const ALLOW_TUNNELS = process.env.NODE_ENV !== 'production';
+// Выдача premium без оплаты — только для тестов. На проде выключена, пока не подключены Stars.
+const ALLOW_TEST_PAYMENTS = process.env.ALLOW_TEST_PAYMENTS === '1';
+const MAX_BODY = 64 * 1024; // больше 64 КБ телу запроса у нас взяться неоткуда — отсекаем мусор
 
 function cors(req, res) {
   const origin = req.headers.origin;
-  if (origin && (ALLOWED_ORIGINS.includes(origin) || /^https:\/\/[a-z0-9-]+\.trycloudflare\.com$/.test(origin))) {
+  if (origin && (ALLOWED_ORIGINS.includes(origin) || (ALLOW_TUNNELS && /^https:\/\/[a-z0-9-]+\.trycloudflare\.com$/.test(origin)))) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Vary', 'Origin');
   }
@@ -33,7 +38,12 @@ function json(res, code, body) {
 
 async function readBody(req) {
   const chunks = [];
-  for await (const c of req) chunks.push(c);
+  let size = 0;
+  for await (const c of req) {
+    size += c.length;
+    if (size > MAX_BODY) { req.destroy(); return {}; }
+    chunks.push(c);
+  }
   if (!chunks.length) return {};
   try { return JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch (e) { return {}; }
 }
@@ -72,6 +82,7 @@ on('GET', /^\/api\/access$/, (req, res) => {
 on('POST', /^\/api\/access\/grant-test$/, async (req, res) => {
   const user = authenticate(req);
   if (!user) return json(res, 401, { ok: false, error: 'invalid_init_data' });
+  if (!ALLOW_TEST_PAYMENTS) return json(res, 403, { ok: false, error: 'test_payments_disabled' }); // иначе любой выдаст себе premium даром
   const { productId } = await readBody(req);
   const p = PRODUCTS[productId];
   if (!p) return json(res, 400, { ok: false, error: 'unknown_product' });

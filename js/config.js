@@ -8,17 +8,34 @@
 // в ссылке: ?api=https://<туннель>.trycloudflare.com — так каждый тестовый прогон
 // (адрес туннеля меняется) не требует нового коммита. Сохраняется в localStorage,
 // чтобы держался между перезаходами в это тестовое окно.
+// Боевой адрес API — вписать сюда при выкладке (например 'https://api.tadam.ru').
+// Пока пусто, приложение работает автономно.
+const PROD_API_BASE = '';
+
 function resolveApiBase() {
   try {
     const fromUrl = new URLSearchParams(location.search).get('api');
     if (fromUrl) { localStorage.setItem('tadam_api_base', fromUrl); return fromUrl; }
-    return localStorage.getItem('tadam_api_base') || '';
-  } catch (e) { return ''; }
+    return localStorage.getItem('tadam_api_base') || PROD_API_BASE;
+  } catch (e) { return PROD_API_BASE; }
 }
 export const API_BASE = resolveApiBase();
 
+// Служебный режим для тестировщиков: кнопка «сбросить всё до первого запуска».
+// Обычный пользователь его не видит. Включается ссылкой с ?debug=1 (запоминается
+// на устройстве), выключается ссылкой с ?debug=0.
+function resolveDebug() {
+  try {
+    const q = new URLSearchParams(location.search).get('debug');
+    if (q === '1') localStorage.setItem('tadam_debug', '1');
+    if (q === '0') localStorage.removeItem('tadam_debug');
+    return localStorage.getItem('tadam_debug') === '1';
+  } catch (e) { return false; }
+}
+export const DEBUG = resolveDebug();
+
 export const CONFIG = {
-  version: '0.1.0-prototype',
+  version: '1.0.0',
   limits: {
     freeWishlists: 3,          // лимит вишлистов на free
     freeDates: 5,              // лимит важных дат на free

@@ -1,11 +1,11 @@
 // ── Сторис на главной (как в банковских приложениях) ────────────────
 // Подборка под ситуацию: сезон, ближайшая дата близкого, механики.
 // Каждая сторис ведёт в конкретный повод, вишлист или механику.
-import { state, save, track, daysUntil, isPremium, profileFilled } from '../store.js?v=2609141746';
-import { CATEGORIES } from '../config.js?v=2609141746';
-import { esc, mascot, plural } from '../ui.js?v=2609141746';
-import { tg } from '../tg.js?v=2609141746';
-import { go } from '../app.js?v=2609141746';
+import { state, save, track, daysUntil, isPremium, profileFilled } from '../store.js?v=2609141932';
+import { CATEGORIES } from '../config.js?v=2609141932';
+import { esc, mascot, plural } from '../ui.js?v=2609141932';
+import { tg } from '../tg.js?v=2609141932';
+import { go } from '../app.js?v=2609141932';
 
 const G = {
   ny:     'linear-gradient(160deg,#1F7A55,#54B183)',
@@ -50,7 +50,7 @@ function seasonal(month) {
   };
   // 5 октября — День учителя: показываем с сентября по сам праздник
   if (month === 8 || (month === 9 && new Date().getDate() <= 5)) return {
-    id: 'teacher', title: 'Скоро\nДень учителя', emoji: '🍎', bg: G.gold,
+    id: 'teacher', title: 'День\nучителя', emoji: '🍎', bg: G.gold,
     slides: [
       { bg: G.gold, mascot: 'notes', title: 'день учителя —\n5 октября', text: 'Учителю, воспитателю, тренеру или репетитору. Тот, кто вложил в ребёнка год, заслужил больше, чем коробку конфет.' },
       { bg: G.gold, emoji: '☕', title: 'без банальных\nкружек', text: 'Термокружка с гравировкой имени, органайзер на рабочий стол, ежедневник с тиснением — полезно и лично.' }

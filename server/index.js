@@ -16,4 +16,6 @@ startHttp(PORT);
 startBot();
 startScheduler();
 
-process.on('SIGINT', () => { console.log('\nОстановка…'); process.exit(0); });
+// SIGTERM присылает хостинг/Docker при перезапуске — выходим сразу, SQLite в WAL переживает это без потерь
+for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => { console.log(`\n${sig}: остановка…`); process.exit(0); });
+process.on('unhandledRejection', e => console.error('[server] unhandledRejection', e));

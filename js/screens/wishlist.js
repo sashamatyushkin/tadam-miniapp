@@ -1,14 +1,14 @@
 // ── Вишлисты: свой список, шеринг и намёки ───────────────────────────
-import { state, save, track, createWishlist, removeItem, wishlistLimit, isPremium } from '../store.js?v=2609141746';
-import { deepLink } from '../config.js?v=2609141746';
-import { esc, mascot, sheet, toast, confirmSheet, plural } from '../ui.js?v=2609141746';
-import { IDEAS } from '../data/ideas.js?v=2609141746';
-import { cover } from './ideas.js?v=2609141746';
-import { tg } from '../tg.js?v=2609141746';
-import { go, back } from '../app.js?v=2609141746';
-import { maybeShowTips } from './coach.js?v=2609141746';
-import { openHint } from './hint.js?v=2609141746';
-import { api, apiAvailable } from '../api.js?v=2609141746';
+import { state, save, track, createWishlist, removeItem, wishlistLimit, isPremium } from '../store.js?v=2609141932';
+import { deepLink } from '../config.js?v=2609141932';
+import { esc, mascot, sheet, toast, confirmSheet, plural } from '../ui.js?v=2609141932';
+import { IDEAS } from '../data/ideas.js?v=2609141932';
+import { cover } from './ideas.js?v=2609141932';
+import { tg } from '../tg.js?v=2609141932';
+import { go, back } from '../app.js?v=2609141932';
+import { maybeShowTips } from './coach.js?v=2609141932';
+import { openHint } from './hint.js?v=2609141932';
+import { api, apiAvailable } from '../api.js?v=2609141932';
 
 
 // Пустой вишлист показываем не голой надписью, а примерами: человек сразу видит,
@@ -46,7 +46,7 @@ export function render() {
     html: `
       <div class="wrap center" style="padding-top:10px">
         ${mascot('heart', 'mascot--md')}
-        <h1 class="bups" style="font-size:30px;color:var(--mango)">мой вишлист</h1>
+        <h1 class="bups" style="font-size:32px;color:var(--mango)">мой вишлист</h1>
         <p class="muted small">Собери желания и намекни близким</p>
       </div>
       <div class="wrap" style="margin-top:16px">
@@ -101,7 +101,7 @@ export function renderOne({ id, tab }) {
     html: `
       <div class="wrap center" style="padding-top:10px">
         ${mascot('heart', 'mascot--md')}
-        <h1 class="bups" style="font-size:30px;color:var(--mango)">${esc(wl.title)}</h1>
+        <h1 class="bups" style="font-size:32px;color:var(--mango)">${esc(wl.title)}</h1>
         <p class="muted small">Собери желания и намекни близким</p>
       </div>
       <div class="wrap" style="margin-top:14px">
@@ -216,9 +216,7 @@ function shareSheet(wl) {
           </div>
         </div>
       </div>
-      <p class="small muted">${apiAvailable()
-        ? 'Ссылка не раскрывает твой Telegram ID и в любой момент отзывается — старая перестаёт открываться.'
-        : 'В этой тестовой сборке backend не запущен: ссылка откроется только у тебя самого. Для настоящей отправки нужен запущенный server (см. README).'}</p>
+      <p class="small muted">Ссылка не раскрывает твой Telegram и в любой момент отзывается — старая перестаёт открываться.</p>
       <button class="btn" id="send">Отправить в Telegram</button>
       <button class="btn btn--soft" id="copy">Скопировать</button>
       <button class="btn btn--ghost" id="revoke">Отозвать и создать новую</button>

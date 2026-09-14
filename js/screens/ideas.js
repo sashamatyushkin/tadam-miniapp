@@ -1,12 +1,12 @@
 // ── Подборка идей: фильтры, пагинация, paywall, пустое состояние ─────
-import { CATEGORIES, RECIPIENTS, BUDGETS, INTERESTS, CONFIG } from '../config.js?v=2609141746';
-import { IDEAS, IDEAS_BY_CAT } from '../data/ideas.js?v=2609141746';
-import { state, isPremium, categoryOpen, track, inWishlist, addToWishlist, defaultWishlist, save, totalWishlistItems } from '../store.js?v=2609141746';
-import { esc, mascot, sheet, toast, closeSheet, plural } from '../ui.js?v=2609141746';
-import { tg } from '../tg.js?v=2609141746';
-import { go, back } from '../app.js?v=2609141746';
-import { openHint } from './hint.js?v=2609141746';
-import { maybeShowTips, maybeShowTips as _t } from './coach.js?v=2609141746';
+import { CATEGORIES, RECIPIENTS, BUDGETS, INTERESTS, CONFIG } from '../config.js?v=2609141932';
+import { IDEAS, IDEAS_BY_CAT } from '../data/ideas.js?v=2609141932';
+import { state, isPremium, categoryOpen, track, inWishlist, addToWishlist, defaultWishlist, save, totalWishlistItems } from '../store.js?v=2609141932';
+import { esc, mascot, sheet, toast, closeSheet, plural } from '../ui.js?v=2609141932';
+import { tg } from '../tg.js?v=2609141932';
+import { go, back } from '../app.js?v=2609141932';
+import { openHint } from './hint.js?v=2609141932';
+import { maybeShowTips, maybeShowTips as _t } from './coach.js?v=2609141932';
 
 // f/query/shown осознанно живут на уровне модуля — так они переживают повторный рендер
 // одной и той же категории при клике по чипу фильтра. Но именно поэтому раньше они же
@@ -102,7 +102,7 @@ export function render({ id }) {
   if (!cat) return { html: '<div class="wrap"><p>Повод не найден</p></div>' };
   if (!categoryOpen(cat)) return {
     html: '', hideNav: false,
-    mount: () => { go('home', {}, true); import('./extra.js?v=2609141746').then(m => m.openLockSheet(id)); }
+    mount: () => { go('home', {}, true); import('./extra.js?v=2609141932').then(m => m.openLockSheet(id)); }
   };
 
   // Другая категория (или пришли из поиска) — старые фильтры и поисковый запрос не тащим за собой.
@@ -143,7 +143,7 @@ export function render({ id }) {
         ${list.length > shown ? '<button class="btn btn--soft" id="more" style="margin-top:14px">Показать ещё</button>' : ''}
         ${(!premium && hiddenCount > 0) ? `
           <div class="info center" style="margin-top:18px">
-            <div class="bups" style="font-size:24px;color:#173F63">та-дам! ещё ${hiddenCount} ${plural(hiddenCount, 'идея', 'идеи', 'идей')}</div>
+            <div class="bups" style="font-size:26px;color:#173F63">та-дам! ещё ${hiddenCount} ${plural(hiddenCount, 'идея', 'идеи', 'идей')}</div>
             <p class="small" style="margin:8px 0 14px">Ты посмотрел ${limited.length} бесплатных. Открой все идеи и фильтры.</p>
             <button class="btn" id="pw">Открыть от 149 ₽ в неделю</button>
           </div>` : ''}

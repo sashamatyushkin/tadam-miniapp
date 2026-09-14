@@ -3,9 +3,9 @@
 // В production источник истины — backend: доступ, лимиты, розыгрыш колеса,
 // рефералы и платежи проверяются сервером, клиент лишь отображает результат.
 
-import { tg } from './tg.js?v=2609141746';
-import { CONFIG, WHEEL } from './config.js?v=2609141746';
-import { api, apiAvailable } from './api.js?v=2609141746';
+import { tg } from './tg.js?v=2609141932';
+import { CONFIG, WHEEL } from './config.js?v=2609141932';
+import { api, apiAvailable } from './api.js?v=2609141932';
 
 const KEY = 'tadam_state_v1';
 const CHUNK = 3500; // лимит значения Telegram CloudStorage — 4096 символов
@@ -84,7 +84,7 @@ async function saveCloud(json) {
   if (parts.length > 40) {                              // защита от переполнения — не пишем
     if (!warnedOverflow) {
       warnedOverflow = true;
-      import('./ui.js?v=2609141746').then(m => m.toast('Данных стало много — почисти старые вишлисты, иначе новое не сохранится'));
+      import('./ui.js?v=2609141932').then(m => m.toast('Данных стало много — почисти старые вишлисты, иначе новое не сохранится'));
     }
     return;
   }
@@ -136,7 +136,9 @@ export function save(immediate) {
   const json = JSON.stringify(state);
   try { localStorage.setItem(KEY, json); } catch (e) {}              // локально пишем всегда
   clearTimeout(saveTimer);
-  const flush = () => { if (tg.inTelegram && cloudReadOk) saveCloud(json); };
+  // События аналитики в облако не пишем: это до 300 записей, которые каждый раз раздували
+  // состояние на несколько лишних чанков CloudStorage. Локально они остаются.
+  const flush = () => { if (tg.inTelegram && cloudReadOk) saveCloud(JSON.stringify({ ...state, events: [] })); };
   if (immediate) flush(); else saveTimer = setTimeout(flush, 600);
 }
 
@@ -151,7 +153,8 @@ export function track(name, params = {}) {
   if (!state.settings.analytics) return;
   state.events.push({ n: name, t: Date.now(), p: params });
   if (state.events.length > 300) state.events.splice(0, state.events.length - 300);
-  save();
+  // save() здесь не зовём: событие сохранится со следующим настоящим изменением.
+  // Раньше каждый просмотр экрана запускал запись всего состояния в CloudStorage.
 }
 
 // ── обучающие подсказки ──────────────────────────────────────────────
