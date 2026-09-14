@@ -5,6 +5,8 @@ import { db, upsertUser, getEntitlement, isPremiumRow, grantEntitlement } from '
 import { verifyInitData, sendMessage, botCall } from './telegram.js';
 import { spinsAvailable, spin } from './wheel.js';
 import { PRODUCTS, LIMITS } from './config.js';
+import { json, readBody, MAX_BODY } from './util.js';
+import { mountAdmin } from './admin.js';
 
 const WEBAPP = (process.env.WEBAPP_URL || 'https://sashamatyushkin.github.io/tadam-miniapp/').replace(/\/?$/, '/');
 
@@ -19,7 +21,6 @@ const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS
 const ALLOW_TUNNELS = process.env.NODE_ENV !== 'production';
 // Выдача premium без оплаты — только для тестов. На проде выключена, пока не подключены Stars.
 const ALLOW_TEST_PAYMENTS = process.env.ALLOW_TEST_PAYMENTS === '1';
-const MAX_BODY = 64 * 1024; // больше 64 КБ телу запроса у нас взяться неоткуда — отсекаем мусор
 
 function cors(req, res) {
   const origin = req.headers.origin;
@@ -29,23 +30,6 @@ function cors(req, res) {
   }
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-}
-
-function json(res, code, body) {
-  res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8' });
-  res.end(JSON.stringify(body));
-}
-
-async function readBody(req) {
-  const chunks = [];
-  let size = 0;
-  for await (const c of req) {
-    size += c.length;
-    if (size > MAX_BODY) { req.destroy(); return {}; }
-    chunks.push(c);
-  }
-  if (!chunks.length) return {};
-  try { return JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch (e) { return {}; }
 }
 
 // initData передаётся в заголовке Authorization: tma <initData> — формат,
@@ -184,8 +168,8 @@ on('POST', /^\/api\/profile$/, async (req, res) => {
   const list = v => JSON.stringify((Array.isArray(v) ? v : []).map(String).slice(0, 10));
   const gender = ['f', 'm', 'x'].includes(b.gender) ? b.gender : null;
   const birth = /^\d{4}-\d{2}-\d{2}$/.test(b.birthDate || '') ? b.birthDate : null;
-  db.prepare(`UPDATE users SET profile_name = ?, gender = ?, birth_date = ?, give_to = ?, interests = ?, profile_updated_at = ? WHERE id = ?`)
-    .run(String(b.name || '').slice(0, 30), gender, birth, list(b.giveTo), list(b.interests), Date.now(), user.id);
+  db.prepare(`UPDATE users SET profile_name = ?, gender = ?, birth_date = ?, give_to = ?, interests = ?, dream_gift = ?, profile_updated_at = ? WHERE id = ?`)
+    .run(String(b.name || '').slice(0, 30), gender, birth, list(b.giveTo), list(b.interests), String(b.dreamGift || '').slice(0, 60), Date.now(), user.id);
   json(res, 200, { ok: true });
 });
 
@@ -260,7 +244,28 @@ on('POST', /^\/api\/share\/invite$/, async (req, res) => {
   json(res, 200, { ok: true, id: r.result.id });
 });
 
+// ── контент из админки: публичные, без auth — обычный каталог, не личные данные ──
+on('GET', /^\/api\/content\/ideas$/, (req, res) => {
+  const rows = db.prepare('SELECT * FROM admin_ideas ORDER BY created_at').all();
+  json(res, 200, { ok: true, items: rows.map(r => ({
+    id: r.id, cat: r.cat, title: r.title, desc: r.desc, long: r.long_desc,
+    budget: r.budget, recipients: JSON.parse(r.recipients), interests: JSON.parse(r.interests),
+    photo: r.photo, buy: r.buy
+  })) });
+});
+
+on('GET', /^\/api\/content\/stories$/, (req, res) => {
+  const rows = db.prepare('SELECT * FROM admin_stories ORDER BY created_at').all();
+  json(res, 200, { ok: true, items: rows.map(r => ({
+    id: r.id, title: r.title, emoji: r.emoji, bg: r.bg, mascot: r.mascot,
+    slideTitle: r.slide_title, slideText: r.slide_text,
+    ctaLabel: r.cta_label, ctaRoute: r.cta_route, ctaParam: r.cta_param
+  })) });
+});
+
 on('GET', /^\/(api\/health)?$/, (req, res) => json(res, 200, { ok: true, service: 'tadam-server' }));
+
+mountAdmin(on);
 
 export function startHttp(port) {
   const server = createServer(async (req, res) => {

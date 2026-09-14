@@ -1,11 +1,11 @@
 // ── Сторис на главной (как в банковских приложениях) ────────────────
 // Подборка под ситуацию: сезон, ближайшая дата близкого, механики.
 // Каждая сторис ведёт в конкретный повод, вишлист или механику.
-import { state, save, track, daysUntil, isPremium, profileFilled } from '../store.js?v=2609141932';
-import { CATEGORIES } from '../config.js?v=2609141932';
-import { esc, mascot, plural } from '../ui.js?v=2609141932';
-import { tg } from '../tg.js?v=2609141932';
-import { go } from '../app.js?v=2609141932';
+import { state, save, track, daysUntil, isPremium, profileFilled } from '../store.js?v=2609141956';
+import { CATEGORIES } from '../config.js?v=2609141956';
+import { esc, mascot, plural } from '../ui.js?v=2609141956';
+import { tg } from '../tg.js?v=2609141956';
+import { go } from '../app.js?v=2609141956';
 
 const G = {
   ny:     'linear-gradient(160deg,#1F7A55,#54B183)',
@@ -115,6 +115,20 @@ const WOW = {
   cta: { label: 'Смотреть все идеи', route: 'cat', params: { id: 'birthday' } }
 };
 
+// Сторис из админки. Хранится своей ссылкой (не переприсваивается), addAdminStories
+// пушит в неё — buildStories() читает актуальное содержимое при каждом вызове.
+const adminStories = [];
+export function addAdminStories(list) {
+  for (const r of list || []) {
+    if (!r?.id || adminStories.some(s => s.id === r.id)) continue;
+    adminStories.push({
+      id: r.id, title: r.title, emoji: r.emoji || '✨', bg: G[r.bg] || G.mango,
+      slides: [{ bg: G[r.bg] || G.mango, mascot: r.mascot || 'wow', title: r.slideTitle, text: r.slideText }],
+      cta: { label: r.ctaLabel, route: r.ctaRoute || 'home', params: r.ctaParam ? { id: r.ctaParam } : {} }
+    });
+  }
+}
+
 export function buildStories() {
   const list = [];
   // Профиль — одно из первых действий: без него не подставим фильтры и не поймём, кому ты даришь
@@ -145,6 +159,7 @@ export function buildStories() {
     slides: [{ bg: G.ice, mascot: 'cool', title: 'открыть\nвсё сразу', text: 'Все поводы, идеи и фильтры — 149 ₽ в неделю. Полный premium на год с напоминаниями о датах близких — 599 ₽.' }],
     cta: { label: 'Посмотреть доступ', route: 'paywall', params: { from: 'story' } }
   });
+  list.push(...adminStories);
   return list;
 }
 

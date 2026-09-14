@@ -84,6 +84,37 @@ CREATE TABLE IF NOT EXISTS referrals (
   qualified INTEGER NOT NULL DEFAULT 0,
   created_at INTEGER NOT NULL
 );
+
+-- Идеи и сторис, добавленные из админки. Живут отдельно от статической базы
+-- фронтенда (js/data/ideas.js, js/screens/stories.js) — фронтенд подтягивает их
+-- через /api/content/* и добавляет к встроенным, не заменяя их.
+CREATE TABLE IF NOT EXISTS admin_ideas (
+  id TEXT PRIMARY KEY,
+  cat TEXT NOT NULL,
+  title TEXT NOT NULL,
+  desc TEXT NOT NULL DEFAULT '',
+  long_desc TEXT NOT NULL DEFAULT '',
+  budget INTEGER NOT NULL,
+  recipients TEXT NOT NULL DEFAULT '[]',
+  interests TEXT NOT NULL DEFAULT '[]',
+  photo TEXT NOT NULL DEFAULT '',
+  buy TEXT NOT NULL DEFAULT '',
+  created_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS admin_stories (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  emoji TEXT NOT NULL DEFAULT '✨',
+  bg TEXT NOT NULL DEFAULT 'mango',
+  mascot TEXT NOT NULL DEFAULT 'wow',
+  slide_title TEXT NOT NULL,
+  slide_text TEXT NOT NULL,
+  cta_label TEXT NOT NULL,
+  cta_route TEXT NOT NULL DEFAULT 'home',
+  cta_param TEXT NOT NULL DEFAULT '',
+  created_at INTEGER NOT NULL
+);
 `);
 
 // Колонки, добавленные после первого запуска: у уже созданной базы их нет,
@@ -95,6 +126,7 @@ for (const ddl of [
   "ALTER TABLE users ADD COLUMN give_to TEXT",
   "ALTER TABLE users ADD COLUMN interests TEXT",
   "ALTER TABLE users ADD COLUMN profile_updated_at INTEGER",
+  "ALTER TABLE users ADD COLUMN dream_gift TEXT",
   "ALTER TABLE wishlists ADD COLUMN dream TEXT"
 ]) { try { db.exec(ddl); } catch (e) { /* колонка уже есть */ } }
 

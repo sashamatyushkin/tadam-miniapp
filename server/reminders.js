@@ -22,7 +22,20 @@ const WORD = (n, one, few, many) => {
   return many;
 };
 
+// Единое время рассылки для всех — не раньше 12:00 по Москве, а не «как только совпал день».
+// Без этого напоминание могло прийти в 3 ночи: тик считает «days» от полуночи по времени
+// сервера (обычно UTC), и как только дата совпадает, письмо уходило немедленно.
+// «Не раньше», а не «строго в» — если сервер был недоступен ровно в полдень, тик после
+// восстановления всё равно отправит сообщение тем же днём, а не пропустит совсем.
+// Учёт часового пояса конкретного пользователя — следующий шаг; сейчас общее время
+// проще и понятнее: все знают, когда ждать сообщение.
+const REMINDER_HOUR_MSK = 12;
+function mskHour(from = new Date()) {
+  return +new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Moscow', hour: '2-digit', hour12: false }).format(from);
+}
+
 async function tick() {
+  if (mskHour() < REMINDER_HOUR_MSK) return;
   const dates = db.prepare('SELECT * FROM important_dates WHERE annual = 1').all();
   for (const d of dates) {
     const { days, year } = daysUntil(d.date);

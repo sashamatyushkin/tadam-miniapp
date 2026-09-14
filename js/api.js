@@ -3,8 +3,8 @@
 // все функции тихо возвращают null — вызывающий код падает обратно
 // на локальное поведение (как было до backend). Никто, кто просто открыл
 // GitHub Pages без запущенного сервера, ничего не замечает и не теряет.
-import { API_BASE } from './config.js?v=2609141932';
-import { tg } from './tg.js?v=2609141932';
+import { API_BASE } from './config.js?v=2609141956';
+import { tg } from './tg.js?v=2609141956';
 
 const TIMEOUT_MS = 4000;
 
@@ -13,7 +13,9 @@ export const apiAvailable = () => !!API_BASE;
 async function call(method, path, body) {
   if (!API_BASE) return null;
   const initData = tg.initData();
-  if (!initData && !path.startsWith('/api/wishlist/')) return null; // публичные GET вишлиста — исключение
+  // Публичные GET без личных данных — вишлист по ссылке и каталог из админки
+  const isPublic = path.startsWith('/api/wishlist/') || path.startsWith('/api/content/');
+  if (!initData && !isPublic) return null;
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
   try {
@@ -56,5 +58,9 @@ export const api = {
   referralRegister: code => call('POST', '/api/referral/register', { code }),
   referralClaim: code => call('POST', '/api/referral/claim', { code }),
 
-  shareInvite: link => call('POST', '/api/share/invite', { link })
+  shareInvite: link => call('POST', '/api/share/invite', { link }),
+
+  // Каталог из админки — идеи и сторис, которых нет в статической сборке фронтенда
+  contentIdeas: () => call('GET', '/api/content/ideas'),
+  contentStories: () => call('GET', '/api/content/stories')
 };

@@ -1,10 +1,10 @@
 // ── Важные даты и напоминания ────────────────────────────────────────
-import { state, save, addDate, removeDate, daysUntil, datesLimit, isPremium, isFullPremium, reminderOffsets, track } from '../store.js?v=2609141932';
-import { RELATIONS, REMINDER_TYPES, CONFIG } from '../config.js?v=2609141932';
-import { esc, mascot, toast, confirmSheet, plural, fmtDate } from '../ui.js?v=2609141932';
-import { tg } from '../tg.js?v=2609141932';
-import { go } from '../app.js?v=2609141932';
-import { apiAvailable } from '../api.js?v=2609141932';
+import { state, save, addDate, removeDate, daysUntil, datesLimit, isPremium, isFullPremium, reminderOffsets, track } from '../store.js?v=2609141956';
+import { RELATIONS, REMINDER_TYPES, CONFIG } from '../config.js?v=2609141956';
+import { esc, mascot, toast, confirmSheet, plural, fmtDate } from '../ui.js?v=2609141956';
+import { tg } from '../tg.js?v=2609141956';
+import { go } from '../app.js?v=2609141956';
+import { apiAvailable } from '../api.js?v=2609141956';
 
 export function render() {
   const list = state.dates.slice().sort((a, b) => daysUntil(a.date) - daysUntil(b.date));
@@ -30,7 +30,7 @@ export function render() {
           <p class="small muted">За ${reminderOffsets().join(', ')} ${plural(reminderOffsets().at(-1), 'день', 'дня', 'дней')} до события — сообщением от бота с готовой подборкой.</p>
           ${isFullPremium() ? '' : `<p class="small muted">В годовом premium — безлимит дат и напоминания за ${CONFIG.reminders.defaultOffsets.join(', ')} ${plural(CONFIG.reminders.defaultOffsets.at(-1), 'день', 'дня', 'дней')}. Сейчас можно добавить до ${CONFIG.limits.freeDates} дат.</p>`}
           <p class="small muted">Напоминания: ${state.settings.reminders ? 'включены' : 'выключены'} · изменить в «Настройках»</p>
-          <p class="small muted">Напоминание придёт от бота Та-дам, даже если приложение закрыто.</p>
+          <p class="small muted">Напоминание придёт от бота Та-дам в 12:00 по Москве, даже если приложение закрыто.</p>
         </div>
       </div>`,
     mount(app) {

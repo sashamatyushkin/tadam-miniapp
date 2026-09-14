@@ -1,18 +1,20 @@
 // ── Точка входа и роутер ─────────────────────────────────────────────
-import { tg } from './tg.js?v=2609141932';
-import { load, save, state, track, registerReferral, syncAccessFromServer, syncReferral } from './store.js?v=2609141932';
-import { api, apiAvailable } from './api.js?v=2609141932';
-import { $, closeSheet, sheetOpen } from './ui.js?v=2609141932';
+import { tg } from './tg.js?v=2609141956';
+import { load, save, state, track, registerReferral, syncAccessFromServer, syncReferral } from './store.js?v=2609141956';
+import { api, apiAvailable } from './api.js?v=2609141956';
+import { $, closeSheet, sheetOpen } from './ui.js?v=2609141956';
 
-import * as Onboarding from './screens/onboarding.js?v=2609141932';
-import * as Home from './screens/home.js?v=2609141932';
-import * as Ideas from './screens/ideas.js?v=2609141932';
-import * as Wishlist from './screens/wishlist.js?v=2609141932';
-import * as Wheel from './screens/wheel.js?v=2609141932';
-import * as Profile from './screens/profile.js?v=2609141932';
-import * as Dates from './screens/dates.js?v=2609141932';
-import * as Extra from './screens/extra.js?v=2609141932';
-import { dismissTour } from './screens/coach.js?v=2609141932';
+import * as Onboarding from './screens/onboarding.js?v=2609141956';
+import * as Home from './screens/home.js?v=2609141956';
+import * as Ideas from './screens/ideas.js?v=2609141956';
+import * as Wishlist from './screens/wishlist.js?v=2609141956';
+import * as Wheel from './screens/wheel.js?v=2609141956';
+import * as Profile from './screens/profile.js?v=2609141956';
+import * as Dates from './screens/dates.js?v=2609141956';
+import * as Extra from './screens/extra.js?v=2609141956';
+import { dismissTour } from './screens/coach.js?v=2609141956';
+import { addAdminIdeas } from './data/ideas.js?v=2609141956';
+import { addAdminStories } from './screens/stories.js?v=2609141956';
 
 const ROUTES = {
   onboarding: Onboarding.render,
@@ -102,7 +104,7 @@ async function boot() {
 
   // Не блокируем запуск: если backend недоступен или тормозит, приложение
   // продолжает работать локально, как и раньше.
-  if (apiAvailable()) { api.auth().then(() => syncReferral()); syncAccessFromServer(); }
+  if (apiAvailable()) { api.auth().then(() => syncReferral()); syncAccessFromServer(); loadAdminContent(); }
 
   const sp = tg.startParam();
   registerReferral(sp);
@@ -118,6 +120,17 @@ async function boot() {
   if (sp && sp.startsWith('w_')) { go('sharedWishlist', { wl: sp.slice(2) }, true); return; }
   if (!state.onboarded) { go('onboarding', {}, true); return; }
   go('home', {}, true);
+}
+
+// Идеи и сторис, добавленные через админку. Не блокирует старт: подгружается в фоне,
+// а если что-то уже нарисовано (главная или каталог) — перерисовываем той же командой,
+// что и обычная навигация, чтобы новый контент появился без перезахода в приложение.
+async function loadAdminContent() {
+  const [ideasRes, storiesRes] = await Promise.all([api.contentIdeas(), api.contentStories()]);
+  let changed = false;
+  if (ideasRes?.ok && ideasRes.items.length) { addAdminIdeas(ideasRes.items); changed = true; }
+  if (storiesRes?.ok && storiesRes.items.length) { addAdminStories(storiesRes.items); changed = true; }
+  if (changed && (current.route === 'home' || current.route === 'cat')) go(current.route, current.params, true);
 }
 
 window.addEventListener('error', e => console.error('[tadam]', e.message));

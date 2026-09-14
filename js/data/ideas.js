@@ -334,3 +334,23 @@ export const IDEAS = Object.entries(RAW).flatMap(([cat, list]) =>
 export const IDEAS_BY_CAT = IDEAS.reduce((acc, it) => {
   (acc[it.cat] = acc[it.cat] || []).push(it); return acc;
 }, {});
+
+// Идеи, добавленные через админку. IDEAS и IDEAS_BY_CAT остаются той же ссылкой
+// (export const) — мутируем их пушем, а не переприсваиванием, поэтому все места,
+// куда они уже импортированы, увидят добавленное без переимпорта.
+export function addAdminIdeas(list) {
+  for (const r of list || []) {
+    if (!r?.id || IDEAS.some(i => i.id === r.id)) continue; // уже добавлена в этой сессии
+    // order: -1 и unshift — идея из админки встаёт в начало повода и попадает в бесплатные
+    // первые 20. Иначе новый контент, который админ как раз хочет показать, был бы спрятан
+    // у бесплатных пользователей за лимитом, в самом хвосте списка.
+    const idea = {
+      id: r.id, cat: r.cat, title: r.title, desc: r.desc || '',
+      budget: r.budget, recipients: r.recipients || [], interests: r.interests || [],
+      order: -1, photo: r.photo || '', buy: r.buy || '',
+      icon: pickIcon(r.title, r.interests || []), long: r.long || r.desc || '', admin: true
+    };
+    IDEAS.push(idea);
+    (IDEAS_BY_CAT[idea.cat] = IDEAS_BY_CAT[idea.cat] || []).unshift(idea);
+  }
+}
