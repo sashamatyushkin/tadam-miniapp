@@ -1,12 +1,12 @@
 // ── Колесо фортуны ───────────────────────────────────────────────────
 // ПРОТОТИП: розыгрыш считается на клиенте (crypto.getRandomValues) по весам
 // из config.js. В production результат приходит с backend (см. README, п. «Колесо»).
-import { WHEEL, CATEGORIES, CONFIG } from '../config.js?v=2609091241';
-import { state, spin, applyServerSpin, spinsAvailable, track, redeemCategory, isPremium } from '../store.js?v=2609091241';
-import { esc, mascot, sheet, toast } from '../ui.js?v=2609091241';
-import { tg } from '../tg.js?v=2609091241';
-import { go } from '../app.js?v=2609091241';
-import { api, apiAvailable } from '../api.js?v=2609091241';
+import { WHEEL, CATEGORIES, CONFIG } from '../config.js?v=2609141730';
+import { state, save, spin, applyServerSpin, spinsAvailable, track, redeemCategory, isPremium } from '../store.js?v=2609141730';
+import { esc, mascot, sheet, toast } from '../ui.js?v=2609141730';
+import { tg } from '../tg.js?v=2609141730';
+import { go } from '../app.js?v=2609141730';
+import { api, apiAvailable } from '../api.js?v=2609141730';
 
 // Идемпотентный ключ на одну попытку — если запрос уйдёт повторно (двойной тап,
 // обрыв связи и повтор), сервер вернёт тот же результат, а не разыграет заново.
@@ -29,11 +29,21 @@ function wheelSvg() {
     const x1 = c + r * Math.cos(a1), y1 = c + r * Math.sin(a1);
     return `M ${c} ${c} L ${x0.toFixed(2)} ${y0.toFixed(2)} A ${r} ${r} 0 0 1 ${x1.toFixed(2)} ${y1.toFixed(2)} Z`;
   };
+  // Подпись идёт вдоль радиуса и центрируется в секторе: по радиусу — между ступицей
+  // и краем, поперёк — по середине угла. На левой половине колеса текст разворачиваем
+  // на 180°, иначе он читался бы вверх ногами (так было со «Скидка», «+спин», «+слот»).
   const label = (i, w) => {
-    const ang = (i * STEP + STEP / 2 - 90);
-    return `<text x="${c}" y="${c}" fill="${w.text}" font-size="9" font-weight="800" font-family="Nunito, sans-serif"
-      transform="rotate(${ang} ${c} ${c}) translate(0 -6)" text-anchor="middle">
-      <tspan x="${c + 58}" >${esc(w.short)}</tspan></text>`;
+    const ang = i * STEP + STEP / 2 - 90;              // 0° — вправо, как в SVG
+    const flip = ang > 90 && ang < 270;
+    const rot = flip ? ang + 180 : ang;
+    const x = flip ? c - 61 : c + 61;
+    const lines = w.short.split('\n');
+    const size = lines.some(l => l.length > 10) ? 7.6 : 9.5;
+    const lh = size * 1.18;
+    const y0 = c - (lines.length - 1) * lh / 2;
+    return `<text fill="${w.text}" font-size="${size}" font-weight="800" font-family="Nunito, sans-serif"
+      transform="rotate(${rot} ${c} ${c})" text-anchor="middle" dominant-baseline="central">
+      ${lines.map((l, k) => `<tspan x="${x}" y="${(y0 + k * lh).toFixed(2)}">${esc(l)}</tspan>`).join('')}</text>`;
   };
   return `<svg class="wheel" viewBox="0 0 210 210" xmlns="http://www.w3.org/2000/svg">
     ${WHEEL.rewards.map((w, i) => `<path d="${arc(i)}" fill="${w.color}" stroke="#FFFCF6" stroke-width="1.5"/>`).join('')}
@@ -48,14 +58,17 @@ export function render() {
     tab: 'wheel',
     html: `
       <div class="wrap center" style="padding-top:8px">
-        <h1 class="bups" style="font-size:27px;color:var(--mango)">колесо фортуны</h1>
+        <h1 class="bups" style="font-size:31px;color:var(--mango)">колесо фортуны</h1>
       </div>
       <div class="wheel-wrap" id="ww">
         ${wheelSvg()}
         <div class="wheel-hub"></div>
       </div>
       <div class="wrap center" style="margin-top:18px">
-        <p class="small" style="font-weight:700">Крути раз в день — лови бонусы:<br>категорию на 24 часа, эксклюзивную подборку или скидку на premium</p>
+        <p class="small" style="font-weight:700">Один бесплатный спин каждый день</p>
+        <p class="small muted" style="margin-top:4px">${isPremium()
+          ? 'У тебя premium, поэтому в розыгрыше то, что тебе пригодится: эксклюзивная подборка идей, дополнительный слот вишлиста или ещё один спин.'
+          : 'Можно выиграть: любую закрытую категорию на 24 часа, эксклюзивную подборку идей, дополнительный слот вишлиста, ещё один спин или скидку на неделю premium.'}</p>
         <div class="spacer"></div>
         <button class="btn" id="spin" ${left ? '' : 'disabled'}>${left ? 'Крутить 🎲' : 'Спин будет завтра'}</button>
         <p class="small muted" style="margin-top:10px">${left ? `Доступно спинов: ${left}` : 'Ещё спин — пригласи друга'}</p>
@@ -79,6 +92,12 @@ export function render() {
         setTimeout(() => { tg.haptic('success'); showResult(res.reward); }, 4700);
       };
       app.querySelector('#inv').onclick = () => go('invite', {});
+      // Спины за приглашённых друзей начисляет сервер — подтягиваем их в локальный счётчик
+      if (apiAvailable()) api.spinsAvailable().then(r => {
+        if (!r || !r.ok || r.available <= spinsAvailable()) return;
+        state.wheel.bonusSpins += r.available - spinsAvailable();
+        save(); go('wheel', {}, true);
+      });
       app.querySelector('#rew')?.addEventListener('click', () => go('rewards', {}));
     }
   };
@@ -89,11 +108,11 @@ function showResult(reward) {
   sheet(`
     <div class="center stack">
       ${mascot(empty ? 'sleep' : 'wow', 'mascot--md')}
-      <h3 class="bups" style="font-size:26px;color:var(--mango)">${empty ? 'почти!' : 'та-дам!'}</h3>
+      <h3 class="bups" style="font-size:30px;color:var(--mango)">${empty ? 'почти!' : 'та-дам!'}</h3>
       <p style="font-weight:800;font-size:17px">${esc(reward.title)}</p>
       <p class="muted small">${hintFor(reward.code)}</p>
       ${reward.code === 'category' ? '<button class="btn" id="use">Выбрать категорию</button>' : ''}
-      ${reward.code === 'discount' ? '<button class="btn" id="pw">Забрать за 99 ₽</button>' : ''}
+      ${reward.code === 'discount' ? '<button class="btn" id="pw">Забрать неделю за 99 ₽</button>' : ''}
       <button class="btn ${reward.code === 'category' || reward.code === 'discount' ? 'btn--ghost' : ''}" id="ok">Понятно</button>
     </div>`, (el, close) => {
     el.querySelector('#ok').onclick = () => { close(); go('wheel', {}, true); };

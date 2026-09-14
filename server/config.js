@@ -14,18 +14,20 @@ export const LIMITS = {
 
 export const REMINDER_OFFSETS = [14, 7, 3, 1];
 
+// week/year — продаются; holiday — старое имя недельного тарифа, оставлено для совместимости
 export const PRODUCTS = {
-  holiday: { days: 7 },
-  forever: { days: null }
+  week: { days: 7, type: 'week' },
+  year: { days: 365, type: 'year' },
+  holiday: { days: 7, type: 'week' }
 };
 
 // Вес — не процент: сумма проверяется тестом (server/test-wheel.js)
 export const WHEEL_REWARDS = [
   { code: 'empty',    weight: 35 },
   { code: 'set',      weight: 20 },
-  { code: 'category', weight: 15 },
+  { code: 'category', weight: 15, premium: false },
   { code: 'slot',     weight: 12 },
   { code: 'spin',     weight: 10 },
-  { code: 'discount', weight: 8 }
+  { code: 'discount', weight: 8,  premium: false }
 ];
 export const WHEEL_RULE_VERSION = 'v1';

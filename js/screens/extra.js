@@ -1,16 +1,16 @@
 // ── Квест, paywall, рефералы, UGC, друзья бренда, настройки, намёк ───
-import { CONFIG, CATEGORIES, BRAND_FRIENDS, RECIPIENTS, INTERESTS, deepLink, TELEGRAM } from '../config.js?v=2609091241';
-import { IDEAS, IDEAS_BY_CAT } from '../data/ideas.js?v=2609091241';
+import { CONFIG, CATEGORIES, BRAND_FRIENDS, RECIPIENTS, INTERESTS, SOCIAL, deepLink, TELEGRAM } from '../config.js?v=2609141730';
+import { IDEAS, IDEAS_BY_CAT } from '../data/ideas.js?v=2609141730';
 import {
   state, save, track, questSteps, questComplete, issueQuestReward,
   isPremium, accessLabel, grantAccess, activeDiscount, resetAll, resetTips,
-  addToWishlist, defaultWishlist, inWishlist
-} from '../store.js?v=2609091241';
-import { esc, mascot, sheet, toast, confirmSheet, plural } from '../ui.js?v=2609091241';
-import { tg } from '../tg.js?v=2609091241';
-import { go } from '../app.js?v=2609091241';
-import { openHint } from './hint.js?v=2609091241';
-import { api, apiAvailable } from '../api.js?v=2609091241';
+  addToWishlist, defaultWishlist, inWishlist, planId, profileFilled
+} from '../store.js?v=2609141730';
+import { esc, mascot, sheet, toast, confirmSheet, plural } from '../ui.js?v=2609141730';
+import { tg } from '../tg.js?v=2609141730';
+import { go, back } from '../app.js?v=2609141730';
+import { openHint } from './hint.js?v=2609141730';
+import { api, apiAvailable } from '../api.js?v=2609141730';
 
 // ── «Заполни и получи» ───────────────────────────────────────────────
 export function renderQuest() {
@@ -21,8 +21,8 @@ export function renderQuest() {
     html: `
       <div class="wrap center" style="padding-top:6px">
         ${mascot('alert', 'mascot--md')}
-        <h1 class="bups" style="font-size:26px;color:var(--mango)">заполни и получи</h1>
-        <p class="muted small">Заполни профиль — откроем бонус</p>
+        <h1 class="bups" style="font-size:30px;color:var(--mango)">заполни и получи</h1>
+        <p class="muted small">Три шага — и premium-категория на 24 часа твоя</p>
       </div>
       <div class="wrap stack" style="margin-top:16px">
         ${steps.map((s, i) => `
@@ -42,8 +42,8 @@ export function renderQuest() {
     mount(app) {
       app.querySelectorAll('[data-step]').forEach(b => b.onclick = () => {
         const k = b.dataset.step;
+        if (k === 'profile') go('me', {});
         if (k === 'dates') go('dates', {});
-        if (k === 'wishlist') go('wishlist', {});
         if (k === 'dream') dreamSheet();
       });
       app.querySelector('#claim')?.addEventListener('click', () => {
@@ -71,6 +71,89 @@ function dreamSheet() {
       save(); close(); go('quest', {}, true);
     };
   });
+}
+
+// ── Мой профиль: данные о человеке ────────────────────────────────────
+// Нужны и продукту (подставить фильтры, поздравить в день рождения), и клиенту —
+// понимать аудиторию. При запущенном backend сохраняются ещё и на сервер.
+const GENDERS = [{ id: 'f', name: 'Женский' }, { id: 'm', name: 'Мужской' }, { id: 'x', name: 'Не скажу' }];
+
+export function renderMe() {
+  const pr = state.profile;
+  const name = pr.name || tg.user()?.first_name || '';
+  const chip = (list, sel, group) => list.map(i =>
+    `<button type="button" class="chip ${sel.includes(i.id) ? 'chip--on' : ''}" data-g="${group}" data-v="${i.id}">${esc(i.name)}</button>`).join('');
+  return {
+    html: `
+      <div class="wrap center" style="padding-top:6px">
+        ${mascot('think', 'mascot--sm')}
+        <h1 class="bups" style="font-size:30px;color:var(--mango);margin-top:6px">мой профиль</h1>
+        <p class="muted small">Минута — и подборки станут точнее</p>
+      </div>
+      <div class="wrap" style="margin-top:14px">
+        <div class="field"><label>Как тебя зовут</label><input id="name" value="${esc(name)}" placeholder="Имя" maxlength="30"></div>
+        <div class="field"><label>Пол</label><div class="chipset" id="gender">${chip(GENDERS, [pr.gender], 'gender')}</div></div>
+        <div class="field"><label>Дата рождения</label><input id="bd" type="date" value="${esc(pr.birthDate)}" max="${new Date().toISOString().slice(0, 10)}"></div>
+        <div class="field">
+          <label>Кому чаще всего даришь подарки</label>
+          <div class="chipset" id="giveTo">${chip(RECIPIENTS, pr.giveTo, 'giveTo')}</div>
+        </div>
+        <div class="field">
+          <label>Что тебе интересно <span class="muted" style="font-weight:400">· по желанию</span></label>
+          <div class="chipset" id="interests">${chip(INTERESTS, pr.interests, 'interests')}</div>
+        </div>
+        <div class="field"><label>Подарок мечты <span class="muted" style="font-weight:400">· по желанию</span></label>
+          <input id="dream" value="${esc(pr.dreamGift)}" placeholder="Например, поездка в горы" maxlength="60"></div>
+        <button class="btn" id="save">Сохранить</button>
+        <p class="small muted center" style="margin-top:10px">Видно только тебе. Используем, чтобы подбирать идеи и поздравить тебя в твой день.</p>
+      </div>`,
+    mount(app) {
+      // Пол — один вариант, остальное — несколько
+      app.querySelectorAll('[data-g]').forEach(b => b.onclick = () => {
+        if (b.dataset.g === 'gender') app.querySelectorAll('[data-g="gender"]').forEach(x => x.classList.toggle('chip--on', x === b));
+        else b.classList.toggle('chip--on');
+        tg.haptic('light');
+      });
+      app.querySelector('#save').onclick = () => {
+        const picked = g => [...app.querySelectorAll(`[data-g="${g}"].chip--on`)].map(x => x.dataset.v);
+        const next = {
+          name: app.querySelector('#name').value.trim(),
+          gender: picked('gender')[0] || '',
+          birthDate: app.querySelector('#bd').value,
+          giveTo: picked('giveTo'),
+          interests: picked('interests'),
+          dreamGift: app.querySelector('#dream').value.trim()
+        };
+        if (!next.name || !next.gender || !next.birthDate || !next.giveTo.length)
+          return toast('Заполни имя, пол, дату рождения и кому даришь');
+        const wasFilled = profileFilled();
+        Object.assign(state.profile, next);
+        if (!wasFilled) track('profile_completed', { gender: next.gender, giveTo: next.giveTo.length });
+        save();
+        if (apiAvailable()) api.profileSave(next);
+        tg.haptic('success'); toast('Профиль сохранён ✨');
+        back();                                  // туда, откуда пришли: квест, профиль или главная
+      };
+    }
+  };
+}
+
+// ── Сравнение тарифов ────────────────────────────────────────────────
+function compareTable() {
+  const cur = planId();
+  const head = [['free', 'Бесплатно'], ['week', '149 ₽<br>неделя'], ['year', '599 ₽<br>год']];
+  return `
+    <div class="cmp">
+      <div class="cmp__row cmp__head">
+        <div class="cmp__name"></div>
+        ${head.map(([id, t]) => `<div class="cmp__cell ${id === cur ? 'cmp__cell--cur' : ''} ${id === 'year' ? 'cmp__cell--best' : ''}"><div>${t}${id === cur ? '<span class="cmp__now">у тебя</span>' : ''}</div></div>`).join('')}
+      </div>
+      ${CONFIG.compare.map(([name, ...vals]) => `
+        <div class="cmp__row">
+          <div class="cmp__name">${esc(name)}</div>
+          ${vals.map((v, k) => `<div class="cmp__cell ${head[k][0] === cur ? 'cmp__cell--cur' : ''} ${head[k][0] === 'year' ? 'cmp__cell--best' : ''}">${esc(v)}</div>`).join('')}
+        </div>`).join('')}
+    </div>`;
 }
 
 // ── Замок повода: сначала объясняем, что внутри, потом ведём на оплату ──
@@ -108,7 +191,8 @@ export function openLockSheet(catId) {
         <div class="small">✦ Фильтры: кому, бюджет, интересы</div>
         <div class="small">✦ Безлимит вишлистов, дат и намёков</div>
       </div>
-      <button class="btn" id="pay">Открыть за ${price} ₽ →</button>
+      <button class="btn" id="pay">Открыть за ${price} ₽ в неделю →</button>
+      <p class="small muted center" style="margin-top:-4px">или полный premium на год — 599 ₽</p>
       ${disc ? '<p class="small center" style="color:var(--mango);font-weight:700">Скидка из колеса действует 24 часа 🎉</p>' : ''}
       <button class="btn btn--ghost" id="later">Может, позже</button>
     </div>`, (el, close) => {
@@ -127,51 +211,51 @@ export function renderPaywall({ from } = {}) {
     html: `
       <div class="wrap center" style="padding-top:6px">
         ${mascot('cool', 'mascot--md')}
-        <h1 class="bups" style="font-size:26px;color:var(--mango)">открой все поводы</h1>
-        <p class="muted small">13 категорий, все фильтры и безлимит</p>
+        <h1 class="bups" style="font-size:30px;color:var(--mango)">открой все поводы</h1>
+        <p class="muted small">Неделя — чтобы быстро найти подарок. Год — полный premium.</p>
       </div>
       <div class="wrap stack" style="margin-top:14px">
-        ${CONFIG.products.map(p => {
-          const price = (p.id === 'holiday' && disc) ? p.promoRub : p.priceRub;
-          return `<div class="plan" data-p="${p.id}">
-            <div class="plan__top">
-              <div>
-                <div style="font-weight:800">${esc(p.title)}${p.best ? ' ⭐' : ''}</div>
-                <div class="small muted">${esc(p.sub)}</div>
-              </div>
-              <div style="font-weight:800;white-space:nowrap">
-                ${(p.id === 'holiday' && disc) ? `<span style="text-decoration:line-through;opacity:.5;font-weight:400">${p.priceRub} ₽</span> ` : ''}${price} ₽
-              </div>
-            </div>
-          </div>`;
-        }).join('')}
-        ${disc ? '<p class="small center" style="color:var(--mango);font-weight:700">Скидка из колеса действует 24 часа 🎉</p>' : ''}
-        <div class="card">
-          <div style="font-weight:800">Что открывается</div>
-          <ul class="small muted" style="margin:8px 0 0;padding-left:18px">
-            <li>Все 13 категорий и все идеи в каждой</li>
-            <li>Фильтры: кому, бюджет, интересы</li>
-            <li>Безлимит вишлистов и напоминаний</li>
-            <li>«Намекни» без ограничений</li>
-          </ul>
-        </div>
+        ${planCards(disc)}
+        ${disc ? '<p class="small center" style="color:var(--mango);font-weight:700">Скидка на неделю из колеса действует 24 часа 🎉</p>' : ''}
+        <div class="section-title" style="margin:6px 0 0">Что входит</div>
+        ${compareTable()}
         <p class="small muted center">Оплата внутри Telegram — через Telegram Stars.<br>В этом прототипе оплата симулируется: деньги не списываются.</p>
       </div>`,
-    mount(app) {
-      app.querySelectorAll('[data-p]').forEach(b => b.onclick = () => {
-        track('product_selected', { id: b.dataset.p });
-        payFlow(b.dataset.p);
-      });
-    }
+    mount(app) { bindPlans(app); }
   };
+}
+
+function planCards(disc, only) {
+  return CONFIG.products.filter(p => !only || only.includes(p.id)).map(p => {
+    const price = (p.id === 'week' && disc) ? p.promoRub : p.priceRub;
+    return `<div class="plan ${p.best ? 'plan--on' : ''}" data-p="${p.id}">
+      <div class="plan__top">
+        <div>
+          <div style="font-weight:800">${esc(p.title)}${p.best ? ' <span class="badge100">выгоднее</span>' : ''}</div>
+          <div class="small muted">${esc(p.sub)}</div>
+        </div>
+        <div style="font-weight:800;white-space:nowrap;text-align:right">
+          ${(p.id === 'week' && disc) ? `<span style="text-decoration:line-through;opacity:.5;font-weight:400">${p.priceRub} ₽</span> ` : ''}${price} ₽
+          <div class="small muted" style="font-weight:600">за ${p.per}</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function bindPlans(app) {
+  app.querySelectorAll('[data-p]').forEach(b => b.onclick = () => {
+    track('product_selected', { id: b.dataset.p });
+    payFlow(b.dataset.p);
+  });
 }
 
 function payFlow(productId) {
   const p = CONFIG.products.find(x => x.id === productId);
-  const price = (p.id === 'holiday' && activeDiscount()) ? p.promoRub : p.priceRub;
+  const price = (p.id === 'week' && activeDiscount()) ? p.promoRub : p.priceRub;
   sheet(`
     <div class="stack center">
-      <h3 class="h2">${esc(p.title)} · ${price} ₽</h3>
+      <h3 class="h2">${esc(p.title)} · ${price} ₽ за ${p.per}</h3>
       <p class="small muted">В боевой версии здесь откроется счёт Telegram Stars: invoice → pre_checkout_query → successful_payment, и доступ выдаст backend.<br><br>Сейчас это прототип: подтверди, чтобы посмотреть, как выглядит premium.</p>
       <button class="btn" id="pay">Открыть доступ (демо)</button>
       <button class="btn btn--ghost" id="no">Отмена</button>
@@ -191,39 +275,45 @@ function payFlow(productId) {
 }
 
 export function renderAccess() {
+  const full = planId() === 'year';
   return {
     html: `
       <div class="wrap center" style="padding-top:14px">
         ${mascot('alert', 'mascot--md')}
-        <h1 class="bups" style="font-size:27px;color:var(--mango)">та-дам!<br>всё открыто</h1>
+        <h1 class="bups" style="font-size:31px;color:var(--mango)">та-дам!<br>всё открыто</h1>
         <p class="muted small">Premium активен · ${esc(accessLabel())}</p>
-        <div class="card" style="text-align:left;margin-top:14px">
-          <div style="font-weight:800;margin-bottom:6px">Теперь у тебя есть</div>
-          <div class="small">✦ Все 13 категорий и все идеи</div>
-          <div class="small">✦ Фильтры: кому, бюджет, интересы</div>
-          <div class="small">✦ Безлимит вишлистов и напоминаний</div>
-          <div class="small">✦ «Намекни» без ограничений</div>
-        </div>
-        <div class="spacer"></div>
-        <button class="btn" id="go">Придумать подарок</button>
+      </div>
+      <div class="wrap stack" style="margin-top:14px">
+        ${compareTable()}
+        ${full ? '' : `
+          <div class="info">
+            <div style="font-weight:800">Хочешь, чтобы мы напоминали о датах заранее?</div>
+            <div class="small" style="margin-top:4px">В годовом premium — безлимит важных дат и напоминания за 14, 7, 3 и 1 день с подборкой идей.</div>
+          </div>
+          ${planCards(false, ['year'])}`}
+        <button class="btn ${full ? '' : 'btn--soft'}" id="go">Придумать подарок</button>
       </div>`,
     mount(app) {
       app.querySelector('#go').onclick = () => go('home', {}, true);
+      bindPlans(app);
       // «Восстановить покупку» отсюда убрали: доступ пока хранится только на этом устройстве,
       // восстанавливать реально нечего — кнопка обещала то, чего приложение не умеет.
-      // Появится вместе с backend и entitlements (см. отчёт аудита, пункт 2.9).
     }
   };
 }
 
 // ── Приглашения ──────────────────────────────────────────────────────
+// Текст приглашения. В Telegram он уходит вместе с карточкой-логотипом (через backend),
+// без backend — обычным сообщением со ссылкой.
+export const INVITE_TEXT = 'Держи бот с вау-идеями на любой повод и для кого угодно 🎁 А ещё можно собирать вишлисты и намекать, что тебе подарить 😏';
+
 export function renderInvite() {
   const link = deepLink(state.referral.code);
   return {
     html: `
       <div class="wrap center" style="padding-top:6px">
         ${mascot('bubble', 'mascot--md')}
-        <h1 class="bups" style="font-size:26px;color:var(--mango)">зови друзей</h1>
+        <h1 class="bups" style="font-size:30px;color:var(--mango)">зови друзей</h1>
         <p class="muted small">За каждого друга — дополнительный спин колеса</p>
       </div>
       <div class="wrap stack" style="margin-top:14px">
@@ -232,28 +322,40 @@ export function renderInvite() {
         <button class="btn btn--soft" id="copy">Скопировать ссылку</button>
         <div class="card">
           <div style="font-weight:800">Как это работает</div>
-          <p class="small muted">Спин начисляется, когда друг впервые открыл приложение по твоей ссылке и прошёл первый шаг онбординга. Не больше ${CONFIG.limits.referralSpinsPerDay} в сутки. Самоприглашение не засчитывается.</p>
-          <p class="small muted">Проверка рефералов выполняется на сервере — в прототипе счётчик демонстрационный.</p>
+          <p class="small muted">Друг открывает Та-дам по твоей ссылке впервые и проходит первый шаг знакомства — тебе приходит сообщение от бота и дополнительный спин. До ${CONFIG.limits.referralSpinsPerDay} друзей в сутки. Если открыть свою же ссылку, спин не начислится.</p>
+          ${apiAvailable() ? '' : '<p class="small muted">Сейчас сервер приложения не запущен, поэтому друзья пока не засчитываются. Всё заработает, как только приложение разместим на хостинге.</p>'}
         </div>
         <div class="rows">
-          <div class="row"><span class="row__ico">👥</span><span class="row__t">Приглашено друзей</span><span class="row__v">${state.referral.invited.length}</span></div>
+          <div class="row"><span class="row__ico">👥</span><span class="row__t">Приглашено друзей</span><span class="row__v" id="invCount">${state.referral.invitedCount || 0}</span></div>
           <div class="row"><span class="row__ico">💌</span><span class="row__t">Отправлено намёков</span><span class="row__v">${state.hints.length}</span></div>
         </div>
       </div>`,
     mount(app) {
-      app.querySelector('#send').onclick = () => {
+      app.querySelector('#send').onclick = async () => {
         track('referral_link_created', {});
-        tg.share(link, 'Та-дам — и подарок готов. Помогает придумать подарок за пару секунд 🎁');
+        // С backend: готовое сообщение с логотипом и кнопкой (Bot API savePreparedInlineMessage).
+        // Без него или на старом Telegram — обычный выбор чата с текстом и ссылкой.
+        if (apiAvailable() && tg.raw?.shareMessage) {
+          const r = await api.shareInvite(link);
+          if (r && r.ok) return tg.raw.shareMessage(r.id);
+        }
+        tg.share(link, INVITE_TEXT);
       };
       app.querySelector('#copy').onclick = async () => {
-        try { await navigator.clipboard.writeText(link); toast('Ссылка скопирована'); } catch (e) { toast(link); }
+        try { await navigator.clipboard.writeText(INVITE_TEXT + '\n' + link); toast('Приглашение скопировано'); } catch (e) { toast(link); }
       };
+      // Счётчик друзей ведёт сервер — подтягиваем свежий
+      if (apiAvailable()) api.referralRegister(state.referral.code).then(r => {
+        if (!r || !r.ok) return;
+        state.referral.invitedCount = r.invited || 0; save();
+        const el = app.querySelector('#invCount'); if (el) el.textContent = state.referral.invitedCount;
+      });
     }
   };
 }
 
 // ── Награды (переиспользуем экран колеса) ────────────────────────────
-export { renderRewards } from './wheel.js?v=2609091241';
+export { renderRewards } from './wheel.js?v=2609141730';
 
 // ── Друзья бренда ────────────────────────────────────────────────────
 export function renderFriends() {
@@ -267,6 +369,12 @@ export function renderFriends() {
         </div>
       </div>
       <div class="wrap">
+        ${BRAND_FRIENDS.length ? '' : `
+          <div class="empty" style="padding-bottom:8px">
+            ${mascot('peek', 'mascot--md')}
+            <h3 class="bups" style="font-size:30px;color:var(--mango);margin-top:8px">упс, пока тут пусто</h3>
+            <p class="muted">Станешь первым другом?</p>
+          </div>`}
         ${BRAND_FRIENDS.map(f => `
           <div class="friend">
             <div class="friend__ava">${esc(f.nick[1].toUpperCase())}</div>
@@ -276,7 +384,7 @@ export function renderFriends() {
             </div>
             <span class="badge100">100K+</span>
           </div>`).join('')}
-        <p class="small muted center" style="margin-top:18px">Сними ролик, набери 100k —<br>попади сюда со своей идеей ✨</p>
+        <p class="small muted center" style="margin-top:${BRAND_FRIENDS.length ? 18 : 0}px">Сними ролик, набери 100 тысяч просмотров —<br>и попади сюда со своей идеей ✨</p>
         <div class="spacer"></div>
         <button class="btn" id="ugc">Участвовать</button>
       </div>`,
@@ -288,8 +396,8 @@ export function renderFriends() {
 const UGC_LABEL = {
   submitted: 'Заявка отправлена · ждёт проверки',
   under_review: 'На проверке у модератора',
-  approved_basic: 'Одобрено · бонусный premium',
-  approved_100k: 'Одобрено 100k+ · пожизненный premium',
+  approved_basic: 'Одобрено · premium на год',
+  approved_100k: 'Одобрено 100 000+ · premium навсегда',
   rejected: 'Отклонено'
 };
 
@@ -300,17 +408,17 @@ export function renderUgc() {
     html: `
       <div class="wrap center" style="padding-top:6px">
         ${mascot('run', 'mascot--md')}
-        <h1 class="bups" style="font-size:25px;color:var(--mango)">твори с та-дам</h1>
+        <h1 class="bups" style="font-size:29px;color:var(--mango)">твори с та-дам</h1>
         <p class="muted small">Снимаешь ролик с упоминанием — получаешь доступ и место в разделе «Друзья бренда»</p>
       </div>
       <div class="wrap stack" style="margin-top:14px">
         <div class="card">
           <div style="font-weight:800">Уровень 1 — упоминание</div>
-          <p class="small muted">Ролик с упоминанием @Та-дам → бонусный premium-доступ и репост в нашем канале.</p>
+          <p class="small muted">Ролик с упоминанием ${SOCIAL.nick ? esc(SOCIAL.nick) : 'Та-дам'} → бонусный premium-доступ на год и репост в наших соцсетях.</p>
         </div>
         <div class="card">
           <div style="font-weight:800">Уровень 2 — 100 000 просмотров</div>
-          <p class="small muted">Пожизненный premium, ник и твоя идея подарка в разделе «Друзья бренда».</p>
+          <p class="small muted">Premium навсегда, твой ник и идея подарка в разделе «Друзья бренда».</p>
         </div>
         ${u ? `<div class="info"><b>Статус:</b> ${esc(UGC_LABEL[u.status] || u.status)}<div class="small">${esc(u.link)}</div></div>`
             : '<button class="btn" id="apply">Подать заявку</button>'}
@@ -355,7 +463,7 @@ export function renderHint({ id }) {
     html: `
       <div class="wrap center" style="padding-top:22px">
         ${mascot('bubble', 'mascot--md')}
-        <h1 class="bups" style="font-size:26px;color:var(--mango)">тебе намекнули 💌</h1>
+        <h1 class="bups" style="font-size:30px;color:var(--mango)">тебе намекнули 💌</h1>
         <div class="card" style="text-align:left;margin-top:14px">
           <div class="small muted">Идея из вишлиста близкого человека</div>
           <div style="font-weight:800;font-size:18px;margin-top:6px">${esc(idea ? idea.title : 'Подарок-сюрприз')}</div>
@@ -395,7 +503,7 @@ export function renderSharedWishlist({ wl }) {
     html: `
       <div class="wrap center" style="padding-top:22px" id="wlBox">
         ${mascot('heart', 'mascot--md')}
-        <h1 class="bups" style="font-size:26px;color:var(--mango)">с тобой поделились вишлистом 🎁</h1>
+        <h1 class="bups" style="font-size:30px;color:var(--mango)">с тобой поделились вишлистом 🎁</h1>
         <div class="card" style="text-align:left;margin-top:14px" id="wlBody">
           <div class="small muted">Загружаем список…</div>
         </div>
@@ -420,11 +528,13 @@ export function renderSharedWishlist({ wl }) {
       }
       body.innerHTML = `
         <div class="small muted">${esc(r.title)}</div>
+        ${r.dream ? `<div class="dream" style="margin-top:8px"><span class="dream__ico">🌟</span><div><div class="dream__label">Подарок мечты</div><div class="dream__t">${esc(r.dream)}</div></div></div>` : ''}
         <div class="stack" style="margin-top:8px;gap:8px">
           ${r.items.length ? r.items.map(i => `
             <div style="padding:8px 0;border-bottom:1px solid var(--line)">
               <div style="font-weight:800;font-size:15px">${esc(i.title)}</div>
               ${i.desc ? `<div class="small muted">${esc(i.desc)}</div>` : ''}
+              ${/^https?:\/\//.test(i.link || '') ? `<a class="wl__link" href="${esc(i.link)}" target="_blank" rel="noopener">🔗 Где купить</a>` : ''}
             </div>`).join('')
             : '<div class="small muted">Список пока пуст</div>'}
         </div>`;
@@ -441,27 +551,11 @@ export function renderSettings() {
         <div class="rows">
           <button class="row" data-t="reminders"><span class="row__ico">🔔</span><span class="row__t">Напоминания о датах</span><span class="row__v">${state.settings.reminders ? 'вкл' : 'выкл'}</span></button>
           <button class="row" data-t="analytics"><span class="row__ico">📊</span><span class="row__t">Аналитика использования</span><span class="row__v">${state.settings.analytics ? 'вкл' : 'выкл'}</span></button>
+          <button class="row" data-me><span class="row__ico">🙋</span><span class="row__t">Мой профиль</span><span class="row__chev">›</span></button>
           <button class="row" id="tips"><span class="row__ico">💡</span><span class="row__t">Показать подсказки заново</span><span class="row__chev">›</span></button>
           <button class="row" data-go="terms"><span class="row__ico">📄</span><span class="row__t">Условия и приватность</span><span class="row__chev">›</span></button>
         </div>
-        <div class="spacer"></div>
-        <div class="field"><label>Как тебя звать</label><input id="name" value="${esc(state.profile.name)}" placeholder="Имя" maxlength="30"></div>
-        <div class="field"><label>Подарок мечты</label><input id="dream" value="${esc(state.profile.dreamGift)}" placeholder="Что бы ты хотел?" maxlength="60"></div>
-        <div class="field">
-          <label>Кому обычно даришь</label>
-          <p class="small muted" style="margin:0 0 8px">Подставим этот фильтр в подборках заранее — менять можно всегда</p>
-          <div class="chipset" id="giveTo">
-            ${RECIPIENTS.map(r => `<button type="button" class="chip ${state.profile.giveTo.includes(r.id) ? 'chip--on' : ''}" data-v="${r.id}">${esc(r.name)}</button>`).join('')}
-          </div>
-        </div>
-        <div class="field">
-          <label>Интересы</label>
-          <p class="small muted" style="margin:0 0 8px">Такие идеи будем поднимать выше в списке</p>
-          <div class="chipset" id="interests">
-            ${INTERESTS.map(i => `<button type="button" class="chip ${state.profile.interests.includes(i.id) ? 'chip--on' : ''}" data-v="${i.id}">${esc(i.name)}</button>`).join('')}
-          </div>
-        </div>
-        <button class="btn btn--soft" id="saveP">Сохранить</button>
+
         <div class="spacer"></div>
         <button class="btn btn--ghost" id="reset" style="color:#B3341A">Удалить мои данные</button>
         <div class="spacer"></div>
@@ -481,18 +575,7 @@ export function renderSettings() {
       });
       app.querySelector('[data-go]').onclick = () => go('terms', {});
       app.querySelector('#tips').onclick = () => { resetTips(); toast('Подсказки вернулись — загляни на Главную'); go('home', {}, true); };
-      // Множественный выбор чипов: переключаем класс на лету, не перерисовывая экран —
-      // иначе фокус с полей слетал бы при каждом тапе.
-      app.querySelectorAll('#giveTo [data-v], #interests [data-v]').forEach(b => {
-        b.onclick = () => { b.classList.toggle('chip--on'); tg.haptic('light'); };
-      });
-      app.querySelector('#saveP').onclick = () => {
-        state.profile.name = app.querySelector('#name').value.trim();
-        state.profile.dreamGift = app.querySelector('#dream').value.trim();
-        state.profile.giveTo = [...app.querySelectorAll('#giveTo .chip--on')].map(b => b.dataset.v);
-        state.profile.interests = [...app.querySelectorAll('#interests .chip--on')].map(b => b.dataset.v);
-        save(); toast('Сохранили — учтём в подборках');
-      };
+      app.querySelector('[data-me]').onclick = () => go('me', {});
       app.querySelector('#testreset').onclick = () => {
         resetAll();                                   // чистим и локальное, и облачное состояние
         track('test_reset', {});

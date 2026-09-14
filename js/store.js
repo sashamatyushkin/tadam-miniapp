@@ -3,9 +3,9 @@
 // В production источник истины — backend: доступ, лимиты, розыгрыш колеса,
 // рефералы и платежи проверяются сервером, клиент лишь отображает результат.
 
-import { tg } from './tg.js?v=2609091241';
-import { CONFIG, WHEEL } from './config.js?v=2609091241';
-import { api, apiAvailable } from './api.js?v=2609091241';
+import { tg } from './tg.js?v=2609141730';
+import { CONFIG, WHEEL } from './config.js?v=2609141730';
+import { api, apiAvailable } from './api.js?v=2609141730';
 
 const KEY = 'tadam_state_v1';
 const CHUNK = 3500; // лимит значения Telegram CloudStorage — 4096 символов
@@ -29,7 +29,7 @@ function blank() {
     v: 1,
     createdAt: Date.now(),
     onboarded: false,
-    profile: { name: '', ageRange: '', giveTo: [], interests: [], dreamGift: '', tz: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Moscow' },
+    profile: { name: '', gender: '', birthDate: '', ageRange: '', giveTo: [], interests: [], dreamGift: '', tz: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Moscow' },
     access: { type: 'free', until: null, source: null },
     tempCategories: {},
     wishlists: [],
@@ -38,7 +38,7 @@ function blank() {
     rewards: [],
     extraSlots: 0,
     discountUntil: null,
-    referral: { code: null, invited: [], invitedBy: null },
+    referral: { code: null, invited: [], invitedBy: null, claimed: false, invitedCount: 0 },
     quest: { rewardIssued: false, rewardCode: null },
     hints: [],
     ugc: null,
@@ -84,7 +84,7 @@ async function saveCloud(json) {
   if (parts.length > 40) {                              // защита от переполнения — не пишем
     if (!warnedOverflow) {
       warnedOverflow = true;
-      import('./ui.js?v=2609091241').then(m => m.toast('Данных стало много — почисти старые вишлисты, иначе новое не сохранится'));
+      import('./ui.js?v=2609141730').then(m => m.toast('Данных стало много — почисти старые вишлисты, иначе новое не сохранится'));
     }
     return;
   }
@@ -164,11 +164,19 @@ export const isPremium = () =>
   state.access.type === 'forever' ||
   (!!state.access.until && Date.now() < state.access.until);
 
+// Полный premium — годовой тариф или «навсегда» из UGC-программы. Только он даёт
+// безлимит важных дат и напоминания за 14/7/3/1 день; недельный — нет.
+export const isFullPremium = () =>
+  isPremium() && (state.access.type === 'year' || state.access.type === 'forever');
+
+// Текущий тариф одним словом — для сравнительной таблицы
+export const planId = () => !isPremium() ? 'free' : (isFullPremium() ? 'year' : 'week');
+
 export const accessLabel = () => {
   if (state.access.type === 'forever') return 'Навсегда';
   if (isPremium()) {
     const left = Math.ceil((state.access.until - Date.now()) / 86400000);
-    return `Ещё ${left} дн.`;
+    return `${isFullPremium() ? 'Год' : 'Неделя'} · ещё ${left} дн.`;
   }
   return 'Бесплатный';
 };
@@ -176,11 +184,14 @@ export const accessLabel = () => {
 export function grantAccess(productId, source) {
   const p = CONFIG.products.find(x => x.id === productId);
   if (!p) return;
-  if (p.days === null) state.access = { type: 'forever', until: null, source };
-  else {
-    const base = isPremium() && state.access.until ? state.access.until : Date.now();
-    state.access = { type: 'holiday', until: base + p.days * 86400000, source };
-  }
+  // Год поверх недели стартует от сегодня, а не прибавляется к хвосту недели:
+  // человек платит за полный premium, недельные остатки не должны сгорать внутри года.
+  const type = p.id === 'year' ? 'year' : 'week';
+  const keepTail = isPremium() && state.access.until && (type === state.access.type || state.access.type === 'holiday');
+  const base = keepTail ? state.access.until : Date.now();
+  // «Навсегда» ничем не понижаем
+  if (state.access.type === 'forever' && isPremium()) return;
+  state.access = { type, until: base + p.days * 86400000, source };
   track('entitlement_issued', { product: productId, source });
   save();
   // Зеркалим на сервер: только он проверяет premium для колеса/будущих платежей —
@@ -208,7 +219,17 @@ export function categoryOpen(cat) {
 export const wishlistLimit = () =>
   isPremium() ? Infinity : CONFIG.limits.freeWishlists + state.extraSlots;
 export const datesLimit = () =>
-  isPremium() ? Infinity : CONFIG.limits.freeDates;
+  isFullPremium() ? Infinity : CONFIG.limits.freeDates;
+
+// За сколько дней напоминаем при текущем тарифе (сервер применяет то же правило сам)
+export const reminderOffsets = () =>
+  isFullPremium() ? CONFIG.reminders.defaultOffsets : [1];
+
+// ── профиль ──────────────────────────────────────────────────────────
+export const profileFilled = () => {
+  const p = state.profile;
+  return !!(p.name && p.gender && p.birthDate && p.giveTo.length);
+};
 
 // ── вишлисты ─────────────────────────────────────────────────────────
 export function createWishlist(title) {
@@ -270,8 +291,8 @@ export function daysUntil(dateStr) {
 // ── квест «Заполни и получи» ─────────────────────────────────────────
 export function questSteps() {
   return [
-    { key: 'dates', title: 'Добавь 3 важные даты близких', done: state.dates.length >= 3 },
-    { key: 'wishlist', title: 'Собери первый вишлист', done: state.wishlists.some(w => w.items.length > 0) },
+    { key: 'profile', title: 'Заполни свой профиль', done: profileFilled() },
+    { key: 'dates', title: 'Добавь три важные даты близких', done: state.dates.length >= 3 },
     { key: 'dream', title: 'Укажи свой подарок мечты', done: !!state.profile.dreamGift }
   ];
 }
@@ -315,11 +336,16 @@ function advanceSpinCounter() {
   else state.wheel.bonusSpins = Math.max(0, state.wheel.bonusSpins - 1);
 }
 
+// Для premium не разыгрываем то, что ему ничего не даёт (категория на 24 часа,
+// скидка на неделю): эти сектора выпадают из пула, остальные веса сохраняют пропорции.
+export const rewardPool = () =>
+  WHEEL.rewards.filter(r => r.weight > 0 && !(isPremium() && r.premium === false));
+
 export function spin() {
   if (spinsAvailable() <= 0) { track('spin_rejected', { reason: 'no_spins' }); return null; }
   advanceSpinCounter();
 
-  const pool = WHEEL.rewards.filter(r => r.weight > 0);
+  const pool = rewardPool();
   const total = pool.reduce((s, r) => s + r.weight, 0);
   let x = secureRandom() * total, picked = pool[pool.length - 1];
   for (const r of pool) { if (x < r.weight) { picked = r; break; } x -= r.weight; }
@@ -385,12 +411,39 @@ export function createHint(payload) {
 }
 
 // ── рефералы ─────────────────────────────────────────────────────────
+// Приглашённым считается только тот, кто пришёл по ссылке ещё до знакомства с приложением.
+// Засчитывает приглашение сервер (claimReferral) — локально мы лишь запоминаем код.
 export function registerReferral(startParam) {
-  if (!startParam) return;
-  if (startParam.startsWith('r') && !state.referral.invitedBy && Date.now() - state.createdAt < 60000) {
-    if (startParam === state.referral.code) { track('referral_rejected', { reason: 'self' }); return; }
-    state.referral.invitedBy = startParam;
-    track('referral_link_opened', { by: startParam });
+  if (!startParam || !startParam.startsWith('r')) return;
+  if (state.referral.invitedBy || state.onboarded) return;
+  if (startParam === state.referral.code) { track('referral_rejected', { reason: 'self' }); return; }
+  state.referral.invitedBy = startParam;
+  track('referral_link_opened', { by: startParam });
+  save();
+}
+
+// Вызывается, когда приглашённый прошёл первый шаг онбординга. Сервер проверяет,
+// что это новый пользователь, не сам пригласивший и не больше 5 друзей в сутки,
+// начисляет спин пригласившему и шлёт ему сообщение от бота.
+export async function claimReferral() {
+  const r = state.referral;
+  if (!r.invitedBy || r.claimed || !apiAvailable()) return;
+  const res = await api.referralClaim(r.invitedBy);
+  if (res && (res.ok || res.error === 'already_claimed' || res.error === 'not_new_user' || res.error === 'self')) {
+    r.claimed = true;                      // окончательный ответ сервера — повторно не шлём
+    track(res.ok ? 'referral_qualified' : 'referral_rejected', { reason: res.error || null });
+    save();
+  }
+}
+
+// Код приглашения закрепляем за пользователем на сервере: так ссылка одна и та же
+// на всех устройствах, а сервер знает, кому начислять спин.
+export async function syncReferral() {
+  if (!apiAvailable()) return;
+  const res = await api.referralRegister(state.referral.code);
+  if (res && res.ok) {
+    state.referral.code = res.code;
+    state.referral.invitedCount = res.invited || 0;
     save();
   }
 }

@@ -1,14 +1,14 @@
 // ── Вишлисты: свой список, шеринг и намёки ───────────────────────────
-import { state, save, track, createWishlist, removeItem, wishlistLimit, isPremium } from '../store.js?v=2609091241';
-import { deepLink } from '../config.js?v=2609091241';
-import { esc, mascot, sheet, toast, confirmSheet, plural } from '../ui.js?v=2609091241';
-import { IDEAS } from '../data/ideas.js?v=2609091241';
-import { cover } from './ideas.js?v=2609091241';
-import { tg } from '../tg.js?v=2609091241';
-import { go, back } from '../app.js?v=2609091241';
-import { maybeShowTips } from './coach.js?v=2609091241';
-import { openHint } from './hint.js?v=2609091241';
-import { api, apiAvailable } from '../api.js?v=2609091241';
+import { state, save, track, createWishlist, removeItem, wishlistLimit, isPremium } from '../store.js?v=2609141730';
+import { deepLink } from '../config.js?v=2609141730';
+import { esc, mascot, sheet, toast, confirmSheet, plural } from '../ui.js?v=2609141730';
+import { IDEAS } from '../data/ideas.js?v=2609141730';
+import { cover } from './ideas.js?v=2609141730';
+import { tg } from '../tg.js?v=2609141730';
+import { go, back } from '../app.js?v=2609141730';
+import { maybeShowTips } from './coach.js?v=2609141730';
+import { openHint } from './hint.js?v=2609141730';
+import { api, apiAvailable } from '../api.js?v=2609141730';
 
 
 // Пустой вишлист показываем не голой надписью, а примерами: человек сразу видит,
@@ -46,7 +46,7 @@ export function render() {
     html: `
       <div class="wrap center" style="padding-top:10px">
         ${mascot('heart', 'mascot--md')}
-        <h1 class="bups" style="font-size:26px;color:var(--mango)">мой вишлист</h1>
+        <h1 class="bups" style="font-size:30px;color:var(--mango)">мой вишлист</h1>
         <p class="muted small">Собери желания и намекни близким</p>
       </div>
       <div class="wrap" style="margin-top:16px">
@@ -101,14 +101,15 @@ export function renderOne({ id, tab }) {
     html: `
       <div class="wrap center" style="padding-top:10px">
         ${mascot('heart', 'mascot--md')}
-        <h1 class="bups" style="font-size:26px;color:var(--mango)">${esc(wl.title)}</h1>
+        <h1 class="bups" style="font-size:30px;color:var(--mango)">${esc(wl.title)}</h1>
         <p class="muted small">Собери желания и намекни близким</p>
       </div>
       <div class="wrap" style="margin-top:14px">
+        ${dreamCard()}
         ${wl.items.length ? `<div class="rows">${wl.items.map(it => `
           <div class="row" data-item="${it.id}">
             <span class="row__ico">🎁</span>
-            <span class="row__t">${esc(it.title)}<div class="small muted" style="font-weight:400">${esc(it.desc || '')}</div></span>
+            <span class="row__t">${esc(it.title)}<div class="small muted" style="font-weight:400">${esc(it.desc || '')}</div>${it.link ? `<button class="wl__link" data-link="${it.id}">🔗 ${esc(hostOf(it.link))}</button>` : ''}</span>
             <button class="idea__fav" data-hint="${it.id}">💌</button>
             <button class="idea__fav" data-del="${it.id}">✕</button>
           </div>`).join('')}</div>`
@@ -130,6 +131,12 @@ export function renderOne({ id, tab }) {
         openHint({ ideaId: first.ideaId, title: first.title, desc: first.desc, wishlistId: wl.id });
       };
       app.querySelector('#share').onclick = () => shareSheet(wl);
+      app.querySelector('#dreamEdit')?.addEventListener('click', () => go('me', {}));
+      app.querySelectorAll('[data-link]').forEach(b => b.onclick = e => {
+        e.stopPropagation();
+        const it = wl.items.find(x => x.id === b.dataset.link);
+        if (tg.raw?.openLink) tg.raw.openLink(it.link); else window.open(it.link, '_blank');
+      });
       app.querySelectorAll('[data-del]').forEach(b => b.onclick = e => {
         e.stopPropagation();
         confirmSheet('Удалить желание?', 'Его больше не будет в списке', 'Удалить', () => {
@@ -151,16 +158,39 @@ function addOwn(wl) {
       <h3 class="h2">Своё желание</h3>
       <div class="field"><label>Что хочешь?</label><input id="t" placeholder="Плёночный фотоаппарат" maxlength="60"></div>
       <div class="field"><label>Уточнение</label><input id="d" placeholder="Можно модель или цвет" maxlength="80"></div>
+      <div class="field"><label>Ссылка <span class="muted" style="font-weight:400">· по желанию</span></label><input id="l" type="url" inputmode="url" placeholder="https://… где это можно купить" maxlength="500"></div>
       <button class="btn" id="ok">Добавить</button>
     </div>`, (el, close) => {
     el.querySelector('#ok').onclick = () => {
       const t = el.querySelector('#t').value.trim();
       if (!t) return toast('Напиши, что хочешь');
-      wl.items.push({ id: Math.random().toString(36).slice(2, 10), title: t, desc: el.querySelector('#d').value.trim(), addedAt: Date.now() });
+      const link = normalizeLink(el.querySelector('#l').value);
+      if (link === false) return toast('Ссылка должна начинаться с https://');
+      wl.items.push({ id: Math.random().toString(36).slice(2, 10), title: t, desc: el.querySelector('#d').value.trim(), link: link || '', addedAt: Date.now() });
       track('own_wish_added', { wl: wl.id });
       save(); close(); tg.haptic('success'); go('wl', { id: wl.id }, true);
     };
   });
+}
+
+// Ссылка из поля «где купить»: без протокола дописываем https://, всё кроме http(s) —
+// отклоняем (javascript: и прочее не должно стать кликабельным у получателя вишлиста).
+function normalizeLink(raw) {
+  const v = raw.trim();
+  if (!v) return '';
+  const withProto = /^[a-z]+:/i.test(v) ? v : 'https://' + v;
+  try { const u = new URL(withProto); return /^https?:$/.test(u.protocol) ? u.href : false; }
+  catch (e) { return false; }
+}
+const hostOf = url => { try { return new URL(url).hostname.replace(/^www\./, ''); } catch (e) { return 'ссылка'; } };
+
+// Подарок мечты из профиля — показываем в вишлисте и отдаём вместе со ссылкой на список
+function dreamCard() {
+  const d = state.profile.dreamGift;
+  if (!d) return '';
+  return `<div class="dream"><span class="dream__ico">🌟</span><div style="flex:1;min-width:0">
+    <div class="dream__label">Мой подарок мечты</div><div class="dream__t">${esc(d)}</div></div>
+    <button class="idea__fav" id="dreamEdit" aria-label="Изменить">✎</button></div>`;
 }
 
 // Текст, который увидит близкий. Не «мой вишлист №2», а нормальное человеческое сообщение.
@@ -195,7 +225,7 @@ function shareSheet(wl) {
     </div>`, (el, close) => {
     // Публикуем на backend, чтобы ссылка реально открывала список у получателя,
     // а не заглушку. Без backend — просто честно предупреждаем в подписи ниже.
-    const syncNow = () => { if (apiAvailable()) api.wishlistSync(wl.shareToken, wl.title, wl.items); };
+    const syncNow = () => { if (apiAvailable()) api.wishlistSync(wl.shareToken, wl.title, wl.items, state.profile.dreamGift); };
     el.querySelector('#send').onclick = () => {
       wl.shared = true; save(); track('wishlist_shared', { wl: wl.id });
       syncNow();

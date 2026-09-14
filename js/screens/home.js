@@ -1,12 +1,12 @@
 // ── Главная: поводы ──────────────────────────────────────────────────
-import { CATEGORIES } from '../config.js?v=2609091241';
-import { state, categoryOpen, isPremium, track, questComplete } from '../store.js?v=2609091241';
-import { esc, mascot } from '../ui.js?v=2609091241';
-import { tg } from '../tg.js?v=2609091241';
-import { go } from '../app.js?v=2609091241';
-import { maybeShowTips } from './coach.js?v=2609091241';
-import { storiesRow, bindStories } from './stories.js?v=2609091241';
-import { openLockSheet } from './extra.js?v=2609091241';
+import { CATEGORIES } from '../config.js?v=2609141730';
+import { state, categoryOpen, isPremium, track, questComplete } from '../store.js?v=2609141730';
+import { esc, mascot } from '../ui.js?v=2609141730';
+import { tg } from '../tg.js?v=2609141730';
+import { go } from '../app.js?v=2609141730';
+import { maybeShowTips } from './coach.js?v=2609141730';
+import { storiesRow, bindStories } from './stories.js?v=2609141730';
+import { openLockSheet } from './extra.js?v=2609141730';
 
 export function render() {
   track('home_viewed', { premium: isPremium() });
@@ -35,7 +35,7 @@ export function render() {
         <div class="info" style="margin-top:14px;display:flex;gap:12px;align-items:center">
           <div style="flex:1">
             <div style="font-weight:800">Заполни и получи 🎁</div>
-            <div class="small">Профиль и 3 даты — и откроем бонус</div>
+            <div class="small">Профиль, три даты и подарок мечты — и бонус твой</div>
           </div>
           <button class="btn btn--sm" id="questBtn">Открыть</button>
         </div>` : ''}
@@ -59,9 +59,9 @@ export function render() {
           ${mascot('cool', 'mascot--sm')}
           <div style="flex:1">
             <div style="font-weight:800">Открыть все 13 поводов</div>
-            <div class="small muted">Все фильтры, безлимит вишлистов и намёков</div>
+            <div class="small muted">Неделя — 149 ₽, год — 599 ₽</div>
           </div>
-          <button class="btn btn--sm" id="pw">149 ₽</button>
+          <button class="btn btn--sm" id="pw">Смотреть</button>
         </div>`}
         <div class="spacer"></div>
       </div>`,

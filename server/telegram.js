@@ -35,6 +35,17 @@ export function verifyInitData(initData) {
 
 const API = () => `https://api.telegram.org/bot${TOKEN}`;
 
+// Любой метод Bot API — для savePreparedInlineMessage и прочего, что не sendMessage
+export async function botCall(method, body) {
+  if (!TOKEN) return { ok: false, description: 'no BOT_TOKEN' };
+  try {
+    const r = await fetch(`${API()}/${method}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    return await r.json();
+  } catch (e) {
+    return { ok: false, description: e.message };
+  }
+}
+
 export async function sendMessage(chatId, text, replyMarkup) {
   if (!TOKEN) return { ok: false, description: 'no BOT_TOKEN' };
   const body = { chat_id: chatId, text };

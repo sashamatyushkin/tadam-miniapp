@@ -1,9 +1,9 @@
 // ── Онбординг: привет → кому дарим → первая дата ─────────────────────
-import { state, save, track, addDate } from '../store.js?v=2609091241';
-import { CATEGORIES, RELATIONS, REMINDER_TYPES } from '../config.js?v=2609091241';
-import { mascot, esc, toast } from '../ui.js?v=2609091241';
-import { tg } from '../tg.js?v=2609091241';
-import { go } from '../app.js?v=2609091241';
+import { state, save, track, addDate, claimReferral } from '../store.js?v=2609141730';
+import { CATEGORIES, RELATIONS, REMINDER_TYPES } from '../config.js?v=2609141730';
+import { mascot, esc, toast } from '../ui.js?v=2609141730';
+import { tg } from '../tg.js?v=2609141730';
+import { go } from '../app.js?v=2609141730';
 
 let step = 0;
 let picked = null;
@@ -34,6 +34,7 @@ function hello() {
     mount(app) {
       app.querySelector('#go').onclick = () => {
         track('onboarding_started', {});
+        claimReferral();                       // пришёл по приглашению — засчитываем другу спин
         tg.haptic('light'); step = 1; go('onboarding', {}, true);
       };
       app.querySelector('#skip').onclick = () => finish(true);
@@ -41,14 +42,16 @@ function hello() {
   };
 }
 
+const stepBack = to => () => { step = to; go('onboarding', {}, true); };
+
 function occasion() {
   return {
-    hideNav: true, hideBack: true,
+    hideNav: true, hideBack: true, onBack: stepBack(0),
     html: `
       <div class="onb">
         <div class="onb__body">
           ${mascot('think', 'mascot--md')}
-          <h2 class="bups" style="font-size:26px;color:var(--mango)">кому дарим?</h2>
+          <h2 class="bups" style="font-size:30px;color:var(--mango)">кому дарим?</h2>
           <p class="muted small">Выбери повод — покажу идеи прямо сейчас</p>
           <div class="cats" style="width:100%;margin-top:12px">
             ${CATEGORIES.filter(c => c.free).map(c => `
@@ -82,12 +85,12 @@ function occasion() {
 
 function firstDate() {
   return {
-    hideNav: true, hideBack: true,
+    hideNav: true, hideBack: true, onBack: stepBack(1),
     html: `
       <div class="onb">
         <div class="onb__body onb__body--compact">
           ${mascot('notes', 'mascot--sm')}
-          <h2 class="bups" style="font-size:22px;color:var(--mango);margin:2px 0 0">первая дата</h2>
+          <h2 class="bups" style="font-size:26px;color:var(--mango);margin:2px 0 0">первая дата</h2>
           <p class="muted small" style="margin:0">Добавь день рождения близкого — напомним заранее</p>
           <div class="field-stack">
             <div class="field"><label>Кого поздравляем</label><input id="n" placeholder="Например, мама Аня" maxlength="40"></div>

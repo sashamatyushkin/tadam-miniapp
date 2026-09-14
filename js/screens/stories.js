@@ -1,11 +1,11 @@
 // ── Сторис на главной (как в банковских приложениях) ────────────────
 // Подборка под ситуацию: сезон, ближайшая дата близкого, механики.
 // Каждая сторис ведёт в конкретный повод, вишлист или механику.
-import { state, save, track, daysUntil, isPremium, questComplete } from '../store.js?v=2609091241';
-import { CATEGORIES } from '../config.js?v=2609091241';
-import { esc, mascot, plural } from '../ui.js?v=2609091241';
-import { tg } from '../tg.js?v=2609091241';
-import { go } from '../app.js?v=2609091241';
+import { state, save, track, daysUntil, isPremium, profileFilled } from '../store.js?v=2609141730';
+import { CATEGORIES } from '../config.js?v=2609141730';
+import { esc, mascot, plural } from '../ui.js?v=2609141730';
+import { tg } from '../tg.js?v=2609141730';
+import { go } from '../app.js?v=2609141730';
 
 const G = {
   ny:     'linear-gradient(160deg,#1F7A55,#54B183)',
@@ -41,12 +41,21 @@ function seasonal(month) {
     ],
     cta: { label: 'Открыть идеи к 8 марта', route: 'cat', params: { id: 'mar8' } }
   };
-  if (month === 7 || month === 8) return {
+  if (month === 7) return {
     id: 'school', title: 'Скоро\n1 сентября', emoji: '🎓', bg: G.purple,
     slides: [
       { bg: G.purple, mascot: 'notes', title: 'собираем\nк школе', text: 'Рюкзак с ортопедической спинкой, наушники с шумодавом, курс по робототехнике.' }
     ],
     cta: { label: 'Открыть идеи', route: 'cat', params: { id: 'school' } }
+  };
+  // 5 октября — День учителя: показываем с сентября по сам праздник
+  if (month === 8 || (month === 9 && new Date().getDate() <= 5)) return {
+    id: 'teacher', title: 'Скоро\nДень учителя', emoji: '🍎', bg: G.gold,
+    slides: [
+      { bg: G.gold, mascot: 'notes', title: 'день учителя —\n5 октября', text: 'Учителю, воспитателю, тренеру или репетитору. Тот, кто вложил в ребёнка год, заслужил больше, чем коробку конфет.' },
+      { bg: G.gold, emoji: '☕', title: 'без банальных\nкружек', text: 'Термокружка с гравировкой имени, органайзер на рабочий стол, ежедневник с тиснением — полезно и лично.' }
+    ],
+    cta: { label: 'Идеи для учителя', route: 'cat', params: { id: 'colleague' } }
   };
   return {
     id: 'justso', title: 'Порадовать\nбез повода', emoji: '💫', bg: G.purple,
@@ -77,10 +86,46 @@ function personal() {
   };
 }
 
+// «Что такое Та-дам» — первая сторис для нового человека.
+// slide.video — сюда встанет ролик, когда он будет готов (mp4, вертикальный 9:16);
+// пока его нет, показываем слайды с маскотом.
+const ABOUT = {
+  id: 'about', title: 'Что такое\nТа-дам', emoji: '🎁', bg: G.mango,
+  slides: [
+    { bg: G.mango, mascot: 'wave', title: 'привет!\nя та-дам', text: 'Помогаю придумать подарок, от которого загорятся глаза, — на любой повод и для кого угодно.', video: '' },
+    { bg: G.mango, mascot: 'search', title: 'идеи\nпод повод', text: 'Выбираешь повод и человека — получаешь подборку нетипичных идей с бюджетом и подсказкой, где купить.' },
+    { bg: G.coffee, mascot: 'heart', title: 'вишлист\nи намёки', text: 'Сохраняй то, что хочешь сам, и отправляй близким намёк — без неловкого «что тебе подарить?».' },
+    { bg: G.ice, mascot: 'notes', title: 'не забудем\nважные даты', text: 'Добавь дни рождения близких — бот напомнит заранее и сразу подкинет идей.' },
+    { bg: G.gold, mascot: 'wow', title: 'и колесо\nкаждый день', text: 'Бесплатный спин раз в сутки: открытые категории, эксклюзивные подборки и скидки.' }
+  ],
+  cta: { label: 'Подобрать подарок', route: 'cat', params: { id: 'birthday' } }
+};
+
+// Витрина вау-идей: пока в каталоге нет фото и виджетов, показываем здесь,
+// что подарки тут нетипичные.
+const WOW = {
+  id: 'wow', title: 'Вау-идеи\nвнутри', emoji: '✨', bg: G.purple,
+  slides: [
+    { bg: G.purple, emoji: '🍇', title: 'своя виноградная\nлоза', text: 'Лоза на винодельне записана на имя человека, а из её урожая делают вино с именной этикеткой.' },
+    { bg: G.coffee, emoji: '⭐', title: 'звезда\nв честь человека', text: 'Сертификат с координатами и картой неба, где отмечена «его» звезда.' },
+    { bg: G.rose, emoji: '🎵', title: 'винил с вашим\nплейлистом', text: 'Песни вашей истории, напечатанные на настоящей пластинке с именной обложкой.' },
+    { bg: G.ny, emoji: '💌', title: 'капсула\nвремени', text: 'Письма друг другу, которые вы вскроете ровно через год.' },
+    { bg: G.mango, emoji: '🎬', title: 'видео\nот кумира', text: 'Любимый актёр или блогер поздравляет по имени — и это не шутка.' }
+  ],
+  cta: { label: 'Смотреть все идеи', route: 'cat', params: { id: 'birthday' } }
+};
+
 export function buildStories() {
   const list = [];
+  // Профиль — одно из первых действий: без него не подставим фильтры и не поймём, кому ты даришь
+  if (!profileFilled()) list.push({
+    id: 'profile', title: 'Расскажи\nо себе', emoji: '🙋', bg: G.ice,
+    slides: [{ bg: G.ice, mascot: 'think', title: 'давай\nзнакомиться', text: 'Имя, пол, дата рождения и кому ты чаще всего даришь подарки. Минута — и подборки станут точнее, а мы поздравим тебя в твой день.' }],
+    cta: { label: 'Заполнить профиль', route: 'me', params: {} }
+  });
   const p = personal();
   if (p) list.push(p);
+  list.push(ABOUT, WOW);
   list.push(seasonal(new Date().getMonth()));
   list.push({
     id: 'hint', title: 'Намекни\nблизким', emoji: '💌', bg: G.coffee,
@@ -95,14 +140,9 @@ export function buildStories() {
     slides: [{ bg: G.gold, mascot: 'wow', title: 'бесплатный спин\nраз в сутки', text: 'Категория на 24 часа, эксклюзивная подборка, дополнительный слот вишлиста или скидка на premium.' }],
     cta: { label: 'Крутить колесо', route: 'wheel', params: {} }
   });
-  if (!questComplete()) list.push({
-    id: 'quest', title: 'Заполни\nи получи', emoji: '🎁', bg: G.mango,
-    slides: [{ bg: G.mango, mascot: 'alert', title: 'три шага —\nи бонус твой', text: 'Добавь три важные даты, собери первый вишлист и укажи подарок мечты. Откроем premium-категорию на 24 часа.' }],
-    cta: { label: 'Пройти', route: 'quest', params: {} }
-  });
   if (!isPremium()) list.push({
     id: 'premium', title: 'Все 13\nповодов', emoji: '✦', bg: G.ice,
-    slides: [{ bg: G.ice, mascot: 'cool', title: 'открыть\nвсё сразу', text: 'Все категории, все фильтры, безлимит вишлистов и напоминаний. На праздник — 149 ₽, навсегда — 490 ₽.' }],
+    slides: [{ bg: G.ice, mascot: 'cool', title: 'открыть\nвсё сразу', text: 'Все поводы, идеи и фильтры — 149 ₽ в неделю. Полный premium на год с напоминаниями о датах близких — 599 ₽.' }],
     cta: { label: 'Посмотреть доступ', route: 'paywall', params: { from: 'story' } }
   });
   return list;
@@ -138,11 +178,14 @@ export function openStories(list, index) {
   root.className = 'stv';
   document.body.appendChild(root);
   document.body.style.overflow = 'hidden';
+  const onBack = () => close();
+  tg.pushBack(onBack);                        // «Назад» Telegram закрывает сторис, а не приложение
 
   function close() {
     clearTimeout(timer);
     root.remove();
     document.body.style.overflow = '';
+    tg.popBack(onBack);
   }
 
   function seen(id) {
@@ -176,7 +219,8 @@ export function openStories(list, index) {
           <button class="stv__x" type="button" aria-label="Закрыть">✕</button>
         </div>
         <div class="stv__body">
-          ${mascot(s.mascot, 'stv__mascot')}
+          ${s.video ? `<video class="stv__video" src="${esc(s.video)}" autoplay muted playsinline></video>`
+            : s.emoji ? `<div class="stv__emoji">${s.emoji}</div>` : mascot(s.mascot, 'stv__mascot')}
           <h2 class="bups stv__title">${esc(s.title).replace(/\n/g, '<br>')}</h2>
           <p class="stv__text">${esc(s.text)}</p>
         </div>

@@ -2,7 +2,7 @@
 // Работает поверх той же SQLite: даты хранятся здесь (не в CloudStorage
 // клиента), поэтому бот может достучаться до них независимо от того,
 // открыто ли сейчас приложение.
-import { db } from './db.js';
+import { db, getEntitlement, isFullPremiumRow } from './db.js';
 import { sendMessage } from './telegram.js';
 
 // Тот же алгоритм, что в js/store.js daysUntil — включая перенос 29 февраля на 1 марта.
@@ -28,6 +28,8 @@ async function tick() {
     const { days, year } = daysUntil(d.date);
     let offsets;
     try { offsets = JSON.parse(d.offsets); } catch (e) { offsets = [14, 7, 3, 1]; }
+    // Напоминания за 14/7/3 дня — часть годового premium; остальным — только накануне
+    if (!isFullPremiumRow(getEntitlement(d.user_id))) offsets = offsets.filter(o => o <= 1);
     if (!offsets.includes(days)) continue;
 
     // Идемпотентность: (date_id, offset, year) — уникальный ключ, повторный тик той же минуты

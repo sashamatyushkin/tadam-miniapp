@@ -1,5 +1,5 @@
 // ── UI-примитивы ─────────────────────────────────────────────────────
-import { tg } from './tg.js?v=2609091241';
+import { tg } from './tg.js?v=2609141730';
 
 export const $ = (sel, root = document) => root.querySelector(sel);
 export const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -36,7 +36,9 @@ export function sheet(html, onMount) {
   sh.innerHTML = `<div class="sheet__grip"></div>${html}`;
   root.append(bg, sh);
   bg.onclick = closeSheet;
-  sheetCloser = () => { bg.remove(); sh.remove(); sheetCloser = null; };
+  const onBack = () => closeSheet();
+  tg.pushBack(onBack);                    // «Назад» Telegram сначала закрывает шторку
+  sheetCloser = () => { bg.remove(); sh.remove(); sheetCloser = null; tg.popBack(onBack); };
   onMount?.(sh, closeSheet);
   return sheetCloser;
 }

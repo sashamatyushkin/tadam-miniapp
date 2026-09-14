@@ -1,8 +1,8 @@
 // ── Механика «Намекни»: карточка-намёк уходит в чат Telegram ─────────
-import { createHint, track } from '../store.js?v=2609091241';
-import { deepLink } from '../config.js?v=2609091241';
-import { sheet, esc, toast, mascot } from '../ui.js?v=2609091241';
-import { tg } from '../tg.js?v=2609091241';
+import { createHint, track } from '../store.js?v=2609141730';
+import { deepLink } from '../config.js?v=2609141730';
+import { sheet, esc, toast, mascot } from '../ui.js?v=2609141730';
+import { tg } from '../tg.js?v=2609141730';
 
 export function openHint({ ideaId, title, desc, wishlistId }) {
   sheet(`
@@ -48,7 +48,7 @@ function confirmSent(title) {
   sheet(`
     <div class="center stack">
       ${mascot('wow', 'mascot--md')}
-      <h3 class="bups" style="font-size:24px;color:var(--mango)">та-дам! намёк ушёл</h3>
+      <h3 class="bups" style="font-size:28px;color:var(--mango)">та-дам! намёк ушёл</h3>
       <p class="muted small">«${esc(title)}» — теперь близкий точно поймёт</p>
       <button class="btn" id="ok">Отлично</button>
     </div>`, (el, close) => { el.querySelector('#ok').onclick = close; });

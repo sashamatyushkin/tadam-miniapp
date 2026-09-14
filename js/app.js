@@ -1,18 +1,18 @@
 // ── Точка входа и роутер ─────────────────────────────────────────────
-import { tg } from './tg.js?v=2609091241';
-import { load, save, state, track, registerReferral, syncAccessFromServer } from './store.js?v=2609091241';
-import { api, apiAvailable } from './api.js?v=2609091241';
-import { $, closeSheet, sheetOpen } from './ui.js?v=2609091241';
+import { tg } from './tg.js?v=2609141730';
+import { load, save, state, track, registerReferral, syncAccessFromServer, syncReferral } from './store.js?v=2609141730';
+import { api, apiAvailable } from './api.js?v=2609141730';
+import { $, closeSheet, sheetOpen } from './ui.js?v=2609141730';
 
-import * as Onboarding from './screens/onboarding.js?v=2609091241';
-import * as Home from './screens/home.js?v=2609091241';
-import * as Ideas from './screens/ideas.js?v=2609091241';
-import * as Wishlist from './screens/wishlist.js?v=2609091241';
-import * as Wheel from './screens/wheel.js?v=2609091241';
-import * as Profile from './screens/profile.js?v=2609091241';
-import * as Dates from './screens/dates.js?v=2609091241';
-import * as Extra from './screens/extra.js?v=2609091241';
-import { dismissTour } from './screens/coach.js?v=2609091241';
+import * as Onboarding from './screens/onboarding.js?v=2609141730';
+import * as Home from './screens/home.js?v=2609141730';
+import * as Ideas from './screens/ideas.js?v=2609141730';
+import * as Wishlist from './screens/wishlist.js?v=2609141730';
+import * as Wheel from './screens/wheel.js?v=2609141730';
+import * as Profile from './screens/profile.js?v=2609141730';
+import * as Dates from './screens/dates.js?v=2609141730';
+import * as Extra from './screens/extra.js?v=2609141730';
+import { dismissTour } from './screens/coach.js?v=2609141730';
 
 const ROUTES = {
   onboarding: Onboarding.render,
@@ -33,6 +33,7 @@ const ROUTES = {
   rewards: Extra.renderRewards,
   access: Extra.renderAccess,
   settings: Extra.renderSettings,
+  me: Extra.renderMe,
   support: Extra.renderSupport,
   terms: Extra.renderTerms,
   hint: Extra.renderHint,
@@ -77,8 +78,11 @@ function paint(fn, params) {
   bar.hidden = !!view.hideNav;
   renderTabs(view.tab);
   view.mount?.(app);
-  const showBack = !view.hideBack && (stack.length > 0 && !TABS.some(t => t.id === current.route));
-  tg.back(showBack ? back : null);
+  // «Назад» — везде, куда можно вернуться: по истории, а с корневых вкладок — на Главную.
+  // «Закрыть» остаётся только на самой Главной и на экранах, открытых по внешней ссылке.
+  // Экран может задать свой обработчик (например, шаг назад в онбординге).
+  const canBack = stack.length > 0 || current.route !== 'home';
+  tg.back(view.onBack || (!view.hideBack && canBack ? back : null));
 }
 
 function renderTabs(active) {
@@ -98,7 +102,7 @@ async function boot() {
 
   // Не блокируем запуск: если backend недоступен или тормозит, приложение
   // продолжает работать локально, как и раньше.
-  if (apiAvailable()) { api.auth(); syncAccessFromServer(); }
+  if (apiAvailable()) { api.auth().then(() => syncReferral()); syncAccessFromServer(); }
 
   const sp = tg.startParam();
   registerReferral(sp);

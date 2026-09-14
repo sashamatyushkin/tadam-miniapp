@@ -1,9 +1,9 @@
 // ── Профиль ──────────────────────────────────────────────────────────
-import { state, isPremium, accessLabel, track } from '../store.js?v=2609091241';
-import { esc } from '../ui.js?v=2609091241';
-import { tg } from '../tg.js?v=2609091241';
-import { go } from '../app.js?v=2609091241';
-import { maybeShowTips } from './coach.js?v=2609091241';
+import { state, isPremium, accessLabel, track, profileFilled } from '../store.js?v=2609141730';
+import { esc } from '../ui.js?v=2609141730';
+import { tg } from '../tg.js?v=2609141730';
+import { go } from '../app.js?v=2609141730';
+import { maybeShowTips } from './coach.js?v=2609141730';
 
 export function render() {
   const u = tg.user();
@@ -17,9 +17,12 @@ export function render() {
         <div class="phead__ava"><img src="assets/img/logo-icon.png" alt=""></div>
         <div class="phead__name">${esc(name.toLowerCase())}</div>
         <div class="pill">${isPremium() ? '✦ Premium активен' : 'Бесплатный доступ'}</div>
+        ${state.profile.dreamGift ? `<div class="phead__dream">Подарок мечты: ${esc(state.profile.dreamGift)}</div>` : ''}
+        ${profileFilled() ? '' : '<button class="btn btn--sm phead__cta" data-go="me">Заполнить профиль</button>'}
       </div>
       <div class="wrap">
         <div class="rows">
+          <button class="row" data-go="me"><span class="row__ico">🙋</span><span class="row__t">Мой профиль</span><span class="row__v">${profileFilled() ? 'заполнен' : 'заполнить'}</span><span class="row__chev">›</span></button>
           <button class="row" data-go="dates"><span class="row__ico">📅</span><span class="row__t">Важные даты</span><span class="row__v">${state.dates.length}</span><span class="row__chev">›</span></button>
           <button class="row" data-go="wishlist"><span class="row__ico">💖</span><span class="row__t">Мои вишлисты</span><span class="row__v">${state.wishlists.length}</span><span class="row__chev">›</span></button>
           <button class="row" data-go="invite"><span class="row__ico">👥</span><span class="row__t">Друзья и намёки</span><span class="row__v">${hints}</span><span class="row__chev">›</span></button>

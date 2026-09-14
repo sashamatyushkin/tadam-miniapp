@@ -4,7 +4,7 @@
 // по ключу, транзакционная выдача, лимиты на пользователя проверяются
 // сервером, а не отображаются с доверием к клиенту.
 import { randomBytes } from 'node:crypto';
-import { db } from './db.js';
+import { db, getEntitlement, isPremiumRow } from './db.js';
 import { LIMITS, WHEEL_REWARDS, WHEEL_RULE_VERSION } from './config.js';
 
 const todayStr = () => new Date().toISOString().slice(0, 10); // сервер — в UTC; клиент решает про часовой пояс отображения
@@ -52,7 +52,9 @@ export function spin(userId, idempotencyKey) {
   if (!s.free_used_today) s.free_used_today = 1;
   else s.bonus_spins = Math.max(0, s.bonus_spins - 1);
 
-  const pool = WHEEL_REWARDS.filter(r => r.weight > 0);
+  // premium: false — категория на 24 часа и скидка на неделю, которые premium ничего не дают
+  const premium = isPremiumRow(getEntitlement(userId));
+  const pool = WHEEL_REWARDS.filter(r => r.weight > 0 && !(premium && r.premium === false));
   const total = pool.reduce((sum, r) => sum + r.weight, 0);
   let x = secureRandom() * total, picked = pool[pool.length - 1];
   for (const r of pool) { if (x < r.weight) { picked = r; break; } x -= r.weight; }

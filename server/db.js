@@ -86,6 +86,25 @@ CREATE TABLE IF NOT EXISTS referrals (
 );
 `);
 
+// Колонки, добавленные после первого запуска: у уже созданной базы их нет,
+// а SQLite не умеет ADD COLUMN IF NOT EXISTS — поэтому пробуем и молча пропускаем.
+for (const ddl of [
+  "ALTER TABLE users ADD COLUMN profile_name TEXT",
+  "ALTER TABLE users ADD COLUMN gender TEXT",
+  "ALTER TABLE users ADD COLUMN birth_date TEXT",
+  "ALTER TABLE users ADD COLUMN give_to TEXT",
+  "ALTER TABLE users ADD COLUMN interests TEXT",
+  "ALTER TABLE users ADD COLUMN profile_updated_at INTEGER",
+  "ALTER TABLE wishlists ADD COLUMN dream TEXT"
+]) { try { db.exec(ddl); } catch (e) { /* колонка уже есть */ } }
+
+db.exec(`
+CREATE TABLE IF NOT EXISTS referral_codes (
+  code TEXT PRIMARY KEY,
+  user_id INTEGER NOT NULL UNIQUE
+);
+`);
+
 export function upsertUser(user) {
   db.prepare(`
     INSERT INTO users (id, first_name, username, created_at) VALUES (?, ?, ?, ?)
@@ -100,6 +119,11 @@ export function getEntitlement(userId) {
 
 export function isPremiumRow(row) {
   return row.type === 'forever' || (row.until != null && Date.now() < row.until);
+}
+
+// Полный premium (год или «навсегда» из UGC): безлимит дат и напоминания за 14/7/3/1 день
+export function isFullPremiumRow(row) {
+  return isPremiumRow(row) && (row.type === 'year' || row.type === 'forever');
 }
 
 export function grantEntitlement(userId, type, until, source) {

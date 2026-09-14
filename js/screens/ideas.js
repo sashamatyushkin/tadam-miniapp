@@ -1,12 +1,12 @@
 // ── Подборка идей: фильтры, пагинация, paywall, пустое состояние ─────
-import { CATEGORIES, RECIPIENTS, BUDGETS, INTERESTS, CONFIG } from '../config.js?v=2609091241';
-import { IDEAS, IDEAS_BY_CAT } from '../data/ideas.js?v=2609091241';
-import { state, isPremium, categoryOpen, track, inWishlist, addToWishlist, defaultWishlist, save, totalWishlistItems } from '../store.js?v=2609091241';
-import { esc, mascot, sheet, toast, closeSheet, plural } from '../ui.js?v=2609091241';
-import { tg } from '../tg.js?v=2609091241';
-import { go, back } from '../app.js?v=2609091241';
-import { openHint } from './hint.js?v=2609091241';
-import { maybeShowTips, maybeShowTips as _t } from './coach.js?v=2609091241';
+import { CATEGORIES, RECIPIENTS, BUDGETS, INTERESTS, CONFIG } from '../config.js?v=2609141730';
+import { IDEAS, IDEAS_BY_CAT } from '../data/ideas.js?v=2609141730';
+import { state, isPremium, categoryOpen, track, inWishlist, addToWishlist, defaultWishlist, save, totalWishlistItems } from '../store.js?v=2609141730';
+import { esc, mascot, sheet, toast, closeSheet, plural } from '../ui.js?v=2609141730';
+import { tg } from '../tg.js?v=2609141730';
+import { go, back } from '../app.js?v=2609141730';
+import { openHint } from './hint.js?v=2609141730';
+import { maybeShowTips, maybeShowTips as _t } from './coach.js?v=2609141730';
 
 // f/query/shown осознанно живут на уровне модуля — так они переживают повторный рендер
 // одной и той же категории при клике по чипу фильтра. Но именно поэтому раньше они же
@@ -28,10 +28,14 @@ function sortByProfile(list) {
     .map(x => x.idea);
 }
 
+// «дороже 10 000 ₽» — не верхняя граница, как остальные бюджеты, а отдельная корзина.
+// Раньше фильтр считал его «до 99 999» и показывал все идеи, включая «до 3 000».
+const OVER_10K = 99999;
+
 function apply(list) {
   return list.filter(i =>
     (!f.rec || i.recipients.includes(f.rec)) &&
-    (!f.budget || i.budget <= f.budget) &&
+    (!f.budget || (f.budget === OVER_10K ? i.budget === OVER_10K : i.budget <= f.budget)) &&
     (!f.interest || i.interests.includes(f.interest)) &&
     (!query || (i.title + ' ' + i.desc).toLowerCase().includes(query.toLowerCase()))
   );
@@ -43,6 +47,10 @@ function chipRow(items, active, kind, locked) {
     ${items.map(i => `<button class="chip ${active === i.id ? 'chip--on' : ''} ${locked ? 'chip--lock' : ''}" data-f="${kind}:${i.id}">${locked ? '🔒 ' : ''}${esc(i.name)}</button>`).join('')}
   </div>`;
 }
+
+// SVG вместо эмодзи: белое 🤍 терялось на светлом фоне, а цвет эмодзи на разных
+// телефонах разный. Цвет задаёт CSS (.heart / .heart--on).
+const HEART = '<svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M12 21s-7.5-4.6-9.6-9.3C.9 8.3 3 4.5 6.6 4.5c2.2 0 3.7 1.3 4.4 2.5.7-1.2 2.2-2.5 4.4-2.5 3.6 0 5.7 3.8 4.2 7.2C19.5 16.4 12 21 12 21z"/></svg>';
 
 export function cover(i, cls) {
   const c = CATEGORIES.find(x => x.id === i.cat);
@@ -74,7 +82,7 @@ function ideaRow(i, n) {
           ${i.interests.map(id => `<span class="tag tag--ice">${esc(INTERESTS.find(x => x.id === id)?.name || id)}</span>`).join('')}
         </div>
       </div>
-      <button class="idea__fav" data-fav="${i.id}">${inWishlist(i.id) ? '❤️' : '🤍'}</button>
+      <button class="idea__fav heart ${inWishlist(i.id) ? 'heart--on' : ''}" data-fav="${i.id}" aria-label="В вишлист">${HEART}</button>
     </div>`;
 }
 
@@ -94,7 +102,7 @@ export function render({ id }) {
   if (!cat) return { html: '<div class="wrap"><p>Повод не найден</p></div>' };
   if (!categoryOpen(cat)) return {
     html: '', hideNav: false,
-    mount: () => { go('home', {}, true); import('./extra.js?v=2609091241').then(m => m.openLockSheet(id)); }
+    mount: () => { go('home', {}, true); import('./extra.js?v=2609141730').then(m => m.openLockSheet(id)); }
   };
 
   // Другая категория (или пришли из поиска) — старые фильтры и поисковый запрос не тащим за собой.
@@ -135,9 +143,9 @@ export function render({ id }) {
         ${list.length > shown ? '<button class="btn btn--soft" id="more" style="margin-top:14px">Показать ещё</button>' : ''}
         ${(!premium && hiddenCount > 0) ? `
           <div class="info center" style="margin-top:18px">
-            <div class="bups" style="font-size:20px;color:#173F63">та-дам! ещё ${hiddenCount} ${plural(hiddenCount, 'идея', 'идеи', 'идей')}</div>
+            <div class="bups" style="font-size:24px;color:#173F63">та-дам! ещё ${hiddenCount} ${plural(hiddenCount, 'идея', 'идеи', 'идей')}</div>
             <p class="small" style="margin:8px 0 14px">Ты посмотрел ${limited.length} бесплатных. Открой все идеи и фильтры.</p>
-            <button class="btn" id="pw">Открыть за 149 ₽</button>
+            <button class="btn" id="pw">Открыть от 149 ₽ в неделю</button>
           </div>` : ''}
         <div class="spacer"></div>
       </div>`,
@@ -216,7 +224,7 @@ function bindCommon(app) {
       const wl = defaultWishlist();
       if (inWishlist(idea.id)) return toast('Уже в вишлисте');
       addToWishlist(wl, { ideaId: idea.id, title: idea.title, desc: idea.desc });
-      b.textContent = '❤️';
+      b.classList.add('heart--on');
       tg.haptic('success');
       toast('Та-дам! Идея в вишлисте 🎁');
       if (totalWishlistItems() === 1) maybeShowTips('firstsave');   // первое желание — объясняем, что дальше

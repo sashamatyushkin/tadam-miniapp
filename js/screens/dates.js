@@ -1,10 +1,10 @@
 // ── Важные даты и напоминания ────────────────────────────────────────
-import { state, save, addDate, removeDate, daysUntil, datesLimit, isPremium, track } from '../store.js?v=2609091241';
-import { RELATIONS, REMINDER_TYPES, CONFIG } from '../config.js?v=2609091241';
-import { esc, mascot, toast, confirmSheet, plural, fmtDate } from '../ui.js?v=2609091241';
-import { tg } from '../tg.js?v=2609091241';
-import { go } from '../app.js?v=2609091241';
-import { apiAvailable } from '../api.js?v=2609091241';
+import { state, save, addDate, removeDate, daysUntil, datesLimit, isPremium, isFullPremium, reminderOffsets, track } from '../store.js?v=2609141730';
+import { RELATIONS, REMINDER_TYPES, CONFIG } from '../config.js?v=2609141730';
+import { esc, mascot, toast, confirmSheet, plural, fmtDate } from '../ui.js?v=2609141730';
+import { tg } from '../tg.js?v=2609141730';
+import { go } from '../app.js?v=2609141730';
+import { apiAvailable } from '../api.js?v=2609141730';
 
 export function render() {
   const list = state.dates.slice().sort((a, b) => daysUntil(a.date) - daysUntil(b.date));
@@ -27,7 +27,8 @@ export function render() {
         <button class="btn" id="add">Добавить дату</button>
         <div class="card" style="margin-top:16px">
           <div style="font-weight:800">Когда напоминаем</div>
-          <p class="small muted">За ${CONFIG.reminders.defaultOffsets.join(', ')} ${plural(CONFIG.reminders.defaultOffsets.at(-1), 'день', 'дня', 'дней')} до события — сообщением от бота с готовой подборкой.</p>
+          <p class="small muted">За ${reminderOffsets().join(', ')} ${plural(reminderOffsets().at(-1), 'день', 'дня', 'дней')} до события — сообщением от бота с готовой подборкой.</p>
+          ${isFullPremium() ? '' : `<p class="small muted">В годовом premium — безлимит дат и напоминания за ${CONFIG.reminders.defaultOffsets.join(', ')} ${plural(CONFIG.reminders.defaultOffsets.at(-1), 'день', 'дня', 'дней')}. Сейчас можно добавить до ${CONFIG.limits.freeDates} дат.</p>`}
           <p class="small muted">Напоминания: ${state.settings.reminders ? 'включены' : 'выключены'} · изменить в «Настройках»</p>
           <p class="small muted">${apiAvailable()
             ? 'Напоминания шлёт бот с сервера — работает, даже если приложение закрыто.'

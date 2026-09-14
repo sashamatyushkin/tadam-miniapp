@@ -2,9 +2,11 @@
 import { createServer } from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { db, upsertUser, getEntitlement, isPremiumRow, grantEntitlement } from './db.js';
-import { verifyInitData } from './telegram.js';
+import { verifyInitData, sendMessage, botCall } from './telegram.js';
 import { spinsAvailable, spin } from './wheel.js';
-import { PRODUCTS } from './config.js';
+import { PRODUCTS, LIMITS } from './config.js';
+
+const WEBAPP = (process.env.WEBAPP_URL || 'https://sashamatyushkin.github.io/tadam-miniapp/').replace(/\/?$/, '/');
 
 // Разрешённые источники: GitHub Pages (прод-фронтенд) и локальная разработка.
 // Список сузится до одного домена, когда появится боевой хостинг.
@@ -73,8 +75,8 @@ on('POST', /^\/api\/access\/grant-test$/, async (req, res) => {
   const { productId } = await readBody(req);
   const p = PRODUCTS[productId];
   if (!p) return json(res, 400, { ok: false, error: 'unknown_product' });
-  const type = p.days === null ? 'forever' : 'holiday';
-  const until = p.days === null ? null : Date.now() + p.days * 86400000;
+  const type = p.type;
+  const until = Date.now() + p.days * 86400000;
   grantEntitlement(user.id, type, until, 'test_purchase:' + productId);
   json(res, 200, { ok: true, type, until });
 });
@@ -137,11 +139,13 @@ on('POST', /^\/api\/wishlist\/sync$/, async (req, res) => {
   const existing = db.prepare('SELECT owner_id FROM wishlists WHERE token = ?').get(b.token);
   if (existing && existing.owner_id !== user.id) return json(res, 403, { ok: false, error: 'not_owner' }); // чужой токен не перезаписать
 
-  const items = b.items.slice(0, 100).map(i => ({ title: String(i.title || '').slice(0, 80), desc: String(i.desc || '').slice(0, 200) }));
+  // Ссылку «где купить» пропускаем только http(s): её откроет чужой человек
+  const safeLink = v => { try { const u = new URL(String(v || '')); return /^https?:$/.test(u.protocol) ? u.href.slice(0, 500) : ''; } catch (e) { return ''; } };
+  const items = b.items.slice(0, 100).map(i => ({ title: String(i.title || '').slice(0, 80), desc: String(i.desc || '').slice(0, 200), link: safeLink(i.link) }));
   db.prepare(`
-    INSERT INTO wishlists (token, owner_id, title, items_json, revoked, updated_at) VALUES (?, ?, ?, ?, 0, ?)
-    ON CONFLICT(token) DO UPDATE SET title=excluded.title, items_json=excluded.items_json, revoked=0, updated_at=excluded.updated_at
-  `).run(b.token, user.id, String(b.title || 'Мой вишлист').slice(0, 60), JSON.stringify(items), Date.now());
+    INSERT INTO wishlists (token, owner_id, title, items_json, dream, revoked, updated_at) VALUES (?, ?, ?, ?, ?, 0, ?)
+    ON CONFLICT(token) DO UPDATE SET title=excluded.title, items_json=excluded.items_json, dream=excluded.dream, revoked=0, updated_at=excluded.updated_at
+  `).run(b.token, user.id, String(b.title || 'Мой вишлист').slice(0, 60), JSON.stringify(items), String(b.dream || '').slice(0, 60), Date.now());
   json(res, 200, { ok: true });
 });
 
@@ -156,9 +160,93 @@ on('POST', /^\/api\/wishlist\/revoke$/, async (req, res) => {
 // Публичный — без initData: именно эту ссылку открывает получатель намёка,
 // у которого своей сессии в Mini App может ещё не быть. Владелец не раскрывается.
 on('GET', /^\/api\/wishlist\/([\w-]+)$/, (req, res, m) => {
-  const row = db.prepare('SELECT title, items_json, revoked FROM wishlists WHERE token = ?').get(m[1]);
+  const row = db.prepare('SELECT title, items_json, dream, revoked FROM wishlists WHERE token = ?').get(m[1]);
   if (!row || row.revoked) return json(res, 404, { ok: false, error: 'not_found' });
-  json(res, 200, { ok: true, title: row.title, items: JSON.parse(row.items_json) });
+  json(res, 200, { ok: true, title: row.title, items: JSON.parse(row.items_json), dream: row.dream || '' });
+});
+
+// ── профиль: данные о пользователе для продукта и понимания аудитории ──
+on('POST', /^\/api\/profile$/, async (req, res) => {
+  const user = authenticate(req);
+  if (!user) return json(res, 401, { ok: false, error: 'invalid_init_data' });
+  const b = await readBody(req);
+  const list = v => JSON.stringify((Array.isArray(v) ? v : []).map(String).slice(0, 10));
+  const gender = ['f', 'm', 'x'].includes(b.gender) ? b.gender : null;
+  const birth = /^\d{4}-\d{2}-\d{2}$/.test(b.birthDate || '') ? b.birthDate : null;
+  db.prepare(`UPDATE users SET profile_name = ?, gender = ?, birth_date = ?, give_to = ?, interests = ?, profile_updated_at = ? WHERE id = ?`)
+    .run(String(b.name || '').slice(0, 30), gender, birth, list(b.giveTo), list(b.interests), Date.now(), user.id);
+  json(res, 200, { ok: true });
+});
+
+// ── приглашения ─────────────────────────────────────────────────────
+// Код генерирует клиент, но закрепляет за пользователем сервер: первый код
+// остаётся навсегда, и с другого устройства клиент получит тот же.
+on('POST', /^\/api\/referral\/register$/, async (req, res) => {
+  const user = authenticate(req);
+  if (!user) return json(res, 401, { ok: false, error: 'invalid_init_data' });
+  const { code } = await readBody(req);
+  let row = db.prepare('SELECT code FROM referral_codes WHERE user_id = ?').get(user.id);
+  if (!row && /^r[a-f0-9]{8}$/.test(code || '')) {
+    try { db.prepare('INSERT INTO referral_codes (code, user_id) VALUES (?, ?)').run(code, user.id); row = { code }; }
+    catch (e) { /* код занят другим пользователем — вернём ошибку ниже */ }
+  }
+  if (!row) return json(res, 422, { ok: false, error: 'code_taken' });
+  const invited = db.prepare('SELECT COUNT(*) AS n FROM referrals WHERE referrer_id = ? AND qualified = 1').get(user.id).n;
+  json(res, 200, { ok: true, code: row.code, invited });
+});
+
+// Приглашённый прошёл первый шаг онбординга. Засчитываем, только если:
+// код существует, это не сам пригласивший, человек новый (появился в базе не раньше
+// суток назад) и ещё ни разу не был засчитан, а у пригласившего не больше 5 друзей за сутки.
+on('POST', /^\/api\/referral\/claim$/, async (req, res) => {
+  const user = authenticate(req);
+  if (!user) return json(res, 401, { ok: false, error: 'invalid_init_data' });
+  const { code } = await readBody(req);
+  const owner = db.prepare('SELECT user_id FROM referral_codes WHERE code = ?').get(code || '');
+  if (!owner) return json(res, 422, { ok: false, error: 'unknown_code' });
+  if (owner.user_id === user.id) return json(res, 422, { ok: false, error: 'self' });
+  if (db.prepare('SELECT 1 FROM referrals WHERE user_id = ?').get(user.id)) return json(res, 422, { ok: false, error: 'already_claimed' });
+  const me = db.prepare('SELECT created_at FROM users WHERE id = ?').get(user.id);
+  if (!me || Date.now() - me.created_at > 86400000) return json(res, 422, { ok: false, error: 'not_new_user' });
+  const dayAgo = Date.now() - 86400000;
+  const today = db.prepare('SELECT COUNT(*) AS n FROM referrals WHERE referrer_id = ? AND qualified = 1 AND created_at > ?').get(owner.user_id, dayAgo).n;
+  const qualified = today < LIMITS.referralSpinsPerDay ? 1 : 0;
+
+  db.prepare('INSERT INTO referrals (user_id, referrer_id, qualified, created_at) VALUES (?, ?, ?, ?)').run(user.id, owner.user_id, qualified, Date.now());
+  if (qualified) {
+    db.prepare(`
+      INSERT INTO wheel_state (user_id, bonus_spins) VALUES (?, 1)
+      ON CONFLICT(user_id) DO UPDATE SET bonus_spins = bonus_spins + 1
+    `).run(owner.user_id);
+    const name = user.first_name ? user.first_name : 'Друг';
+    sendMessage(owner.user_id, `${name} присоединился к Та-дам по твоей ссылке 🎉\nДержи дополнительный спин колеса 🎲`,
+      { inline_keyboard: [[{ text: '🎡 Крутить колесо', web_app: { url: WEBAPP } }]] });
+  }
+  json(res, 200, { ok: true, qualified: !!qualified });
+});
+
+// ── приглашение с логотипом ─────────────────────────────────────────
+// shareMessage в Mini App умеет отправлять только заранее подготовленное ботом
+// сообщение (Bot API 8.0 savePreparedInlineMessage) — так в чат уходит карточка
+// с логотипом, текстом и кнопкой, а не голая ссылка.
+const INVITE_TEXT = 'Держи бот с вау-идеями на любой повод и для кого угодно 🎁 А ещё можно собирать вишлисты и намекать, что тебе подарить 😏';
+on('POST', /^\/api\/share\/invite$/, async (req, res) => {
+  const user = authenticate(req);
+  if (!user) return json(res, 401, { ok: false, error: 'invalid_init_data' });
+  const { link } = await readBody(req);
+  if (!/^https:\/\/t\.me\/[\w/]+\?start(app)?=r[a-f0-9]{8}$/.test(link || '')) return json(res, 400, { ok: false, error: 'bad_link' });
+  const r = await botCall('savePreparedInlineMessage', {
+    user_id: user.id,
+    allow_user_chats: true, allow_group_chats: true, allow_channel_chats: false,
+    result: {
+      type: 'photo', id: 'invite-' + randomUUID().slice(0, 8),
+      photo_url: WEBAPP + 'assets/img/share-invite.jpg', thumbnail_url: WEBAPP + 'assets/img/share-invite.jpg',
+      caption: INVITE_TEXT,
+      reply_markup: { inline_keyboard: [[{ text: '🎁 Открыть Та-дам', url: link }]] }
+    }
+  });
+  if (!r.ok) return json(res, 502, { ok: false, error: r.description || 'telegram_error' });
+  json(res, 200, { ok: true, id: r.result.id });
 });
 
 on('GET', /^\/(api\/health)?$/, (req, res) => json(res, 200, { ok: true, service: 'tadam-server' }));

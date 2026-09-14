@@ -61,12 +61,27 @@ export const tg = {
     return new URLSearchParams(location.search).get('startapp') || location.hash.replace(/^#/, '') || '';
   },
 
-  back(handler) {
+  // Кнопка «Назад» Telegram. Пока она скрыта, Telegram показывает на её месте
+  // «Закрыть» — один промах, и человек вылетает из приложения. Поэтому держим
+  // её видимой везде, где есть куда вернуться: у экрана — свой обработчик (back),
+  // а поверх него открытые шторки и сторис кладут свои (pushBack) — «Назад»
+  // сначала закрывает их, и только потом уводит с экрана.
+  _base: null,
+  _overlays: [],
+  back(handler) { this._base = handler || null; this._syncBack(); },
+  pushBack(handler) { this._overlays.push(handler); this._syncBack(); },
+  popBack(handler) {
+    const i = this._overlays.lastIndexOf(handler);
+    if (i >= 0) this._overlays.splice(i, 1);
+    this._syncBack();
+  },
+  _syncBack() {
     const bb = raw?.BackButton;
     if (!bb) return;
-    bb.offClick?.(this._backCb);
-    if (handler) { this._backCb = handler; bb.onClick(handler); bb.show(); }
-    else bb.hide();
+    if (this._backCb) bb.offClick?.(this._backCb);
+    const h = this._overlays[this._overlays.length - 1] || this._base;
+    if (h) { this._backCb = () => h(); bb.onClick(this._backCb); bb.show(); }
+    else { this._backCb = null; bb.hide(); }
   },
 
   haptic(type = 'light') {

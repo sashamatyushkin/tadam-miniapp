@@ -28,9 +28,22 @@ export const CONFIG = {
     referralSpinsPerDay: 5     // потолок реферальных спинов
   },
   reminders: { defaultOffsets: [14, 7, 3, 1] }, // за сколько дней напоминать
+  // Неделя — чтобы быстро найти подарок к конкретному поводу.
+  // Год — полный premium: сверх недели ещё безлимит важных дат и напоминания
+  // за 14, 7, 3 и 1 день (без года — только за день). Тип 'forever' остаётся
+  // только как награда UGC-программы («premium навсегда»), в продаже его нет.
   products: [
-    { id: 'holiday', title: 'На праздник', sub: 'Полный доступ на 7 дней', priceRub: 149, promoRub: 99, days: 7 },
-    { id: 'forever', title: 'Навсегда',    sub: 'Бессрочный доступ',        priceRub: 490, days: null, best: true }
+    { id: 'week', title: 'Неделя', sub: 'Все поводы, идеи и фильтры на 7 дней', priceRub: 149, promoRub: 99, days: 7, per: 'неделю' },
+    { id: 'year', title: 'Год', sub: 'Полный premium на 12 месяцев + напоминания о датах близких', priceRub: 599, days: 365, per: 'год', best: true }
+  ],
+  // Сравнение тарифов для paywall и «Моего доступа». [название, бесплатно, неделя, год]
+  compare: [
+    ['Поводы для подарков', '3', 'все 13', 'все 13'],
+    ['Идеи в каждом поводе', '20', 'все', 'все'],
+    ['Фильтры: кому, бюджет, интересы', '—', '✓', '✓'],
+    ['Вишлисты и намёки', '3 списка', 'без лимита', 'без лимита'],
+    ['Важные даты близких', 'до 5', 'до 5', 'без лимита'],
+    ['Напоминания о датах', 'за 1 день', 'за 1 день', 'за 14, 7, 3 и 1 день']
   ]
 };
 
@@ -44,7 +57,7 @@ export const CATEGORIES = [
   { id: 'mar8',      name: '8 марта',            emoji: '🌷', free: false, bg: 'linear-gradient(150deg,#C74B78,#EE86AB)', season: [2, 3] },
   { id: 'baby',      name: 'рождение\nребёнка',  emoji: '👶', free: false, bg: 'linear-gradient(150deg,#3E9BD6,#8FCDF2)' },
   { id: 'home',      name: 'новоселье',          emoji: '🏡', free: false, bg: 'linear-gradient(150deg,#C96A1E,#EDA95B)' },
-  { id: 'school',    name: 'выпускной\n1 сентября', emoji: '🎓', free: false, bg: 'linear-gradient(150deg,#3B4A9E,#7C89D8)', season: [5, 8, 9] },
+  { id: 'school',    name: 'выпускной\n1 сентября', emoji: '🎓', free: false, bg: 'linear-gradient(150deg,#3B4A9E,#7C89D8)', season: [4, 5, 7] }, // май–июнь и август (месяцы с нуля)
   { id: 'wedding',   name: 'свадьба',            emoji: '💐', free: false, bg: 'linear-gradient(150deg,#B8425C,#E88198)' },
   { id: 'colleague', name: 'коллеге\nпо работе', emoji: '💼', free: false, bg: 'linear-gradient(150deg,#1F7E7A,#59B3AE)' },
   { id: 'kid',       name: 'ребёнку',            emoji: '🧸', free: false, bg: 'linear-gradient(150deg,#E0A21B,#F5C95C)' },
@@ -70,22 +83,25 @@ export const INTERESTS = [
 export const WHEEL = {
   ruleVersion: 'v1',
   rewards: [
-    { code: 'empty',    title: 'Повезёт в следующий раз', weight: 35, color: '#F1E3CE', text: '#702720', short: 'Пусто' },
-    { code: 'set',      title: 'Эксклюзивная подборка',   weight: 20, color: '#F74101', text: '#fff',    short: 'Подборка' },
-    { code: 'category', title: 'Категория на 24 часа',    weight: 15, color: '#702720', text: '#fff',    short: 'Категория' },
-    { code: 'slot',     title: '+1 слот вишлиста',        weight: 12, color: '#CBE5FE', text: '#173F63', short: '+слот' },
-    { code: 'spin',     title: '+1 дополнительный спин',  weight: 10, color: '#FF8A4C', text: '#fff',    short: '+спин' },
-    { code: 'discount', title: 'Скидка 149 → 99 ₽',       weight: 8,  color: '#1F7A55', text: '#fff',    short: 'Скидка' }
+    // short — подпись на секторе; \n переносит на вторую строку
+    // premium: false — награда бессмысленна для premium, ему её не разыгрываем (см. rewardPool в store.js)
+    { code: 'empty',    title: 'В этот раз без подарка',        weight: 35, color: '#F1E3CE', text: '#702720', short: 'В этот раз\nбез подарка' },
+    { code: 'set',      title: 'Эксклюзивная подборка',         weight: 20, color: '#F74101', text: '#fff',    short: 'Подборка' },
+    { code: 'category', title: 'Категория на 24 часа',          weight: 15, color: '#702720', text: '#fff',    short: 'Категория', premium: false },
+    { code: 'slot',     title: 'Дополнительный слот вишлиста',  weight: 12, color: '#CBE5FE', text: '#173F63', short: 'Дополнительный\nслот' },
+    { code: 'spin',     title: 'Дополнительный спин',           weight: 10, color: '#FF8A4C', text: '#fff',    short: 'Дополнительный\nспин' },
+    { code: 'discount', title: 'Скидка на неделю: 149 → 99 ₽',  weight: 8,  color: '#1F7A55', text: '#fff',    short: 'Скидка', premium: false }
   ]
 };
 
-// ── Друзья бренда (UGC 100k+) — в проде выдаёт админка ───────────────
-export const BRAND_FRIENDS = [
-  { nick: '@marina.gifts', platform: 'Reels', idea: 'Капсула времени на годовщину', desc: 'Письма друг другу, которые вскроете через год' },
-  { nick: '@denis.life',   platform: 'TikTok', idea: 'Подкаст друзей про именинника', desc: 'Собрал 8 голосовых и склеил в один выпуск' },
-  { nick: '@kate.stories', platform: 'Reels',  idea: 'Винил с памятными треками', desc: 'Печать своей пластинки с плейлистом ваших лет' },
-  { nick: '@anna.creative', platform: 'YouTube', idea: 'Цветы с таймкодом из фильма', desc: 'Букет + записка со сценой, где он был в кадре' }
-];
+// ── Друзья бренда (UGC 100k+) — наполняется из админки ───────────────
+// Пока пусто: на экране показывается «Упс, пока тут пусто». Формат записи:
+// { nick: '@nickname', platform: 'Reels', idea: 'Идея подарка', desc: 'Пара слов о ролике' }
+export const BRAND_FRIENDS = [];
+
+// Ники бренда в соцсетях. Пока не забронированы — пусто, и в текстах пишем
+// «упоминание Та-дам» без @. Как появятся — впиши сюда, тексты подхватят сами.
+export const SOCIAL = { nick: '' };
 
 export const REMINDER_TYPES = [
   { id: 'birthday', name: 'День рождения' }, { id: 'anniv', name: 'Годовщина' },
