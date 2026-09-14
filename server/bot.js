@@ -20,9 +20,11 @@ const appButton = (text, param) => ({
 
 async function onMessage(msg) {
   const chat = msg.chat.id;
-  if (msg.from) upsertUser(msg.from); // тот же пользователь, что придёт потом с initData из Mini App
   const text = (msg.text || '').trim();
   const [cmd, arg] = text.split(/\s+/);
+  // тот же пользователь, что придёт потом с initData из Mini App. /start <параметр> — первый
+  // вход по ссылке: запоминаем промокод или приглашение как источник
+  if (msg.from) upsertUser(msg.from, cmd === '/start' ? (arg && arg !== 'debug' ? arg : 'direct') : null);
 
   if (cmd === '/start') {
     if (arg && arg.startsWith('h_')) {

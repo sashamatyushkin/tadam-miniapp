@@ -1,0 +1,722 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Та-дам · админка</title>
+<style>
+:root{
+  --mango:#F74101;--mango-dark:#D93700;--mango-soft:#FFE7DA;--oat:#FBF3E8;--coffee:#702720;--ice:#CBE5FE;
+  --surface:#FFFCF8;--line:#EDE1D1;--muted:#8A6F61;--ok:#2E8B57;--ok-soft:#DDF1E4;--blue:#2C6FB0;--blue-soft:#E3F0FD;
+  --gold:#C9861E;--purple:#6C4FD1;--rose:#C74B78;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--oat);color:var(--coffee);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+h1,h2,h3{margin:0}
+a{color:var(--blue)}
+
+/* ── каркас: меню слева, контент справа ── */
+.shell{display:grid;grid-template-columns:230px 1fr;min-height:100vh}
+.side{background:var(--coffee);color:#FBE9DD;padding:22px 14px;position:sticky;top:0;height:100vh;overflow:auto}
+.brand{display:flex;align-items:center;gap:10px;padding:0 8px 22px;font-weight:800;font-size:18px;color:#fff}
+.brand span{font-size:24px}
+.nav{display:grid;gap:3px}
+.nav button{all:unset;cursor:pointer;display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;font-weight:600;font-size:14px;color:#F3D9C9}
+.nav button:hover{background:rgba(255,255,255,.08)}
+.nav button.on{background:var(--mango);color:#fff}
+.nav .ico{width:20px;text-align:center}
+.nav .badge{margin-left:auto;background:#fff;color:var(--mango-dark);font-size:11px;font-weight:800;border-radius:999px;padding:1px 7px}
+.side-foot{margin-top:24px;padding:12px;font-size:12px;color:#D8B9A8;line-height:1.4}
+.main{padding:28px 32px 60px;max-width:1180px;width:100%}
+.pagehead{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:20px;flex-wrap:wrap}
+.pagehead h1{font-size:26px;font-weight:800}
+.pagehead p{margin:4px 0 0;color:var(--muted);font-size:14px}
+.view{display:none}.view.on{display:block;animation:fade .2s}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+/* ── карточки и сетки ── */
+.grid{display:grid;gap:14px}
+.g4{grid-template-columns:repeat(4,1fr)}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g2{grid-template-columns:repeat(2,1fr)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px}
+.card h3{font-size:15px;font-weight:800;margin-bottom:2px}
+.card .hint{font-size:12.5px;color:var(--muted);margin:0 0 14px}
+.kpi .v{font-size:30px;font-weight:800;line-height:1.1;color:var(--coffee)}
+.kpi .l{font-size:13px;color:var(--muted);margin-top:4px}
+.kpi .d{font-size:12px;font-weight:700;margin-top:8px;color:var(--ok)}
+.kpi .d.muted{color:var(--muted)}
+.sec{margin:26px 0 12px;font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+
+/* «Коротко о главном» */
+.insights{background:linear-gradient(135deg,#FFF1E6,#FFFCF8);border:1px solid #F6D6C2;border-radius:16px;padding:18px 20px;margin-bottom:14px}
+.insights h3{font-size:15px;font-weight:800;margin-bottom:10px}
+.insights ul{margin:0;padding:0;list-style:none;display:grid;gap:8px}
+.insights li{display:flex;gap:10px;font-size:14px;line-height:1.45}
+.insights li b{color:var(--mango-dark)}
+.insights li i{font-style:normal;flex:0 0 auto}
+
+/* ── диаграммы ── */
+.donut-wrap{display:flex;align-items:center;gap:18px}
+.donut{flex:0 0 auto}
+.legend{display:grid;gap:7px;font-size:13px;flex:1;min-width:0}
+.legend div{display:flex;align-items:center;gap:8px}
+.legend .sw{width:10px;height:10px;border-radius:3px;flex:0 0 auto}
+.legend .n{margin-left:auto;font-weight:700;color:var(--muted);font-variant-numeric:tabular-nums}
+.bars{display:grid;gap:9px}
+.bar{display:grid;grid-template-columns:minmax(90px,38%) 1fr 58px;align-items:center;gap:10px;font-size:13px}
+.bar .t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar .track{height:10px;background:#F3E8DA;border-radius:6px;overflow:hidden}
+.bar .fill{height:100%;background:var(--mango);border-radius:6px;transition:width .5s}
+.bar .n{text-align:right;color:var(--muted);font-variant-numeric:tabular-nums;font-size:12px}
+.cols{display:flex;align-items:flex-end;gap:6px;height:150px;padding-top:10px}
+.cols .c{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end}
+.cols .col{width:100%;background:var(--mango);border-radius:6px 6px 2px 2px;min-height:2px;position:relative}
+.cols .col.zero{background:#EFE3D3}
+.cols .col span{position:absolute;top:-17px;left:50%;transform:translateX(-50%);font-size:11px;font-weight:700;color:var(--muted)}
+.cols .lb{font-size:10.5px;color:var(--muted)}
+.empty{color:var(--muted);font-size:13px;padding:10px 0}
+
+/* ── таблицы и списки ── */
+.toolbar{display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+.search{flex:1;min-width:220px;display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:0 12px}
+.search input{border:0;outline:none;background:transparent;padding:11px 0;width:100%}
+.seg{display:flex;background:#F1E5D6;border-radius:12px;padding:3px}
+.seg button{all:unset;cursor:pointer;padding:8px 14px;border-radius:9px;font-size:13px;font-weight:700;color:var(--muted)}
+.seg button.on{background:var(--surface);color:var(--coffee);box-shadow:0 1px 3px rgba(112,39,32,.12)}
+.table{background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.tr{display:grid;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line);font-size:14px}
+.tr:last-child{border-bottom:0}
+.tr>*{min-width:0} /* иначе длинная ссылка распирает колонку и налезает на соседние */
+.tr.head{background:#F7EEE3;font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.tr.click{cursor:pointer}
+.tr.click:hover{background:#FFF6EE}
+.users .tr{grid-template-columns:2.2fr 1.1fr 1.2fr .8fr .8fr 1fr}
+.who{display:flex;align-items:center;gap:10px;min-width:0}
+.ava{width:34px;height:34px;border-radius:50%;background:var(--mango-soft);color:var(--mango-dark);display:grid;place-items:center;font-weight:800;flex:0 0 auto}
+.who .nm{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.who .sub{font-size:12px;color:var(--muted)}
+.pill{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap}
+.p-free{background:#F1E5D6;color:var(--muted)}
+.p-week{background:var(--blue-soft);color:var(--blue)}
+.p-year{background:var(--mango-soft);color:var(--mango-dark)}
+.p-forever{background:var(--ok-soft);color:var(--ok)}
+.muted{color:var(--muted)}
+.small{font-size:12.5px}
+.pager{display:flex;justify-content:center;align-items:center;gap:12px;margin-top:14px;font-size:13px;color:var(--muted)}
+
+/* ── кнопки ── */
+.btn{all:unset;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--mango-dark);color:#fff;font-weight:700;font-size:14px;padding:10px 16px;border-radius:11px;white-space:nowrap}
+.btn:hover{filter:brightness(1.06)}
+.btn.soft{background:#F1E5D6;color:var(--coffee)}
+.btn.ghost{background:transparent;color:var(--muted);padding:8px 10px}
+.btn.danger{background:#FBE3DC;color:#B3341A}
+.btn.sm{padding:6px 11px;font-size:12.5px;border-radius:9px}
+.btn[disabled]{opacity:.5;pointer-events:none}
+
+/* ── карточки контента ── */
+.items{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px}
+.item{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:6px}
+.item .top{display:flex;gap:10px;align-items:flex-start}
+.item .emo{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-size:20px;flex:0 0 auto;color:#fff}
+.item .tt{font-weight:800;line-height:1.3}
+.item .ds{font-size:13px;color:var(--muted);line-height:1.4}
+.item .tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:2px}
+.tag{font-size:11.5px;background:#F3E8DA;border-radius:999px;padding:2px 8px;color:var(--coffee)}
+.item .acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:auto;padding-top:8px}
+.blank{background:var(--surface);border:2px dashed var(--line);border-radius:16px;padding:36px;text-align:center;color:var(--muted)}
+.blank b{display:block;color:var(--coffee);font-size:16px;margin-bottom:4px}
+
+/* ── боковая панель пользователя ── */
+.scrim{position:fixed;inset:0;background:rgba(58,22,18,.35);z-index:40;opacity:0;pointer-events:none;transition:opacity .2s}
+.scrim.on{opacity:1;pointer-events:auto}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(560px,100%);background:var(--oat);z-index:41;transform:translateX(100%);transition:transform .25s cubic-bezier(.2,.9,.3,1);overflow:auto;box-shadow:-20px 0 50px -20px rgba(58,22,18,.35)}
+.drawer.on{transform:none}
+.dr-head{background:linear-gradient(160deg,#F74101,#FF7A3D);color:#fff;padding:22px 22px 20px;position:relative}
+.dr-head .x{all:unset;position:absolute;top:14px;right:14px;cursor:pointer;width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.22);color:#fff;display:grid;place-items:center;font-size:16px}
+.dr-head .x:hover{background:rgba(255,255,255,.35)}
+.dr-head .ava{width:52px;height:52px;background:#fff;font-size:20px;margin-bottom:10px}
+.dr-head h2{font-size:22px}
+.dr-head .sub{opacity:.9;font-size:13px}
+.dr-body{padding:18px 20px 40px;display:grid;gap:14px}
+.facts{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;font-size:13.5px}
+.facts .k{color:var(--muted);font-size:12px}
+.facts .val{font-weight:700}
+.access-btns{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.wl{border:1px solid var(--line);border-radius:12px;background:var(--surface);overflow:hidden}
+.wl summary{list-style:none;cursor:pointer;padding:12px 14px;display:flex;align-items:center;gap:8px;font-weight:700}
+.wl summary::-webkit-details-marker{display:none}
+.wl summary::after{content:'▾';margin-left:auto;color:var(--muted);transition:transform .2s}
+.wl[open] summary::after{transform:rotate(180deg)}
+.wl ol{margin:0;padding:0 14px 12px 32px;display:grid;gap:6px;font-size:13.5px}
+.wl ol li span{color:var(--muted)}
+
+/* ── модальные формы ── */
+.modal{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(58,22,18,.35)}
+.modal.on{display:flex}
+.box{background:var(--oat);border-radius:18px;width:min(620px,100%);max-height:92vh;overflow:auto;box-shadow:0 30px 70px -20px rgba(58,22,18,.5)}
+.box-head{display:flex;align-items:center;justify-content:space-between;padding:18px 20px 6px}
+.box-head h2{font-size:19px}
+.box form{padding:10px 20px 20px;display:grid;gap:12px}
+.f label{display:block;font-size:12.5px;font-weight:700;color:var(--muted);margin-bottom:5px}
+.f input,.f select,.f textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;outline:none}
+.f input:focus,.f select:focus,.f textarea:focus{border-color:var(--mango)}
+.f .help{font-size:12px;color:var(--muted);margin-top:4px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{position:relative}
+.chip input{position:absolute;opacity:0;pointer-events:none}
+.chip span{display:inline-block;padding:6px 12px;border:1px solid var(--line);border-radius:999px;background:#fff;font-size:13px;cursor:pointer;user-select:none}
+.chip input:checked+span{background:var(--mango);border-color:var(--mango);color:#fff}
+.form-err{color:#B3341A;font-size:13px;font-weight:700;min-height:1em}
+.box .acts{display:flex;justify-content:flex-end;gap:8px}
+.preview{border-radius:14px;padding:16px;color:#fff;text-align:center}
+.preview .pt{font-size:18px;font-weight:800;margin-top:4px}
+.preview .px{font-size:13px;opacity:.95;margin-top:4px}
+.preview .pb{display:inline-block;margin-top:10px;background:#FFF6EA;color:var(--coffee);border-radius:999px;padding:6px 14px;font-weight:700;font-size:13px}
+
+.copy{display:flex;align-items:center;gap:6px;background:#F3E8DA;border-radius:9px;padding:6px 8px 6px 10px;font-size:12.5px;max-width:100%}
+.copy code{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--coffee);color:#fff;padding:10px 18px;border-radius:999px;font-weight:700;font-size:14px;opacity:0;transition:all .25s;z-index:60;pointer-events:none}
+.toast.on{opacity:1;transform:translateX(-50%)}
+
+@media (max-width:1000px){.g4{grid-template-columns:repeat(2,1fr)}.g3{grid-template-columns:1fr 1fr}}
+@media (max-width:760px){
+  .shell{grid-template-columns:1fr}
+  .side{position:sticky;top:0;height:auto;z-index:30;padding:10px}
+  .brand{padding:4px 6px 8px;font-size:16px}
+  .nav{grid-auto-flow:column;overflow-x:auto;scrollbar-width:none}
+  .nav button{white-space:nowrap;padding:8px 10px}
+  .side-foot{display:none}
+  .main{padding:18px 14px 50px}
+  .g4,.g3,.g2,.row2{grid-template-columns:1fr}
+  .users .tr{grid-template-columns:1fr auto}
+  .users .tr > :nth-child(n+3){display:none}
+  .donut-wrap{flex-direction:column;align-items:stretch}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="side">
+    <div class="brand"><span>🎁</span>Та-дам · админка</div>
+    <nav class="nav" id="nav">
+      <button data-v="overview" class="on"><span class="ico">📊</span>Обзор</button>
+      <button data-v="users"><span class="ico">👥</span>Пользователи</button>
+      <button data-v="growth"><span class="ico">🔗</span>Промокоды и друзья</button>
+      <button data-v="ugc"><span class="ico">🎬</span>Заявки UGC<span class="badge" id="ugcBadge" hidden></span></button>
+      <button data-v="ideas"><span class="ico">🎁</span>Идеи подарков</button>
+      <button data-v="stories"><span class="ico">⭕</span>Сторис</button>
+      <button data-v="friends"><span class="ico">✨</span>Друзья бренда</button>
+    </nav>
+    <div class="side-foot">Изменения в идеях, сторис и друзьях бренда появятся у пользователей при следующем открытии приложения.</div>
+  </aside>
+
+  <main class="main">
+    <!-- ОБЗОР -->
+    <section class="view on" id="v-overview">
+      <div class="pagehead"><div><h1>Обзор</h1><p>Главное о приложении на сегодня</p></div>
+        <button class="btn soft sm" onclick="loadOverview()">↻ Обновить</button></div>
+      <div id="overview"><div class="empty">Загружаем…</div></div>
+    </section>
+
+    <!-- ПОЛЬЗОВАТЕЛИ -->
+    <section class="view" id="v-users">
+      <div class="pagehead"><div><h1>Пользователи</h1><p>Все профили в базе. Нажми на человека, чтобы открыть профиль, вишлисты и выдать доступ</p></div></div>
+      <div class="toolbar">
+        <label class="search">🔍<input id="uq" placeholder="Имя, @ник или Telegram ID"></label>
+        <div class="seg" id="ufilter">
+          <button data-f="" class="on">Все</button><button data-f="premium">С premium</button><button data-f="profiled">Заполнили профиль</button>
+        </div>
+      </div>
+      <div class="table users" id="users"></div>
+      <div class="pager" id="upager"></div>
+    </section>
+
+    <!-- ПРОМОКОДЫ И ПРИГЛАШЕНИЯ -->
+    <section class="view" id="v-growth">
+      <div class="pagehead"><div><h1>Промокоды и приглашения</h1><p>Откуда приходят люди: ссылки для блогеров и рекламы и приглашения от друзей</p></div>
+        <button class="btn" onclick="openPromo()">＋ Новый промокод</button></div>
+      <div id="growth"><div class="empty">Загружаем…</div></div>
+    </section>
+
+    <!-- UGC -->
+    <section class="view" id="v-ugc">
+      <div class="pagehead"><div><h1>Заявки «Твори с Та-дам»</h1><p>Ролики пользователей. После решения человеку придёт сообщение от бота, доступ выдастся сам</p></div></div>
+      <div id="ugc"><div class="empty">Загружаем…</div></div>
+    </section>
+
+    <!-- ИДЕИ -->
+    <section class="view" id="v-ideas">
+      <div class="pagehead"><div><h1>Идеи подарков</h1><p>Добавленные здесь идеи встают первыми в выбранном поводе. Встроенные идеи приложения здесь не показываются</p></div>
+        <button class="btn" onclick="openIdea()">＋ Добавить идею</button></div>
+      <div id="ideas"></div>
+    </section>
+
+    <!-- СТОРИС -->
+    <section class="view" id="v-stories">
+      <div class="pagehead"><div><h1>Сторис</h1><p>Кружки на главной экране. Новые встают после встроенных</p></div>
+        <button class="btn" onclick="openStory()">＋ Добавить сторис</button></div>
+      <div id="stories"></div>
+    </section>
+
+    <!-- ДРУЗЬЯ БРЕНДА -->
+    <section class="view" id="v-friends">
+      <div class="pagehead"><div><h1>Друзья бренда</h1><p>Блогеры и их идеи подарков — раздел «Друзья бренда» в приложении. Пока список пуст, там показывается «Станешь первым другом?»</p></div>
+        <button class="btn" onclick="openFriend()">＋ Добавить друга</button></div>
+      <div id="friends"></div>
+    </section>
+  </main>
+</div>
+
+<!-- профиль пользователя -->
+<div class="scrim" id="scrim" onclick="closeUser()"></div>
+<aside class="drawer" id="drawer"></aside>
+
+<!-- формы -->
+<div class="modal" id="modal" onclick="if(event.target===this)closeModal()"><div class="box" id="box"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+const META = /*__META__*/null;
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const num = n => (n || 0).toLocaleString('ru-RU');
+const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
+const plural = (n, one, few, many) => { const a = n % 10, b = n % 100; return a === 1 && b !== 11 ? one : a >= 2 && a <= 4 && (b < 10 || b >= 20) ? few : many; };
+const fmtDate = t => t ? new Date(t).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+const ago = t => { if (!t) return '—'; const d = Math.floor((Date.now() - t) / 864e5); return d <= 0 ? 'сегодня' : d === 1 ? 'вчера' : `${d} ${plural(d, 'день', 'дня', 'дней')} назад`; };
+const PLAN = { free: 'Бесплатно', week: 'Неделя', year: 'Год', forever: 'Навсегда' };
+const GENDER = { f: 'Женский', m: 'Мужской', x: 'Не сказал', unknown: 'Не заполнено' };
+const SOURCE = { direct: 'Сами нашли бота', promo: 'По промокоду', referral: 'Пригласил друг', hint: 'По намёку или вишлисту', other: 'Другое' };
+const BG = { mango: 'linear-gradient(160deg,#F74101,#FF8A4C)', coffee: 'linear-gradient(160deg,#702720,#9E4034)', ice: 'linear-gradient(160deg,#3E9BD6,#8FCDF2)', purple: 'linear-gradient(160deg,#6C4FD1,#A98BF0)', rose: 'linear-gradient(160deg,#C74B78,#EE86AB)', gold: 'linear-gradient(160deg,#C9861E,#F5C95C)', ny: 'linear-gradient(160deg,#1F7A55,#54B183)' };
+const COLORS = ['#F74101', '#702720', '#3E9BD6', '#C9861E', '#6C4FD1', '#2E8B57', '#C74B78', '#D8C6B0'];
+
+function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('on'), 2200); }
+
+// Относительный путь сломается, если админку открыли ссылкой с логином в адресе — берём origin
+async function api(path, opts = {}) {
+  const r = await fetch(location.origin + path, { ...opts, headers: { 'Content-Type': 'application/json' }, body: opts.body ? JSON.stringify(opts.body) : undefined });
+  const data = await r.json().catch(() => ({ ok: false, error: 'Сервер не ответил' }));
+  if (!r.ok || !data.ok) throw new Error(data.error || 'Ошибка ' + r.status);
+  return data;
+}
+
+// ── навигация ──
+const loaders = { overview: loadOverview, users: loadUsers, growth: loadGrowth, ugc: loadUgc, ideas: loadIdeas, stories: loadStories, friends: loadFriends };
+function show(v) {
+  document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  document.querySelectorAll('.view').forEach(s => s.classList.toggle('on', s.id === 'v-' + v));
+  history.replaceState(null, '', '#' + v);
+  loaders[v]();
+  window.scrollTo(0, 0);
+}
+document.querySelectorAll('#nav button').forEach(b => b.onclick = () => show(b.dataset.v));
+window.addEventListener('hashchange', () => { const v = location.hash.slice(1); if (v in loaders) show(v); });
+
+// ── диаграммы ──
+function donut(entries, labels, size = 132) {
+  const total = entries.reduce((s, e) => s + e[1], 0);
+  if (!total) return '<div class="empty">Пока нет данных</div>';
+  const r = 48, c = 2 * Math.PI * r;
+  let off = 0;
+  const arcs = entries.map(([, n], i) => {
+    const len = n / total * c;
+    const a = `<circle r="${r}" cx="60" cy="60" fill="none" stroke="${COLORS[i % COLORS.length]}" stroke-width="18" stroke-dasharray="${len} ${c - len}" stroke-dashoffset="${-off}" transform="rotate(-90 60 60)"/>`;
+    off += len; return a;
+  }).join('');
+  return `<div class="donut-wrap">
+    <svg class="donut" width="${size}" height="${size}" viewBox="0 0 120 120">${arcs}
+      <text x="60" y="58" text-anchor="middle" font-size="20" font-weight="800" fill="#702720">${num(total)}</text>
+      <text x="60" y="74" text-anchor="middle" font-size="9" fill="#8A6F61">всего</text></svg>
+    <div class="legend">${entries.map(([k, n], i) => `<div><span class="sw" style="background:${COLORS[i % COLORS.length]}"></span>${esc(labels?.[k] || k)}<span class="n">${num(n)} · ${pct(n, total)}%</span></div>`).join('')}</div>
+  </div>`;
+}
+function bars(entries, labels) {
+  if (!entries.length) return '<div class="empty">Пока нет данных</div>';
+  const max = Math.max(...entries.map(e => e[1]));
+  return `<div class="bars">${entries.map(([k, n]) => `<div class="bar"><div class="t" title="${esc(labels?.[k] || k)}">${esc(labels?.[k] || k)}</div><div class="track"><div class="fill" style="width:${pct(n, max)}%"></div></div><div class="n">${num(n)}</div></div>`).join('')}</div>`;
+}
+function columns(entries) {
+  const max = Math.max(1, ...entries.map(e => e[1]));
+  return `<div class="cols">${entries.map(([l, n]) => `<div class="c"><div class="col ${n ? '' : 'zero'}" style="height:${Math.max(2, n / max * 100)}%">${n ? `<span>${n}</span>` : ''}</div><div class="lb">${l}</div></div>`).join('')}</div>`;
+}
+const card = (title, hint, body, cls = '') => `<div class="card ${cls}"><h3>${title}</h3><p class="hint">${hint}</p>${body}</div>`;
+
+// ── ОБЗОР ──
+async function loadOverview() {
+  const { stats: s } = await api('/admin/api/stats').catch(e => ({ stats: null, e }));
+  if (!s) return $('#overview').innerHTML = '<div class="blank"><b>Не получилось загрузить</b>Проверь, что сервер запущен</div>';
+  const badge = $('#ugcBadge'); badge.hidden = !s.ugcPending; badge.textContent = s.ugcPending;
+
+  const premium = s.plan.week + s.plan.year + s.plan.forever;
+  const filled = Object.entries(s.gender).filter(e => e[1] > 0 && e[0] !== 'unknown');
+
+  // «Коротко о главном» — готовые выводы, чтобы не разглядывать каждую диаграмму
+  const ins = [];
+  if (!s.totalUsers) ins.push(['👋', 'Пока в базе никого нет. Как только люди начнут открывать приложение, здесь появятся выводы.']);
+  else {
+    ins.push(['👥', `Всего <b>${num(s.totalUsers)}</b> ${plural(s.totalUsers, 'пользователь', 'пользователя', 'пользователей')}, за последние 7 дней пришло <b>${num(s.new7)}</b>, заходили — <b>${num(s.active7)}</b>.`]);
+    ins.push(['🙋', `Профиль заполнили <b>${pct(s.profiled, s.totalUsers)}%</b>. ${pct(s.profiled, s.totalUsers) < 40 ? 'Мало — стоит напомнить про бонус за «Заполни и получи».' : 'Хороший уровень — данных для выводов хватает.'}`]);
+    if (s.giveTo[0]) ins.push(['🎯', `Чаще всего дарят <b>${esc((META.recipients[s.giveTo[0][0]] || '').toLowerCase())}</b> — это выбрали ${pct(s.giveTo[0][1], s.profiled)}% заполнивших профиль. Под эту аудиторию стоит добавлять идеи и сторис.`]);
+    ins.push(['⭐', `Premium у <b>${num(premium)}</b> (${pct(premium, s.totalUsers)}%)${premium ? `, из них на год — ${num(s.plan.year)}` : ''}.`]);
+    if (s.topItems[0]) ins.push(['💖', `Самое желанное в вишлистах — <b>«${esc(s.topItems[0][0])}»</b> (${s.topItems[0][1]} ${plural(s.topItems[0][1], 'раз', 'раза', 'раз')}).`]);
+    const bestSrc = Object.entries(s.sources).filter(e => e[0] !== 'direct').sort((a, b) => b[1] - a[1])[0];
+    if (bestSrc && bestSrc[1]) ins.push(['🔗', `Лучший канал привлечения — <b>${SOURCE[bestSrc[0]].toLowerCase()}</b>: ${num(bestSrc[1])} ${plural(bestSrc[1], 'человек', 'человека', 'человек')}.`]);
+    if (s.ugcPending) ins.push(['🎬', `Ждут решения <b>${s.ugcPending}</b> ${plural(s.ugcPending, 'заявка', 'заявки', 'заявок')} в «Твори с Та-дам».`]);
+  }
+
+  $('#overview').innerHTML = `
+    <div class="insights"><h3>Коротко о главном</h3><ul>${ins.map(([i, t]) => `<li><i>${i}</i><span>${t}</span></li>`).join('')}</ul></div>
+
+    <div class="grid g4">
+      <div class="card kpi"><div class="v">${num(s.totalUsers)}</div><div class="l">Пользователей</div><div class="d ${s.newToday ? '' : 'muted'}">+${num(s.newToday)} сегодня</div></div>
+      <div class="card kpi"><div class="v">${num(premium)}</div><div class="l">С premium</div><div class="d muted">${pct(premium, s.totalUsers)}% от всех</div></div>
+      <div class="card kpi"><div class="v">${num(s.itemsTotal)}</div><div class="l">Желаний в вишлистах</div><div class="d muted">в ${num(s.wishlists)} ${plural(s.wishlists, 'списке', 'списках', 'списках')}</div></div>
+      <div class="card kpi"><div class="v">${num(s.referrals)}</div><div class="l">Пришли по приглашению</div><div class="d muted">${num(s.dates)} важных дат в базе</div></div>
+    </div>
+
+    <div class="sec">Рост</div>
+    <div class="grid g2">
+      ${card('Новые пользователи', 'Сколько человек впервые открыли приложение за последние 14 дней', columns(s.byDay))}
+      ${card('Откуда приходят', 'Первый вход: сами, по промокоду, по приглашению или по намёку', donut(Object.entries(s.sources).filter(e => e[1]), SOURCE))}
+    </div>
+
+    <div class="sec">Кто наши пользователи</div>
+    <div class="grid g3">
+      ${card('Тариф', 'Действующий доступ прямо сейчас', donut(Object.entries(s.plan).filter(e => e[1]), PLAN))}
+      ${card('Пол', 'По заполненным профилям', donut(Object.entries(s.gender).filter(e => e[1]), GENDER))}
+      ${card('Возраст', 'По дате рождения в профиле', bars(s.age))}
+    </div>
+
+    <div class="sec">Подарки</div>
+    <div class="grid g2">
+      ${card('Кому чаще всего дарят', 'Из профиля: можно выбрать несколько вариантов', bars(s.giveTo, META.recipients))}
+      ${card('Интересы', 'Что человеку интересно — по ним поднимаем идеи выше', bars(s.interests, META.interests))}
+      ${card('Что добавляют в вишлист', 'Самые популярные идеи и желания', bars(s.topItems))}
+      ${card('Подарок мечты', 'Что люди хотят сами — подсказка, какие идеи добавить', bars(s.topDreams))}
+    </div>
+
+    <div class="sec">Колесо</div>
+    <div class="grid g2">
+      ${card('Какие призы выпадают', 'Все спины за всё время', donut(Object.entries(s.spins), META.rewards))}
+    </div>`;
+}
+
+// ── ПОЛЬЗОВАТЕЛИ ──
+let uState = { q: '', filter: '', page: 1 };
+let uTimer;
+$('#uq').oninput = e => { clearTimeout(uTimer); uTimer = setTimeout(() => { uState.q = e.target.value.trim(); uState.page = 1; loadUsers(); }, 250); };
+document.querySelectorAll('#ufilter button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('#ufilter button').forEach(x => x.classList.toggle('on', x === b));
+  uState.filter = b.dataset.f; uState.page = 1; loadUsers();
+});
+const initials = u => (u.name || u.username || '?').trim()[0]?.toUpperCase() || '?';
+const planPill = u => `<span class="pill p-${u.plan}">${PLAN[u.plan]}</span>`;
+
+async function loadUsers() {
+  const d = await api(`/admin/api/users?q=${encodeURIComponent(uState.q)}&filter=${uState.filter}&page=${uState.page}`).catch(() => null);
+  if (!d) return;
+  $('#users').innerHTML = !d.items.length
+    ? '<div class="blank" style="border:0"><b>Никого не нашли</b>Попробуй другое имя или сними фильтр</div>'
+    : `<div class="tr head"><div>Человек</div><div>Тариф</div><div>Откуда</div><div>Вишлисты</div><div>Друзья</div><div>Пришёл</div></div>` +
+      d.items.map(u => `<div class="tr click" data-id="${u.id}">
+        <div class="who"><div class="ava">${esc(initials(u))}</div><div style="min-width:0"><div class="nm">${esc(u.name || 'Без имени')}</div><div class="sub">${u.username ? '@' + esc(u.username) + ' · ' : ''}${u.id}</div></div></div>
+        <div>${planPill(u)}</div>
+        <div class="small">${SOURCE[u.sourceKind]}</div>
+        <div>${u.wishlists}</div>
+        <div>${u.invited}</div>
+        <div class="small muted">${ago(u.createdAt)}</div>
+      </div>`).join('');
+  document.querySelectorAll('#users [data-id]').forEach(r => r.onclick = () => openUser(r.dataset.id));
+  $('#upager').innerHTML = d.pages > 1
+    ? `<button class="btn soft sm" ${d.page <= 1 ? 'disabled' : ''} onclick="uState.page--;loadUsers()">← Назад</button>Страница ${d.page} из ${d.pages} · ${num(d.total)} чел.<button class="btn soft sm" ${d.page >= d.pages ? 'disabled' : ''} onclick="uState.page++;loadUsers()">Дальше →</button>`
+    : `<span>${num(d.total)} ${plural(d.total, 'человек', 'человека', 'человек')}</span>`;
+}
+
+async function openUser(id) {
+  const { user: u } = await api('/admin/api/users/' + id);
+  renderUser(u);
+  $('#scrim').classList.add('on'); $('#drawer').classList.add('on');
+}
+function closeUser() { $('#scrim').classList.remove('on'); $('#drawer').classList.remove('on'); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeUser(); closeModal(); } });
+
+function renderUser(u) {
+  const age = u.birthDate ? Math.floor((Date.now() - Date.parse(u.birthDate)) / (365.25 * 864e5)) : null;
+  const src = u.sourceKind === 'promo' ? `Промокод <b>${esc(u.source.slice(2))}</b>` : u.sourceKind === 'referral' && u.invitedBy ? `Пригласил(а) ${esc(u.invitedBy.profile_name || u.invitedBy.first_name || u.invitedBy.id)}` : SOURCE[u.sourceKind];
+  $('#drawer').innerHTML = `
+    <div class="dr-head">
+      <button class="x" onclick="closeUser()" aria-label="Закрыть">✕</button>
+      <div class="ava">${esc(initials(u))}</div>
+      <h2>${esc(u.name || 'Без имени')}</h2>
+      <div class="sub">${u.username ? '@' + esc(u.username) + ' · ' : ''}Telegram ID ${u.id}</div>
+    </div>
+    <div class="dr-body">
+      <div class="card">
+        <h3>Доступ</h3>
+        <p class="hint">Сейчас: ${planPill(u)} ${u.plan !== 'free' && u.plan !== 'forever' && u.until ? '· до ' + fmtDate(u.until) : ''}</p>
+        <div class="access-btns">
+          <button class="btn sm soft" onclick="grant(${u.id},'week')">Неделя</button>
+          <button class="btn sm soft" onclick="grant(${u.id},'year')">Год</button>
+          <button class="btn sm soft" onclick="grant(${u.id},'forever')">Навсегда</button>
+          ${u.plan !== 'free' ? `<button class="btn sm danger" onclick="grant(${u.id},'free')">Забрать доступ</button>` : ''}
+        </div>
+        <p class="hint" style="margin:10px 0 0">Человеку придёт сообщение от бота. В приложении доступ обновится при следующем открытии.</p>
+      </div>
+
+      <div class="card">
+        <h3>Профиль</h3>
+        <div class="facts" style="margin-top:10px">
+          <div><div class="k">Пол</div><div class="val">${GENDER[u.gender || 'unknown']}</div></div>
+          <div><div class="k">Дата рождения</div><div class="val">${u.birthDate ? fmtDate(Date.parse(u.birthDate)) + ` (${age})` : '—'}</div></div>
+          <div><div class="k">Кому дарит</div><div class="val">${u.giveTo.map(x => META.recipients[x]).join(', ') || '—'}</div></div>
+          <div><div class="k">Интересы</div><div class="val">${u.interests.map(x => META.interests[x]).join(', ') || '—'}</div></div>
+          <div><div class="k">Подарок мечты</div><div class="val">${esc(u.dream) || '—'}</div></div>
+          <div><div class="k">Откуда пришёл</div><div class="val">${src}</div></div>
+          <div><div class="k">Первый вход</div><div class="val">${fmtDate(u.createdAt)}</div></div>
+          <div><div class="k">Последний раз</div><div class="val">${ago(u.lastSeenAt || u.createdAt)}</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Вишлисты · ${u.wishlists.length}</h3>
+        <p class="hint">Нажми на список, чтобы раскрыть</p>
+        ${u.wishlists.length ? u.wishlists.map((w, i) => `<details class="wl" ${i === 0 ? 'open' : ''} style="margin-top:8px">
+          <summary>💖 ${esc(w.title)} <span class="muted small" style="font-weight:600">· ${w.items.length} ${plural(w.items.length, 'желание', 'желания', 'желаний')}${w.shared ? ' · ссылка отправлена' : ''}</span></summary>
+          ${w.items.length ? `<ol>${w.items.map(it => `<li>${esc(it.title)}${it.desc ? ` <span>— ${esc(it.desc)}</span>` : ''}${it.link ? ` · <a href="${esc(it.link)}" target="_blank" rel="noopener">ссылка</a>` : ''}</li>`).join('')}</ol>` : '<p class="muted small" style="padding:0 14px 12px;margin:0">Пока пусто</p>'}
+        </details>`).join('') : '<div class="empty">Вишлистов пока нет</div>'}
+      </div>
+
+      <div class="card">
+        <h3>Важные даты · ${u.dates.length}</h3>
+        ${u.dates.length ? `<div class="bars" style="margin-top:10px">${u.dates.map(d => `<div class="small">🎂 <b>${esc(d.name)}</b> <span class="muted">· ${new Date(d.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}</span></div>`).join('')}</div>` : '<div class="empty">Дат пока нет</div>'}
+      </div>
+
+      <div class="card">
+        <h3>Пригласил друзей · ${u.invitedUsers.length}</h3>
+        ${u.invitedUsers.length ? `<div class="bars" style="margin-top:10px">${u.invitedUsers.map(f => `<div class="small">👤 <a href="#" onclick="openUser(${f.id});return false">${esc(f.profile_name || f.first_name || f.id)}</a> <span class="muted">· ${fmtDate(f.created_at)}</span></div>`).join('')}</div>` : '<div class="empty">Пока никого</div>'}
+        <p class="hint" style="margin:10px 0 0">Спинов колеса за всё время: ${u.spins}</p>
+      </div>
+    </div>`;
+}
+
+async function grant(id, plan) {
+  const text = { week: 'Выдать premium на неделю?', year: 'Выдать premium на год?', forever: 'Выдать premium навсегда?', free: 'Забрать доступ? Человек вернётся на бесплатный тариф.' }[plan];
+  if (!confirm(text)) return;
+  try {
+    const { user } = await api(`/admin/api/users/${id}/access`, { method: 'POST', body: { plan } });
+    renderUser(user); toast(plan === 'free' ? 'Доступ забран' : 'Доступ выдан ✨'); loadUsers();
+  } catch (e) { toast(e.message); }
+}
+
+// ── ПРОМОКОДЫ И ПРИГЛАШЕНИЯ ──
+async function loadGrowth() {
+  const d = await api('/admin/api/promo').catch(() => null);
+  if (!d) return;
+  const t = d.totals;
+  $('#growth').innerHTML = `
+    <div class="grid g4">
+      <div class="card kpi"><div class="v">${num(t.promo)}</div><div class="l">Пришли по промокодам</div></div>
+      <div class="card kpi"><div class="v">${num(t.referral)}</div><div class="l">Пришли по приглашению друга</div></div>
+      <div class="card kpi"><div class="v">${num(t.referrers)}</div><div class="l">Приглашали друзей</div></div>
+      <div class="card kpi"><div class="v">${num(t.direct)}</div><div class="l">Нашли бота сами</div></div>
+    </div>
+
+    <div class="sec">Промокоды</div>
+    ${d.promos.length ? `<div class="table"><div class="tr head" style="grid-template-columns:1.2fr 2fr .7fr .7fr .7fr auto"><div>Промокод</div><div>Ссылка</div><div>Пришло</div><div>За 7 дней</div><div>Premium</div><div></div></div>
+      ${d.promos.map(p => `<div class="tr" style="grid-template-columns:1.2fr 2fr .7fr .7fr .7fr auto">
+        <div><b>${esc(p.code)}</b>${p.title ? `<div class="small muted">${esc(p.title)}</div>` : ''}</div>
+        <div><div class="copy"><code>${esc(p.link)}</code><button class="btn ghost sm" onclick="copyText('${esc(p.link)}')">Копировать</button></div></div>
+        <div><b>${num(p.users)}</b></div><div>${num(p.new7)}</div><div>${num(p.premium)}${p.users ? ` <span class="muted small">(${pct(p.premium, p.users)}%)</span>` : ''}</div>
+        <div><button class="btn ghost sm" onclick="delPromo('${esc(p.code)}')">Удалить</button></div>
+      </div>`).join('')}</div>`
+    : `<div class="blank"><b>Промокодов пока нет</b>Создай промокод — получишь ссылку на бота для блогера или рекламы. Здесь будет видно, сколько людей по ней пришло и сколько из них купили premium.</div>`}
+
+    <div class="sec">Кто приглашает друзей</div>
+    ${d.referrers.length ? `<div class="table"><div class="tr head" style="grid-template-columns:2fr 1fr 1fr"><div>Человек</div><div>Пригласил</div><div>Последний раз</div></div>
+      ${d.referrers.map(r => `<div class="tr click" style="grid-template-columns:2fr 1fr 1fr" onclick="openUser(${r.id})">
+        <div class="who"><div class="ava">${esc((r.profile_name || r.first_name || '?')[0].toUpperCase())}</div><div><div class="nm">${esc(r.profile_name || r.first_name || 'Без имени')}</div><div class="sub">${r.username ? '@' + esc(r.username) : r.id}</div></div></div>
+        <div><b>${num(r.n)}</b> ${plural(r.n, 'друга', 'друзей', 'друзей')}</div><div class="small muted">${ago(r.last)}</div>
+      </div>`).join('')}</div>`
+    : '<div class="blank"><b>Пока никто не пригласил друзей</b>Засчитываются друзья, которые впервые открыли приложение по ссылке и прошли первый шаг знакомства.</div>'}`;
+}
+function copyText(t) { navigator.clipboard.writeText(t).then(() => toast('Ссылка скопирована')).catch(() => prompt('Скопируй ссылку:', t)); }
+async function delPromo(code) {
+  if (!confirm(`Удалить промокод «${code}»? Ссылка продолжит открывать бота, но в отчёте его больше не будет.`)) return;
+  await api('/admin/api/promo/' + code, { method: 'DELETE' }); toast('Промокод удалён'); loadGrowth();
+}
+function openPromo() {
+  modal('Новый промокод', `
+    <div class="f"><label>Код</label><input name="code" required maxlength="32" placeholder="например, marina" pattern="[a-zA-Z0-9_]{2,32}">
+      <div class="help">Латиница, цифры и _. Ссылка будет такой: t.me/${esc(META.bot)}?start=p_<b>код</b></div></div>
+    <div class="f"><label>Для кого или для чего · по желанию</label><input name="title" maxlength="80" placeholder="Блогер @marina.gifts, сторис 15 октября"></div>`,
+    async f => { await api('/admin/api/promo', { method: 'POST', body: { code: f.code.value, title: f.title.value } }); toast('Промокод создан'); loadGrowth(); }, 'Создать');
+}
+
+// ── UGC ──
+const UGC = { submitted: ['Ждёт решения', 'p-week'], approved_basic: ['Одобрено · premium на год', 'p-year'], approved_100k: ['100 000+ · premium навсегда', 'p-forever'], rejected: ['Отклонено', 'p-free'] };
+async function loadUgc() {
+  const d = await api('/admin/api/ugc').catch(() => null);
+  if (!d) return;
+  $('#ugc').innerHTML = d.items.length ? `<div class="items">${d.items.map(a => `<div class="item">
+      <div class="top"><div class="emo" style="background:${BG.purple}">🎬</div><div style="min-width:0">
+        <div class="tt">${esc(a.nick)}</div><div class="ds">${esc(a.platform)} · ${num(a.views)} просмотров · ${fmtDate(a.created_at)}</div></div></div>
+      <div><span class="pill ${UGC[a.status][1]}">${UGC[a.status][0]}</span></div>
+      <div class="ds">От: <a href="#" onclick="openUser(${a.user_id});return false">${esc(a.profile_name || a.first_name || a.user_id)}</a></div>
+      <a class="small" href="${esc(a.link)}" target="_blank" rel="noopener">Смотреть ролик →</a>
+      ${a.status === 'submitted' ? `<div class="acts">
+        <button class="btn sm" onclick="ugcDecide('${a.id}','approved_basic')">Одобрить · год</button>
+        <button class="btn sm soft" onclick="ugcDecide('${a.id}','approved_100k')">100 000+ · навсегда</button>
+        <button class="btn sm ghost" onclick="ugcDecide('${a.id}','rejected')">Отклонить</button></div>` : ''}
+    </div>`).join('')}</div>`
+    : '<div class="blank"><b>Заявок пока нет</b>Они появятся, когда пользователи отправят ролики в разделе «Твори с Та-дам».</div>';
+}
+async function ugcDecide(id, status) {
+  const text = { approved_basic: 'Одобрить и выдать premium на год?', approved_100k: 'Подтвердить 100 000 просмотров и выдать premium навсегда?', rejected: 'Отклонить заявку?' }[status];
+  if (!confirm(text)) return;
+  await api('/admin/api/ugc/' + id, { method: 'POST', body: { status } });
+  toast('Готово — автору ушло сообщение'); loadUgc(); loadOverview();
+  if (status === 'approved_100k') setTimeout(() => { if (confirm('Добавить автора в «Друзья бренда»?')) { show('friends'); openFriend(); } }, 300);
+}
+
+// ── ФОРМЫ ──
+let modalSubmit = null;
+function modal(title, fields, onSubmit, submitText = 'Сохранить') {
+  modalSubmit = onSubmit;
+  $('#box').innerHTML = `<div class="box-head"><h2>${title}</h2><button class="btn ghost" onclick="closeModal()">✕</button></div>
+    <form id="mform">${fields}<div class="form-err" id="ferr"></div>
+      <div class="acts"><button type="button" class="btn soft" onclick="closeModal()">Отмена</button><button class="btn" type="submit">${submitText}</button></div></form>`;
+  $('#modal').classList.add('on');
+  const f = $('#mform');
+  f.onsubmit = async e => {
+    e.preventDefault();
+    try { await modalSubmit(f); closeModal(); } catch (err) { $('#ferr').textContent = err.message; }
+  };
+  f.querySelector('input,select,textarea')?.focus();
+  return f;
+}
+function closeModal() { $('#modal').classList.remove('on'); }
+const opts = (map, sel) => Object.entries(map).map(([k, v]) => `<option value="${k}" ${String(sel) === String(k) ? 'selected' : ''}>${esc(v)}</option>`).join('');
+const chipset = (name, map, sel = []) => `<div class="chips">${Object.entries(map).map(([k, v]) => `<label class="chip"><input type="checkbox" name="${name}" value="${k}" ${sel.includes(k) ? 'checked' : ''}><span>${esc(v)}</span></label>`).join('')}</div>`;
+const checked = (f, name) => [...f.querySelectorAll(`input[name=${name}]:checked`)].map(x => x.value);
+
+// Карточки контента: общий рендер «пусто / список с кнопками»
+function contentList(el, items, blank, render) {
+  el.innerHTML = items.length ? `<div class="items">${items.map(render).join('')}</div>` : `<div class="blank">${blank}</div>`;
+}
+async function removeItem(kind, id, what, reload) {
+  if (!confirm(`Удалить ${what}? Из приложения пропадёт при следующем открытии.`)) return;
+  await api(`/admin/api/${kind}/${id}`, { method: 'DELETE' }); toast('Удалено'); reload();
+}
+
+// ── ИДЕИ ──
+let ideas = [];
+async function loadIdeas() {
+  ideas = (await api('/admin/api/ideas').catch(() => ({ items: [] }))).items;
+  contentList($('#ideas'), ideas, '<b>Пока ни одной идеи</b>Нажми «Добавить идею» — она встанет первой в выбранном поводе.', i => `<div class="item">
+    <div class="top"><div class="emo" style="background:${BG.mango}">🎁</div><div style="min-width:0"><div class="tt">${esc(i.title)}</div><div class="ds">${esc(META.categories[i.cat] || i.cat)} · ${esc(META.budgets[i.budget] || '')}</div></div></div>
+    ${i.desc ? `<div class="ds">${esc(i.desc)}</div>` : ''}
+    <div class="tags">${i.recipients.map(r => `<span class="tag">${esc(META.recipients[r])}</span>`).join('')}${i.interests.map(r => `<span class="tag">${esc(META.interests[r])}</span>`).join('')}</div>
+    ${i.buy ? `<a class="small" href="${esc(i.buy)}" target="_blank" rel="noopener">Где купить →</a>` : ''}
+    <div class="acts"><button class="btn sm soft" onclick="openIdea('${i.id}')">Изменить</button><button class="btn sm ghost" onclick="removeItem('ideas','${i.id}','идею «${esc(i.title).replace(/'/g, '')}»',loadIdeas)">Удалить</button></div>
+  </div>`);
+}
+function openIdea(id) {
+  const i = ideas.find(x => x.id === id) || { recipients: [], interests: [] };
+  modal(id ? 'Изменить идею' : 'Новая идея подарка', `
+    <div class="row2">
+      <div class="f"><label>Повод</label><select name="cat" required><option value="">Выбери</option>${opts(META.categories, i.cat)}</select></div>
+      <div class="f"><label>Бюджет</label><select name="budget" required><option value="">Выбери</option>${opts(META.budgets, i.budget)}</select></div>
+    </div>
+    <div class="f"><label>Название</label><input name="title" required maxlength="80" value="${esc(i.title)}" placeholder="Именная виноградная лоза"></div>
+    <div class="f"><label>Короткое описание · видно в списке</label><input name="desc" maxlength="140" value="${esc(i.desc)}" placeholder="лоза на винодельне и вино с именной этикеткой"></div>
+    <div class="f"><label>Подробно · видно в карточке идеи</label><textarea name="long" rows="3" maxlength="600">${esc(i.long_desc)}</textarea></div>
+    <div class="f"><label>Кому подойдёт</label>${chipset('recipients', META.recipients, i.recipients)}</div>
+    <div class="f"><label>Интересы</label>${chipset('interests', META.interests, i.interests)}</div>
+    <div class="row2">
+      <div class="f"><label>Ссылка «где купить» · по желанию</label><input name="buy" type="url" value="${esc(i.buy)}" placeholder="https://"></div>
+      <div class="f"><label>Фото · ссылка на картинку</label><input name="photo" type="url" value="${esc(i.photo)}" placeholder="https://"></div>
+    </div>`,
+    async f => {
+      await api('/admin/api/ideas', { method: 'POST', body: { id, cat: f.cat.value, budget: +f.budget.value, title: f.title.value, desc: f.desc.value, long: f.long.value, buy: f.buy.value, photo: f.photo.value, recipients: checked(f, 'recipients'), interests: checked(f, 'interests') } });
+      toast(id ? 'Идея обновлена' : 'Идея добавлена ✨'); loadIdeas();
+    }, id ? 'Сохранить' : 'Добавить');
+}
+
+// ── СТОРИС ──
+let stories = [];
+async function loadStories() {
+  stories = (await api('/admin/api/stories').catch(() => ({ items: [] }))).items;
+  contentList($('#stories'), stories, '<b>Пока ни одной сторис</b>Нажми «Добавить сторис» — кружок появится на главной.', s => `<div class="item">
+    <div class="top"><div class="emo" style="background:${BG[s.bg] || BG.mango};border-radius:50%">${esc(s.emoji)}</div><div style="min-width:0"><div class="tt">${esc(s.title)}</div><div class="ds">${esc(s.slide_title)}</div></div></div>
+    <div class="ds">${esc(s.slide_text)}</div>
+    <div class="tags"><span class="tag">Кнопка: ${esc(s.cta_label)}</span><span class="tag">→ ${esc(META.ctaRoutes[s.cta_route] || s.cta_route)}${s.cta_param ? ': ' + esc(META.categories[s.cta_param]) : ''}</span></div>
+    <div class="acts"><button class="btn sm soft" onclick="openStory('${s.id}')">Изменить</button><button class="btn sm ghost" onclick="removeItem('stories','${s.id}','сторис «${esc(s.title).replace(/'/g, '')}»',loadStories)">Удалить</button></div>
+  </div>`);
+}
+function openStory(id) {
+  const s = stories.find(x => x.id === id) || { emoji: '✨', bg: 'mango', mascot: 'wow', cta_route: 'cat' };
+  const f = modal(id ? 'Изменить сторис' : 'Новая сторис', `
+    <div class="preview" id="spv"></div>
+    <div class="row2">
+      <div class="f"><label>Подпись под кружком</label><input name="title" required maxlength="30" value="${esc(s.title)}" placeholder="Скоро 8 марта"></div>
+      <div class="f"><label>Эмодзи в кружке</label><input name="emoji" maxlength="8" value="${esc(s.emoji)}"></div>
+    </div>
+    <div class="row2">
+      <div class="f"><label>Цвет</label><select name="bg">${opts(META.storyBg, s.bg)}</select></div>
+      <div class="f"><label>Маскот на слайде</label><select name="mascot">${opts(Object.fromEntries(META.mascots.map(m => [m, m])), s.mascot)}</select></div>
+    </div>
+    <div class="f"><label>Заголовок слайда</label><input name="slideTitle" required maxlength="60" value="${esc(s.slide_title)}" placeholder="не только цветы"></div>
+    <div class="f"><label>Текст слайда</label><textarea name="slideText" required rows="3" maxlength="300">${esc(s.slide_text)}</textarea></div>
+    <div class="row2">
+      <div class="f"><label>Текст кнопки</label><input name="ctaLabel" required maxlength="30" value="${esc(s.cta_label)}" placeholder="Смотреть идеи"></div>
+      <div class="f"><label>Куда ведёт</label><select name="ctaRoute">${opts(META.ctaRoutes, s.cta_route)}</select></div>
+    </div>
+    <div class="f" id="ctaParamRow"><label>Какой повод открыть</label><select name="ctaParam">${opts(META.categories, s.cta_param)}</select></div>`,
+    async f => {
+      await api('/admin/api/stories', { method: 'POST', body: { id, title: f.title.value, emoji: f.emoji.value, bg: f.bg.value, mascot: f.mascot.value, slideTitle: f.slideTitle.value, slideText: f.slideText.value, ctaLabel: f.ctaLabel.value, ctaRoute: f.ctaRoute.value, ctaParam: f.ctaParam.value } });
+      toast(id ? 'Сторис обновлена' : 'Сторис добавлена ✨'); loadStories();
+    }, id ? 'Сохранить' : 'Добавить');
+  // живой предпросмотр слайда
+  const upd = () => {
+    $('#spv').style.background = BG[f.bg.value];
+    $('#spv').innerHTML = `<div style="font-size:26px">${esc(f.emoji.value || '✨')}</div><div class="pt">${esc(f.slideTitle.value || 'Заголовок слайда')}</div><div class="px">${esc(f.slideText.value || 'Текст сторис')}</div><div class="pb">${esc(f.ctaLabel.value || 'Кнопка')}</div>`;
+    $('#ctaParamRow').hidden = f.ctaRoute.value !== 'cat';
+  };
+  f.oninput = upd; f.onchange = upd; upd();
+}
+
+// ── ДРУЗЬЯ БРЕНДА ──
+let friends = [];
+async function loadFriends() {
+  friends = (await api('/admin/api/friends').catch(() => ({ items: [] }))).items;
+  contentList($('#friends'), friends, '<b>Пока ни одного друга бренда</b>Добавь блогера, чей ролик набрал 100 000 просмотров, — он появится в разделе «Друзья бренда».', x => `<div class="item">
+    <div class="top"><div class="emo" style="background:${BG.coffee};border-radius:50%">${esc((x.nick.replace('@', '')[0] || '?').toUpperCase())}</div><div style="min-width:0"><div class="tt">${esc(x.nick)}</div><div class="ds">${esc(x.platform || '')}</div></div></div>
+    <div><b class="small">${esc(x.idea)}</b>${x.desc ? `<div class="ds">${esc(x.desc)}</div>` : ''}</div>
+    ${x.link ? `<a class="small" href="${esc(x.link)}" target="_blank" rel="noopener">Смотреть ролик →</a>` : ''}
+    <div class="acts"><button class="btn sm soft" onclick="openFriend('${x.id}')">Изменить</button><button class="btn sm ghost" onclick="removeItem('friends','${x.id}','${esc(x.nick).replace(/'/g, '')} из друзей бренда',loadFriends)">Удалить</button></div>
+  </div>`);
+}
+function openFriend(id) {
+  const x = friends.find(y => y.id === id) || {};
+  modal(id ? 'Изменить друга бренда' : 'Новый друг бренда', `
+    <div class="row2">
+      <div class="f"><label>Ник</label><input name="nick" required maxlength="40" value="${esc(x.nick)}" placeholder="@marina.gifts"></div>
+      <div class="f"><label>Площадка</label><input name="platform" maxlength="30" value="${esc(x.platform)}" placeholder="Reels, TikTok, YouTube"></div>
+    </div>
+    <div class="f"><label>Идея подарка из ролика</label><input name="idea" required maxlength="80" value="${esc(x.idea)}" placeholder="Капсула времени на годовщину"></div>
+    <div class="f"><label>Пара слов о ролике · по желанию</label><textarea name="desc" rows="2" maxlength="200">${esc(x.desc)}</textarea></div>
+    <div class="f"><label>Ссылка на ролик · по желанию</label><input name="link" type="url" value="${esc(x.link)}" placeholder="https://"></div>`,
+    async f => {
+      await api('/admin/api/friends', { method: 'POST', body: { id, nick: f.nick.value, platform: f.platform.value, idea: f.idea.value, desc: f.desc.value, link: f.link.value } });
+      toast(id ? 'Сохранено' : 'Друг бренда добавлен ✨'); loadFriends();
+    }, id ? 'Сохранить' : 'Добавить');
+}
+
+show((location.hash || '#overview').slice(1) in loaders ? location.hash.slice(1) : 'overview');
+if (location.hash !== '#overview') api('/admin/api/stats').then(d => { const b = $('#ugcBadge'); b.hidden = !d.stats.ugcPending; b.textContent = d.stats.ugcPending; }).catch(() => {});
+</script>
+</body>
+</html>

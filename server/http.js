@@ -50,6 +50,10 @@ const on = (method, re, handler) => routes.push({ method, re, handler });
 on('POST', /^\/api\/auth$/, async (req, res) => {
   const user = authenticate(req);
   if (!user) return json(res, 401, { ok: false, error: 'invalid_init_data' });
+  // Источник первого входа: из ссылки t.me/<бот>/<app>?startapp=… или из кнопки бота (?startapp= в URL)
+  const { startParam } = await readBody(req);
+  const src = typeof startParam === 'string' && /^[\w-]{1,64}$/.test(startParam) && startParam !== 'debug' ? startParam : 'direct';
+  db.prepare('UPDATE users SET source = COALESCE(source, ?) WHERE id = ?').run(src, user.id);
   json(res, 200, { ok: true, user: { id: user.id, firstName: user.first_name, username: user.username || null } });
 });
 
@@ -136,11 +140,14 @@ on('POST', /^\/api\/wishlist\/sync$/, async (req, res) => {
 
   // Ссылку «где купить» пропускаем только http(s): её откроет чужой человек
   const safeLink = v => { try { const u = new URL(String(v || '')); return /^https?:$/.test(u.protocol) ? u.href.slice(0, 500) : ''; } catch (e) { return ''; } };
-  const items = b.items.slice(0, 100).map(i => ({ title: String(i.title || '').slice(0, 80), desc: String(i.desc || '').slice(0, 200), link: safeLink(i.link) }));
+  const items = b.items.slice(0, 100).map(i => ({ title: String(i.title || '').slice(0, 80), desc: String(i.desc || '').slice(0, 200), link: safeLink(i.link), addedAt: +i.addedAt || null }));
+  // shared: false — список сохраняется (его видно в админке), но по ссылке не открывается
+  const shared = b.shared === false ? 0 : 1;
   db.prepare(`
-    INSERT INTO wishlists (token, owner_id, title, items_json, dream, revoked, updated_at) VALUES (?, ?, ?, ?, ?, 0, ?)
-    ON CONFLICT(token) DO UPDATE SET title=excluded.title, items_json=excluded.items_json, dream=excluded.dream, revoked=0, updated_at=excluded.updated_at
-  `).run(b.token, user.id, String(b.title || 'Мой вишлист').slice(0, 60), JSON.stringify(items), String(b.dream || '').slice(0, 60), Date.now());
+    INSERT INTO wishlists (token, owner_id, wl_id, title, items_json, dream, shared, revoked, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)
+    ON CONFLICT(token) DO UPDATE SET title=excluded.title, items_json=excluded.items_json, dream=excluded.dream,
+      shared=excluded.shared, wl_id=excluded.wl_id, revoked=0, updated_at=excluded.updated_at
+  `).run(b.token, user.id, String(b.wlId || '').slice(0, 40), String(b.title || 'Мой вишлист').slice(0, 60), JSON.stringify(items), String(b.dream || '').slice(0, 60), shared, Date.now());
   json(res, 200, { ok: true });
 });
 
@@ -155,8 +162,8 @@ on('POST', /^\/api\/wishlist\/revoke$/, async (req, res) => {
 // Публичный — без initData: именно эту ссылку открывает получатель намёка,
 // у которого своей сессии в Mini App может ещё не быть. Владелец не раскрывается.
 on('GET', /^\/api\/wishlist\/([\w-]+)$/, (req, res, m) => {
-  const row = db.prepare('SELECT title, items_json, dream, revoked FROM wishlists WHERE token = ?').get(m[1]);
-  if (!row || row.revoked) return json(res, 404, { ok: false, error: 'not_found' });
+  const row = db.prepare('SELECT title, items_json, dream, revoked, shared FROM wishlists WHERE token = ?').get(m[1]);
+  if (!row || row.revoked || !row.shared) return json(res, 404, { ok: false, error: 'not_found' });
   json(res, 200, { ok: true, title: row.title, items: JSON.parse(row.items_json), dream: row.dream || '' });
 });
 
@@ -261,6 +268,32 @@ on('GET', /^\/api\/content\/stories$/, (req, res) => {
     slideTitle: r.slide_title, slideText: r.slide_text,
     ctaLabel: r.cta_label, ctaRoute: r.cta_route, ctaParam: r.cta_param
   })) });
+});
+
+on('GET', /^\/api\/content\/friends$/, (req, res) => {
+  const rows = db.prepare('SELECT nick, platform, idea, desc, link FROM admin_friends ORDER BY created_at').all();
+  json(res, 200, { ok: true, items: rows });
+});
+
+// ── заявки UGC: автор отправляет, админ одобряет в админке ──────────
+on('POST', /^\/api\/ugc$/, async (req, res) => {
+  const user = authenticate(req);
+  if (!user) return json(res, 401, { ok: false, error: 'invalid_init_data' });
+  const b = await readBody(req);
+  let link = '';
+  try { const u = new URL(String(b.link || '')); if (/^https?:$/.test(u.protocol)) link = u.href.slice(0, 500); } catch (e) {}
+  if (!link || !b.nick) return json(res, 400, { ok: false, error: 'missing_fields' });
+  const id = randomUUID();
+  db.prepare('INSERT INTO ugc_applications (id, user_id, platform, link, nick, views, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
+    .run(id, user.id, String(b.platform || '').slice(0, 30), link, String(b.nick).slice(0, 40), Math.max(0, +b.views || 0), Date.now());
+  json(res, 200, { ok: true, id });
+});
+
+on('GET', /^\/api\/ugc$/, (req, res) => {
+  const user = authenticate(req);
+  if (!user) return json(res, 401, { ok: false, error: 'invalid_init_data' });
+  const row = db.prepare('SELECT platform, link, nick, views, status FROM ugc_applications WHERE user_id = ? ORDER BY created_at DESC LIMIT 1').get(user.id);
+  json(res, 200, { ok: true, application: row || null });
 });
 
 on('GET', /^\/(api\/health)?$/, (req, res) => json(res, 200, { ok: true, service: 'tadam-server' }));

@@ -3,9 +3,9 @@
 // В production источник истины — backend: доступ, лимиты, розыгрыш колеса,
 // рефералы и платежи проверяются сервером, клиент лишь отображает результат.
 
-import { tg } from './tg.js?v=2609142002';
-import { CONFIG, WHEEL } from './config.js?v=2609142002';
-import { api, apiAvailable } from './api.js?v=2609142002';
+import { tg } from './tg.js?v=2609142045';
+import { CONFIG, WHEEL } from './config.js?v=2609142045';
+import { api, apiAvailable } from './api.js?v=2609142045';
 
 const KEY = 'tadam_state_v1';
 const CHUNK = 3500; // лимит значения Telegram CloudStorage — 4096 символов
@@ -84,7 +84,7 @@ async function saveCloud(json) {
   if (parts.length > 40) {                              // защита от переполнения — не пишем
     if (!warnedOverflow) {
       warnedOverflow = true;
-      import('./ui.js?v=2609142002').then(m => m.toast('Данных стало много — почисти старые вишлисты, иначе новое не сохранится'));
+      import('./ui.js?v=2609142045').then(m => m.toast('Данных стало много — почисти старые вишлисты, иначе новое не сохранится'));
     }
     return;
   }
@@ -209,6 +209,9 @@ export async function syncAccessFromServer() {
   const r = await api.access();
   if (!r || !r.ok) return;
   if (r.type !== 'free') state.access = { type: r.type, until: r.until, source: 'server' };
+  // Доступ, пришедший с сервера (выдан вручную в админке), сервер может и забрать.
+  // Локальный доступ из другого источника не трогаем.
+  else if (state.access.source === 'server') state.access = { type: 'free', until: null, source: null };
   save();
 }
 
@@ -240,7 +243,28 @@ export function createWishlist(title) {
   state.wishlists.push(wl);
   track('wishlist_created', { id: wl.id });
   save();
+  syncWishlists();
   return wl;
+}
+
+// Вишлисты уходят на сервер при каждом изменении — так их видно в админке
+// (что люди хотят) и расшаренная ссылка всегда показывает актуальный список.
+// По ссылке сервер отдаёт только список с shared = true.
+let wlTimer = null;
+export function syncWishlists() {
+  if (!apiAvailable()) return;
+  clearTimeout(wlTimer);
+  wlTimer = setTimeout(() => {
+    for (const wl of state.wishlists)
+      api.wishlistSync(wl.shareToken, wl.title, wl.items, state.profile.dreamGift, !!wl.shared, wl.id);
+  }, 800);
+}
+
+// Даты, добавленные до подключения сервера, дотягиваем при запуске: иначе
+// напоминание по ним не придёт. Сервер сохраняет по id, повтор не создаёт дубль.
+export function syncDates() {
+  if (!apiAvailable()) return;
+  for (const d of state.dates) api.dateCreate(d);
 }
 export function defaultWishlist() {
   return state.wishlists[0] || createWishlist('Мой вишлист');
@@ -250,6 +274,7 @@ export function addToWishlist(wl, item) {
   wl.items.push({ id: uid(), addedAt: Date.now(), priority: false, ...item });
   track(item.ideaId ? 'wishlist_item_added' : 'own_wish_added', { wl: wl.id });
   save();
+  syncWishlists();
   return true;
 }
 export const totalWishlistItems = () => state.wishlists.reduce((n, w) => n + w.items.length, 0);
@@ -261,6 +286,7 @@ export function removeItem(wl, itemId) {
   wl.items = wl.items.filter(i => i.id !== itemId);
   track('wishlist_item_removed', { wl: wl.id });
   save();
+  syncWishlists();
 }
 
 // ── важные даты ──────────────────────────────────────────────────────

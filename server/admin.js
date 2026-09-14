@@ -1,353 +1,331 @@
-// ── Админка: аналитика + управление контентом ──────────────────────────
-// Один служебный раздел вместо отдельного сайта — меньше, что разворачивать
-// и поддерживать. Доступ по HTTP Basic Auth (логин/пароль из .env), поэтому
-// работает без cookie/сессий и без npm-зависимостей, как и весь остальной сервер.
+// ── Админка: аналитика, пользователи, контент ──────────────────────────
+// Раздел того же сервера (/admin), а не отдельный сайт — меньше, что разворачивать.
+// Доступ по HTTP Basic Auth (ADMIN_USER / ADMIN_PASS в .env). Пока они не заданы,
+// все /admin* маршруты выключены — чтобы не оказаться на проде с угадываемым паролем.
 //
-// ВНИМАНИЕ: если ADMIN_USER/ADMIN_PASS не заданы, все /admin* маршруты отключены —
-// умышленно, чтобы не оказаться развёрнутым с угадываемыми дефолтными паролем.
+// Разметка страницы — admin-page.html рядом; этот файл отдаёт её и JSON API для неё.
 import { randomUUID } from 'node:crypto';
-import { db } from './db.js';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+import { db, getEntitlement, isPremiumRow, grantEntitlement } from './db.js';
 import { json, readBody } from './util.js';
+import { sendMessage } from './telegram.js';
 
 const ADMIN_USER = process.env.ADMIN_USER || '';
 const ADMIN_PASS = process.env.ADMIN_PASS || '';
 const ADMIN_ENABLED = !!(ADMIN_USER && ADMIN_PASS);
+const BOT = process.env.BOT_USERNAME || 'tadamapp_bot';
+const WEBAPP = (process.env.WEBAPP_URL || 'https://sashamatyushkin.github.io/tadam-miniapp/').replace(/\/?$/, '/');
+const DAY = 86400000;
 
-// Дублирует подписи из js/config.js (RECIPIENTS/INTERESTS/CATEGORIES) — тот же
-// осознанный компромисс, что и в server/config.js: сервер не импортирует
-// браузерный ES-модуль фронтенда, поэтому список повторён здесь для форм и подписей.
-const RECIPIENTS = [
-  ['mom', 'Маме'], ['dad', 'Папе'], ['partner', 'Партнёру'],
-  ['friend', 'Другу'], ['colleague', 'Коллеге'], ['child', 'Ребёнку']
-];
-const INTERESTS = [
-  ['coffee', 'Кофе'], ['sport', 'Спорт'], ['books', 'Книги'],
-  ['beauty', 'Красота'], ['tech', 'Техника'], ['home', 'Дом/уют'], ['travel', 'Путешествия']
-];
-const CATEGORIES = [
-  ['birthday', 'День рождения'], ['newyear', 'Новый год'], ['justso', 'Просто так'],
-  ['anniv', 'Годовщина'], ['feb23', '23 февраля'], ['mar8', '8 марта'], ['baby', 'Рождение ребёнка'],
-  ['home', 'Новоселье'], ['school', 'Выпускной / 1 сентября'], ['wedding', 'Свадьба'],
-  ['colleague', 'Коллеге по работе'], ['kid', 'Ребёнку'], ['jubilee', 'Юбилей']
-];
-const BUDGETS = [[1000, 'до 1 000 ₽'], [3000, 'до 3 000 ₽'], [5000, 'до 5 000 ₽'], [10000, 'до 10 000 ₽'], [99999, 'дороже 10 000 ₽']];
-const STORY_BG = ['ny', 'mango', 'coffee', 'ice', 'purple', 'rose', 'gold'];
+// Подписи дублируют js/config.js — сервер не импортирует браузерный модуль фронтенда
+// (тот же осознанный компромисс, что в server/config.js).
+const META = {
+  bot: BOT,
+  recipients: { mom: 'Маме', dad: 'Папе', partner: 'Партнёру', friend: 'Другу', colleague: 'Коллеге', child: 'Ребёнку' },
+  interests: { coffee: 'Кофе', sport: 'Спорт', books: 'Книги', beauty: 'Красота', tech: 'Техника', home: 'Дом/уют', travel: 'Путешествия' },
+  categories: {
+    birthday: 'День рождения', newyear: 'Новый год', justso: 'Просто так', anniv: 'Годовщина', feb23: '23 февраля',
+    mar8: '8 марта', baby: 'Рождение ребёнка', home: 'Новоселье', school: 'Выпускной / 1 сентября', wedding: 'Свадьба',
+    colleague: 'Коллеге по работе', kid: 'Ребёнку', jubilee: 'Юбилей'
+  },
+  budgets: { 1000: 'до 1 000 ₽', 3000: 'до 3 000 ₽', 5000: 'до 5 000 ₽', 10000: 'до 10 000 ₽', 99999: 'дороже 10 000 ₽' },
+  storyBg: { mango: 'Оранжевый', coffee: 'Кофейный', ice: 'Голубой', purple: 'Фиолетовый', rose: 'Розовый', gold: 'Золотой', ny: 'Зелёный' },
+  mascots: ['wave', 'think', 'heart', 'notes', 'wow', 'cool', 'sleep', 'search', 'run', 'bubble', 'alert', 'peek'],
+  ctaRoutes: { cat: 'Открыть повод', wishlist: 'Вишлист', wheel: 'Колесо', paywall: 'Premium', me: 'Мой профиль', quest: 'Заполни и получи', home: 'Главная' },
+  rewards: { empty: 'Без подарка', set: 'Подборка', category: 'Категория на 24 ч', slot: 'Слот вишлиста', spin: 'Доп. спин', discount: 'Скидка' }
+};
 
-function safeList(v) { try { const a = JSON.parse(v || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+const list = v => { try { const a = JSON.parse(v || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } };
+const count = (sql, ...a) => db.prepare(sql).get(...a).n;
 
-// ── аналитика: считаем прямо из тех данных, что уже синхронизируются с телефонов ──
-// Отдельного лога событий на сервере нет — это данные профиля, вишлистов и колеса,
-// которые и так приходят в обычной работе приложения.
+// Тариф пользователя одним словом — с учётом истёкшего срока
+function planOf(ent) {
+  if (!ent || !isPremiumRow(ent)) return 'free';
+  return ent.type === 'holiday' ? 'week' : ent.type;
+}
+
+// Источник первого входа → понятная группа для отчёта
+function sourceKind(src) {
+  if (!src || src === 'direct') return 'direct';
+  if (src.startsWith('p_')) return 'promo';
+  if (/^r[a-f0-9]{8}$/.test(src)) return 'referral';
+  if (src.startsWith('h_') || src.startsWith('w_')) return 'hint';
+  return 'other';
+}
+
+// ── аналитика ────────────────────────────────────────────────────────
+// Считается из данных, которые приложение и так присылает в обычной работе:
+// профиль, вишлисты, даты, колесо, приглашения. Отдельного лога событий нет.
 export function computeStats() {
   const now = Date.now();
-  const users = db.prepare('SELECT id, gender, give_to, interests, dream_gift FROM users').all();
-  const ents = new Map(db.prepare('SELECT user_id, type, until FROM entitlements').all().map(e => [e.user_id, e]));
+  const users = db.prepare('SELECT id, gender, give_to, interests, dream_gift, source, created_at, last_seen_at, birth_date FROM users').all();
+  const ents = new Map(db.prepare('SELECT * FROM entitlements').all().map(e => [e.user_id, e]));
 
   const plan = { free: 0, week: 0, year: 0, forever: 0 };
   const gender = { f: 0, m: 0, x: 0, unknown: 0 };
-  const giveTo = {}, interests = {};
-  const dreamCounts = {};
+  const sources = { direct: 0, promo: 0, referral: 0, hint: 0, other: 0 };
+  const giveTo = {}, interests = {}, dreams = {}, age = {};
+  let profiled = 0, active7 = 0;
+
+  // новые пользователи по дням за 14 дней
+  const days = [];
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date(now - i * DAY); d.setHours(0, 0, 0, 0);
+    days.push({ t: d.getTime(), label: `${d.getDate()}.${String(d.getMonth() + 1).padStart(2, '0')}`, n: 0 });
+  }
 
   for (const u of users) {
-    const e = ents.get(u.id);
-    const premium = e && (e.type === 'forever' || (e.until != null && now < e.until));
-    plan[premium ? e.type : 'free'] = (plan[premium ? e.type : 'free'] || 0) + 1;
+    plan[planOf(ents.get(u.id))]++;
     gender[['f', 'm', 'x'].includes(u.gender) ? u.gender : 'unknown']++;
-    for (const g of safeList(u.give_to)) giveTo[g] = (giveTo[g] || 0) + 1;
-    for (const i of safeList(u.interests)) interests[i] = (interests[i] || 0) + 1;
-    if (u.dream_gift?.trim()) dreamCounts[u.dream_gift.trim()] = (dreamCounts[u.dream_gift.trim()] || 0) + 1;
+    sources[sourceKind(u.source)]++;
+    if (u.gender) profiled++;
+    if ((u.last_seen_at || u.created_at) > now - 7 * DAY) active7++;
+    for (const g of list(u.give_to)) giveTo[g] = (giveTo[g] || 0) + 1;
+    for (const i of list(u.interests)) interests[i] = (interests[i] || 0) + 1;
+    const dg = u.dream_gift?.trim(); if (dg) dreams[dg] = (dreams[dg] || 0) + 1;
+    if (u.birth_date) {
+      const years = Math.floor((now - Date.parse(u.birth_date)) / (365.25 * DAY));
+      const b = years < 18 ? 'до 18' : years < 25 ? '18–24' : years < 35 ? '25–34' : years < 45 ? '35–44' : '45+';
+      age[b] = (age[b] || 0) + 1;
+    }
+    const day = days.find(d => u.created_at >= d.t && u.created_at < d.t + DAY);
+    if (day) day.n++;
   }
 
-  const wl = db.prepare('SELECT items_json, dream FROM wishlists WHERE revoked = 0').all();
-  const itemCounts = {};
-  for (const w of wl) {
-    for (const it of safeList(w.items_json)) if (it.title) itemCounts[it.title] = (itemCounts[it.title] || 0) + 1;
-    if (w.dream?.trim()) dreamCounts[w.dream.trim()] = (dreamCounts[w.dream.trim()] || 0) + 1;
-  }
+  const wl = db.prepare('SELECT items_json FROM wishlists WHERE revoked = 0').all();
+  const items = {};
+  let itemsTotal = 0;
+  for (const w of wl) for (const it of list(w.items_json)) if (it.title) { items[it.title] = (items[it.title] || 0) + 1; itemsTotal++; }
 
-  const top = (obj, n = 15) => Object.entries(obj).sort((a, b) => b[1] - a[1]).slice(0, n);
-  const spins = db.prepare('SELECT reward_code, COUNT(*) n FROM spin_results GROUP BY reward_code').all();
-  const referrals = db.prepare('SELECT COUNT(*) total, SUM(qualified) qualified FROM referrals').get();
+  const top = (o, n = 10) => Object.entries(o).sort((a, b) => b[1] - a[1]).slice(0, n);
+  const ageOrder = ['до 18', '18–24', '25–34', '35–44', '45+'];
 
   return {
     totalUsers: users.length,
-    plan, gender,
+    newToday: users.filter(u => u.created_at > now - DAY).length,
+    new7: users.filter(u => u.created_at > now - 7 * DAY).length,
+    active7, profiled,
+    plan, gender, sources,
+    byDay: days.map(d => [d.label, d.n]),
+    age: ageOrder.filter(k => age[k]).map(k => [k, age[k]]),
     giveTo: top(giveTo), interests: top(interests),
-    topDreams: top(dreamCounts), topItems: top(itemCounts),
-    spins: Object.fromEntries(spins.map(s => [s.reward_code, s.n])),
-    referrals: { total: referrals.total || 0, qualified: referrals.qualified || 0 },
-    wishlistsActive: wl.length,
-    datesTotal: db.prepare('SELECT COUNT(*) n FROM important_dates').get().n
+    topItems: top(items), topDreams: top(dreams),
+    wishlists: wl.length, itemsTotal,
+    dates: count('SELECT COUNT(*) n FROM important_dates'),
+    spins: Object.fromEntries(db.prepare('SELECT reward_code, COUNT(*) n FROM spin_results GROUP BY reward_code').all().map(s => [s.reward_code, s.n])),
+    referrals: count('SELECT COUNT(*) n FROM referrals WHERE qualified = 1'),
+    ugcPending: count("SELECT COUNT(*) n FROM ugc_applications WHERE status = 'submitted'")
   };
 }
+
+// ── пользователи ─────────────────────────────────────────────────────
+function userRow(u) {
+  const ent = getEntitlement(u.id);
+  return {
+    id: u.id, firstName: u.first_name, username: u.username, name: u.profile_name || u.first_name || '',
+    gender: u.gender, birthDate: u.birth_date, giveTo: list(u.give_to), interests: list(u.interests), dream: u.dream_gift || '',
+    source: u.source || 'direct', sourceKind: sourceKind(u.source),
+    createdAt: u.created_at, lastSeenAt: u.last_seen_at,
+    plan: planOf(ent), until: ent.until,
+    wishlists: count('SELECT COUNT(*) n FROM wishlists WHERE owner_id = ? AND revoked = 0', u.id),
+    invited: count('SELECT COUNT(*) n FROM referrals WHERE referrer_id = ? AND qualified = 1', u.id)
+  };
+}
+
+function listUsers(q, filter, page) {
+  const where = [], args = [];
+  if (q) {
+    where.push('(CAST(id AS TEXT) LIKE ? OR first_name LIKE ? OR username LIKE ? OR profile_name LIKE ?)');
+    args.push(`%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`);
+  }
+  if (filter === 'profiled') where.push('gender IS NOT NULL');
+  const sql = `FROM users ${where.length ? 'WHERE ' + where.join(' AND ') : ''}`;
+  let rows = db.prepare(`SELECT * ${sql} ORDER BY created_at DESC`).all(...args).map(userRow);
+  if (filter === 'premium') rows = rows.filter(r => r.plan !== 'free');
+  const PAGE = 25;
+  return { total: rows.length, page, pages: Math.max(1, Math.ceil(rows.length / PAGE)), items: rows.slice((page - 1) * PAGE, page * PAGE) };
+}
+
+function userDetail(id) {
+  const u = db.prepare('SELECT * FROM users WHERE id = ?').get(id);
+  if (!u) return null;
+  return {
+    ...userRow(u),
+    wishlists: db.prepare('SELECT title, items_json, shared, updated_at FROM wishlists WHERE owner_id = ? AND revoked = 0 ORDER BY updated_at DESC').all(id)
+      .map(w => ({ title: w.title, shared: !!w.shared, updatedAt: w.updated_at, items: list(w.items_json) })),
+    dates: db.prepare('SELECT name, date, relation, type FROM important_dates WHERE user_id = ? ORDER BY substr(date, 6)').all(id),
+    invitedUsers: db.prepare(`SELECT u.id, u.first_name, u.profile_name, r.created_at FROM referrals r JOIN users u ON u.id = r.user_id
+      WHERE r.referrer_id = ? AND r.qualified = 1 ORDER BY r.created_at DESC`).all(id),
+    invitedBy: db.prepare('SELECT u.id, u.first_name, u.profile_name FROM referrals r JOIN users u ON u.id = r.referrer_id WHERE r.user_id = ?').get(id) || null,
+    ugc: db.prepare('SELECT platform, link, nick, views, status, created_at FROM ugc_applications WHERE user_id = ? ORDER BY created_at DESC').all(id),
+    spins: count('SELECT COUNT(*) n FROM spin_results WHERE user_id = ?', id)
+  };
+}
+
+const PLAN_TEXT = { week: 'premium на неделю', year: 'premium на год', forever: 'premium навсегда' };
+
+// Ручная выдача доступа. Приложение подтягивает доступ с сервера при каждом запуске.
+function setAccess(userId, plan) {
+  if (plan === 'free') return grantEntitlement(userId, 'free', null, 'admin_revoke');
+  const days = { week: 7, year: 365 }[plan];
+  grantEntitlement(userId, plan, plan === 'forever' ? null : Date.now() + days * DAY, 'admin');
+  sendMessage(userId, `Та-дам! 🎁 Тебе открыт ${PLAN_TEXT[plan]}`,
+    { inline_keyboard: [[{ text: '🎁 Открыть Та-дам', web_app: { url: WEBAPP } }]] });
+}
+
+// ── промокоды и приглашения ──────────────────────────────────────────
+function promoReport() {
+  const promos = db.prepare('SELECT * FROM promo_codes ORDER BY created_at DESC').all().map(p => {
+    const src = 'p_' + p.code;
+    const ids = db.prepare('SELECT id FROM users WHERE source = ?').all(src).map(r => r.id);
+    return {
+      ...p, link: `https://t.me/${BOT}?start=${src}`, users: ids.length,
+      premium: ids.filter(id => planOf(getEntitlement(id)) !== 'free').length,
+      new7: count('SELECT COUNT(*) n FROM users WHERE source = ? AND created_at > ?', src, Date.now() - 7 * DAY)
+    };
+  });
+  const referrers = db.prepare(`SELECT r.referrer_id id, u.first_name, u.profile_name, u.username, COUNT(*) n, MAX(r.created_at) last
+    FROM referrals r LEFT JOIN users u ON u.id = r.referrer_id WHERE r.qualified = 1
+    GROUP BY r.referrer_id ORDER BY n DESC LIMIT 50`).all();
+  return {
+    promos, referrers,
+    totals: {
+      promo: count("SELECT COUNT(*) n FROM users WHERE substr(source, 1, 2) = 'p_'"),
+      referral: count('SELECT COUNT(*) n FROM referrals WHERE qualified = 1'),
+      referrers: count('SELECT COUNT(DISTINCT referrer_id) n FROM referrals WHERE qualified = 1'),
+      direct: count("SELECT COUNT(*) n FROM users WHERE source IS NULL OR source = 'direct'")
+    }
+  };
+}
+
+// ── заявки UGC ───────────────────────────────────────────────────────
+const UGC_DONE = {
+  approved_basic: { plan: 'year', text: 'Заявка в «Твори с Та-дам» одобрена 🎉 Держи premium на год.' },
+  approved_100k: { plan: 'forever', text: 'Твой ролик набрал 100 000 — это победа 🏆 Держи premium навсегда. Скоро добавим тебя в «Друзья бренда».' },
+  rejected: { plan: null, text: 'Мы посмотрели заявку в «Твори с Та-дам» — в этот раз не подошла. Попробуй с новым роликом ✨' }
+};
 
 // ── HTTP Basic Auth ──────────────────────────────────────────────────
 function checkAuth(req, res) {
   if (!ADMIN_ENABLED) { json(res, 503, { ok: false, error: 'admin_not_configured' }); return false; }
-  const h = req.headers.authorization || '';
-  const m = /^Basic (.+)$/.exec(h);
-  const [u, p] = m ? Buffer.from(m[1], 'base64').toString('utf8').split(':') : [];
-  if (u === ADMIN_USER && p === ADMIN_PASS) return true;
-  res.writeHead(401, { 'WWW-Authenticate': 'Basic realm="tadam-admin"', 'Content-Type': 'text/plain; charset=utf-8' });
-  res.end('Нужен пароль администратора');
+  const m = /^Basic (.+)$/.exec(req.headers.authorization || '');
+  const decoded = m ? Buffer.from(m[1], 'base64').toString('utf8') : '';
+  const i = decoded.indexOf(':');
+  if (i > 0 && decoded.slice(0, i) === ADMIN_USER && decoded.slice(i + 1) === ADMIN_PASS) return true;
+  res.writeHead(401, { 'WWW-Authenticate': 'Basic realm="tadam-admin", charset="UTF-8"', 'Content-Type': 'text/plain; charset=utf-8' });
+  res.end('Нужен логин и пароль администратора');
   return false;
 }
 
+const httpUrl = v => { try { const u = new URL(String(v || '')); return /^https?:$/.test(u.protocol) ? u.href.slice(0, 500) : ''; } catch (e) { return ''; } };
+const str = (v, n) => String(v ?? '').trim().slice(0, n);
+
 export function mountAdmin(on) {
-  const guarded = handler => (req, res, m) => { if (checkAuth(req, res)) return handler(req, res, m); };
+  const g = handler => (req, res, m) => { if (checkAuth(req, res)) return handler(req, res, m); };
+  const qs = req => new URL(req.url, 'http://x').searchParams;
 
-  on('GET', /^\/admin\/api\/stats$/, guarded((req, res) => json(res, 200, { ok: true, stats: computeStats() })));
-
-  on('GET', /^\/admin\/api\/ideas$/, guarded((req, res) => {
-    const rows = db.prepare('SELECT * FROM admin_ideas ORDER BY created_at DESC').all();
-    json(res, 200, { ok: true, items: rows.map(r => ({ ...r, recipients: safeList(r.recipients), interests: safeList(r.interests) })) });
+  const pagePath = join(dirname(fileURLToPath(import.meta.url)), 'admin-page.html');
+  on('GET', /^\/admin\/?$/, g((req, res) => {
+    // читаем при каждом запросе — правка разметки не требует перезапуска сервера
+    const html = readFileSync(pagePath, 'utf8').replace('/*__META__*/null', JSON.stringify(META));
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+    res.end(html);
   }));
-  on('POST', /^\/admin\/api\/ideas$/, guarded(async (req, res) => {
+
+  on('GET', /^\/admin\/api\/stats$/, g((req, res) => json(res, 200, { ok: true, stats: computeStats() })));
+
+  // пользователи
+  on('GET', /^\/admin\/api\/users$/, g((req, res) => {
+    const p = qs(req);
+    json(res, 200, { ok: true, ...listUsers(str(p.get('q'), 60), p.get('filter') || '', Math.max(1, +p.get('page') || 1)) });
+  }));
+  on('GET', /^\/admin\/api\/users\/(\d+)$/, g((req, res, m) => {
+    const u = userDetail(+m[1]);
+    u ? json(res, 200, { ok: true, user: u }) : json(res, 404, { ok: false, error: 'not_found' });
+  }));
+  on('POST', /^\/admin\/api\/users\/(\d+)\/access$/, g(async (req, res, m) => {
+    const { plan } = await readBody(req);
+    if (!['week', 'year', 'forever', 'free'].includes(plan)) return json(res, 400, { ok: false, error: 'bad_plan' });
+    if (!db.prepare('SELECT 1 FROM users WHERE id = ?').get(+m[1])) return json(res, 404, { ok: false, error: 'not_found' });
+    setAccess(+m[1], plan);
+    json(res, 200, { ok: true, user: userDetail(+m[1]) });
+  }));
+
+  // промокоды
+  on('GET', /^\/admin\/api\/promo$/, g((req, res) => json(res, 200, { ok: true, ...promoReport() })));
+  on('POST', /^\/admin\/api\/promo$/, g(async (req, res) => {
     const b = await readBody(req);
-    if (!b.cat || !b.title || !b.budget) return json(res, 400, { ok: false, error: 'missing_fields' });
-    const id = b.id || 'admin-' + randomUUID().slice(0, 8);
-    db.prepare(`
-      INSERT INTO admin_ideas (id, cat, title, desc, long_desc, budget, recipients, interests, photo, buy, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT(id) DO UPDATE SET cat=excluded.cat, title=excluded.title, desc=excluded.desc, long_desc=excluded.long_desc,
-        budget=excluded.budget, recipients=excluded.recipients, interests=excluded.interests, photo=excluded.photo, buy=excluded.buy
-    `).run(id, b.cat, b.title, b.desc || '', b.long || b.desc || '', +b.budget,
-      JSON.stringify(b.recipients || []), JSON.stringify(b.interests || []), b.photo || '', b.buy || '', Date.now());
-    json(res, 200, { ok: true, id });
+    const code = str(b.code, 32).toLowerCase();
+    if (!/^[a-z0-9_]{2,32}$/.test(code)) return json(res, 400, { ok: false, error: 'Код — латиница, цифры и _, от 2 до 32 символов' });
+    try { db.prepare('INSERT INTO promo_codes (code, title, created_at) VALUES (?, ?, ?)').run(code, str(b.title, 80), Date.now()); }
+    catch (e) { return json(res, 409, { ok: false, error: 'Такой промокод уже есть' }); }
+    json(res, 200, { ok: true });
   }));
-  on('DELETE', /^\/admin\/api\/ideas\/([\w-]+)$/, guarded((req, res, m) => {
-    db.prepare('DELETE FROM admin_ideas WHERE id = ?').run(m[1]);
+  on('DELETE', /^\/admin\/api\/promo\/([a-z0-9_]+)$/, g((req, res, m) => {
+    db.prepare('DELETE FROM promo_codes WHERE code = ?').run(m[1]);
     json(res, 200, { ok: true });
   }));
 
-  on('GET', /^\/admin\/api\/stories$/, guarded((req, res) => {
-    json(res, 200, { ok: true, items: db.prepare('SELECT * FROM admin_stories ORDER BY created_at DESC').all() });
+  // заявки UGC
+  on('GET', /^\/admin\/api\/ugc$/, g((req, res) => {
+    const rows = db.prepare(`SELECT a.*, u.first_name, u.profile_name, u.username FROM ugc_applications a
+      LEFT JOIN users u ON u.id = a.user_id ORDER BY (a.status = 'submitted') DESC, a.created_at DESC`).all();
+    json(res, 200, { ok: true, items: rows });
   }));
-  on('POST', /^\/admin\/api\/stories$/, guarded(async (req, res) => {
-    const b = await readBody(req);
-    if (!b.title || !b.slideTitle || !b.slideText || !b.ctaLabel) return json(res, 400, { ok: false, error: 'missing_fields' });
-    const id = b.id || 'admin-' + randomUUID().slice(0, 8);
-    db.prepare(`
-      INSERT INTO admin_stories (id, title, emoji, bg, mascot, slide_title, slide_text, cta_label, cta_route, cta_param, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT(id) DO UPDATE SET title=excluded.title, emoji=excluded.emoji, bg=excluded.bg, mascot=excluded.mascot,
-        slide_title=excluded.slide_title, slide_text=excluded.slide_text, cta_label=excluded.cta_label,
-        cta_route=excluded.cta_route, cta_param=excluded.cta_param
-    `).run(id, b.title, b.emoji || '✨', b.bg || 'mango', b.mascot || 'wow', b.slideTitle, b.slideText,
-      b.ctaLabel, b.ctaRoute || 'home', b.ctaParam || '', Date.now());
-    json(res, 200, { ok: true, id });
-  }));
-  on('DELETE', /^\/admin\/api\/stories\/([\w-]+)$/, guarded((req, res, m) => {
-    db.prepare('DELETE FROM admin_stories WHERE id = ?').run(m[1]);
+  on('POST', /^\/admin\/api\/ugc\/([\w-]+)$/, g(async (req, res, m) => {
+    const { status } = await readBody(req);
+    const done = UGC_DONE[status];
+    const app = db.prepare('SELECT * FROM ugc_applications WHERE id = ?').get(m[1]);
+    if (!done || !app) return json(res, 400, { ok: false, error: 'bad_request' });
+    db.prepare('UPDATE ugc_applications SET status = ?, reviewed_at = ? WHERE id = ?').run(status, Date.now(), app.id);
+    if (done.plan) grantEntitlement(app.user_id, done.plan, done.plan === 'forever' ? null : Date.now() + 365 * DAY, 'ugc');
+    sendMessage(app.user_id, done.text, { inline_keyboard: [[{ text: '🎁 Открыть Та-дам', web_app: { url: WEBAPP } }]] });
     json(res, 200, { ok: true });
   }));
 
-  on('GET', /^\/admin$/, guarded((req, res) => {
-    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-    res.end(renderPage());
-  }));
-}
-
-// Опции для <select multiple>/чипов в формах — рисуем один раз в разметке страницы.
-const opts = (list, name) => list.map(([id, label]) =>
-  `<label class="chip"><input type="checkbox" name="${name}" value="${id}"><span>${label}</span></label>`).join('');
-const selectOpts = list => list.map(([id, label]) => `<option value="${id}">${label}</option>`).join('');
-
-function renderPage() {
-  return `<!doctype html><html lang="ru"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Та-дам · админка</title>
-<style>
-:root{--mango:#F74101;--mango-dark:#D93700;--oat:#FBF3E8;--coffee:#702720;--ice:#CBE5FE;--surface:#fff;--line:#EADDCB;--muted:#8a6f61}
-*{box-sizing:border-box}
-body{margin:0;background:var(--oat);color:var(--coffee);font:15px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;padding:0 0 60px}
-h1{font-size:22px;margin:0}
-h2{font-size:16px;margin:0 0 12px}
-header{background:linear-gradient(160deg,#F74101,#FF7A3D);color:#fff;padding:20px 20px 26px}
-header p{margin:4px 0 0;opacity:.9;font-size:13px}
-.wrap{max-width:960px;margin:-14px auto 0;padding:0 16px}
-.tabs{display:flex;gap:8px;margin-bottom:16px}
-.tab{background:var(--surface);color:var(--coffee);border:1px solid var(--line);border-radius:999px;padding:8px 16px;cursor:pointer;font-weight:700;font-size:13px}
-.tab.on{background:var(--mango);color:#fff;border-color:var(--mango)}
-.panel{display:none}.panel.on{display:block}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:16px}
-.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px}
-.card .num{font-size:28px;font-weight:800;color:var(--mango-dark)}
-.card .lbl{font-size:12px;color:var(--muted);margin-top:2px}
-.bars{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
-.bar-row{display:grid;grid-template-columns:110px 1fr 46px;align-items:center;gap:8px;margin:7px 0;font-size:13px}
-.bar-row .track{background:#F2E6D5;border-radius:6px;height:14px;overflow:hidden}
-.bar-row .fill{background:var(--mango);height:100%;border-radius:6px}
-.bar-row .n{text-align:right;color:var(--muted);font-size:12px}
-.empty-note{color:var(--muted);font-size:13px}
-form.card{display:grid;gap:8px;margin-bottom:16px}
-form.card input[type=text],form.card input[type=number],form.card input[type=url],form.card textarea,form.card select{
-  width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;background:#fff}
-form.card label.lbl{font-size:12px;font-weight:700;color:var(--muted);margin-top:4px}
-.chips{display:flex;flex-wrap:wrap;gap:6px}
-.chip{border:1px solid var(--line);border-radius:999px;padding:5px 10px;font-size:12px;cursor:pointer;background:#fff}
-.chip input{margin-right:4px}
-.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-button{background:var(--mango-dark);color:#fff;border:0;border-radius:8px;padding:9px 16px;cursor:pointer;font:inherit;font-weight:700}
-button.tab{background:var(--surface);color:var(--coffee);border:1px solid var(--line);border-radius:999px;font-size:13px}
-button.tab.on{background:var(--mango);color:#fff;border-color:var(--mango)}
-.list-item{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;align-items:center;gap:10px;margin-bottom:8px}
-.list-item .t{flex:1;min-width:0}
-.list-item .t b{display:block;font-size:13px}
-.list-item .t span{font-size:12px;color:var(--muted)}
-.list-item button{background:#F2E6D5;color:#B3341A;padding:6px 10px;font-size:12px}
-</style></head><body>
-<header><h1>🎁 Та-дам · админка</h1><p>Аналитика и контент, без выхода из этого окна</p></header>
-<div class="wrap">
-  <div class="tabs">
-    <button class="tab on" data-tab="stats">Аналитика</button>
-    <button class="tab" data-tab="ideas">Идеи подарков</button>
-    <button class="tab" data-tab="stories">Сторис</button>
-  </div>
-
-  <div class="panel on" id="p-stats"><div id="statsBody">Загрузка…</div></div>
-
-  <div class="panel" id="p-ideas">
-    <form class="card" id="ideaForm">
-      <h2>Добавить идею подарка</h2>
-      <input type="hidden" name="id">
-      <label class="lbl">Повод</label><select name="cat" required>${selectOpts(CATEGORIES)}</select>
-      <div class="row2">
-        <div><label class="lbl">Название</label><input type="text" name="title" required maxlength="80"></div>
-        <div><label class="lbl">Бюджет</label><select name="budget" required>${selectOpts(BUDGETS)}</select></div>
-      </div>
-      <label class="lbl">Короткое описание</label><input type="text" name="desc" maxlength="140">
-      <label class="lbl">Подробное описание (в карточке идеи)</label><textarea name="long" rows="2"></textarea>
-      <label class="lbl">Кому</label><div class="chips">${opts(RECIPIENTS, 'recipients')}</div>
-      <label class="lbl">Интересы</label><div class="chips">${opts(INTERESTS, 'interests')}</div>
-      <div class="row2">
-        <div><label class="lbl">Фото (URL, необязательно)</label><input type="url" name="photo"></div>
-        <div><label class="lbl">Ссылка «где купить» (необязательно)</label><input type="url" name="buy"></div>
-      </div>
-      <button type="submit">Добавить идею</button>
-    </form>
-    <div id="ideasList"></div>
-  </div>
-
-  <div class="panel" id="p-stories">
-    <form class="card" id="storyForm">
-      <h2>Добавить сторис</h2>
-      <input type="hidden" name="id">
-      <div class="row2">
-        <div><label class="lbl">Название (в кружке, коротко)</label><input type="text" name="title" required maxlength="30"></div>
-        <div><label class="lbl">Эмодзи кружка</label><input type="text" name="emoji" maxlength="4" value="✨"></div>
-      </div>
-      <div class="row2">
-        <div><label class="lbl">Фон</label><select name="bg">${selectOpts(STORY_BG.map(b => [b, b]))}</select></div>
-        <div><label class="lbl">Маскот</label><select name="mascot">${selectOpts(['wave', 'think', 'heart', 'notes', 'wow', 'cool', 'sleep', 'search', 'run', 'bubble', 'alert', 'peek'].map(m => [m, m]))}</select></div>
-      </div>
-      <label class="lbl">Заголовок слайда</label><input type="text" name="slideTitle" required maxlength="60">
-      <label class="lbl">Текст слайда</label><textarea name="slideText" rows="3" required></textarea>
-      <div class="row2">
-        <div><label class="lbl">Текст кнопки</label><input type="text" name="ctaLabel" required maxlength="30"></div>
-        <div><label class="lbl">Куда ведёт (повод, если «Открыть повод»)</label>
-          <select name="ctaRoute"><option value="cat">Открыть повод</option><option value="wishlist">Вишлист</option><option value="wheel">Колесо</option><option value="paywall">Premium</option><option value="me">Профиль</option><option value="home">Главная</option></select>
-        </div>
-      </div>
-      <label class="lbl">Id повода (если выбрано «Открыть повод»)</label><select name="ctaParam">${selectOpts(CATEGORIES)}</select>
-      <button type="submit">Добавить сторис</button>
-    </form>
-    <div id="storiesList"></div>
-  </div>
-</div>
-<script>
-// location.origin — без логина/пароля: если админка открыта ссылкой вида https://user:pass@..., относительный fetch в Chrome падает
-const API = location.origin;
-const RCP = ${JSON.stringify(Object.fromEntries(RECIPIENTS))};
-const INT = ${JSON.stringify(Object.fromEntries(INTERESTS))};
-const CAT = ${JSON.stringify(Object.fromEntries(CATEGORIES))};
-
-document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
-  document.querySelectorAll('.tab').forEach(x => x.classList.remove('on'));
-  document.querySelectorAll('.panel').forEach(x => x.classList.remove('on'));
-  t.classList.add('on'); document.getElementById('p-' + t.dataset.tab).classList.add('on');
-});
-
-function bar(label, n, max) {
-  const w = max ? Math.round(n / max * 100) : 0;
-  return '<div class="bar-row"><div>' + label + '</div><div class="track"><div class="fill" style="width:' + w + '%"></div></div><div class="n">' + n + '</div></div>';
-}
-function barsBlock(title, entries, labelMap) {
-  if (!entries.length) return '<div class="bars"><h2>' + title + '</h2><div class="empty-note">Пока нет данных</div></div>';
-  const max = Math.max(...entries.map(e => e[1]));
-  return '<div class="bars"><h2>' + title + '</h2>' + entries.map(([k, n]) => bar(labelMap ? (labelMap[k] || k) : k, n, max)).join('') + '</div>';
-}
-
-async function loadStats() {
-  const r = await fetch(API + '/admin/api/stats').then(x => x.json());
-  const s = r.stats;
-  const planLabel = { free: 'Бесплатно', week: 'Неделя', year: 'Год', forever: 'Навсегда' };
-  const genderLabel = { f: 'Женский', m: 'Мужской', x: 'Не указал', unknown: 'Не заполнено' };
-  document.getElementById('statsBody').innerHTML =
-    '<div class="grid">' +
-      '<div class="card"><div class="num">' + s.totalUsers + '</div><div class="lbl">Пользователей</div></div>' +
-      '<div class="card"><div class="num">' + (s.plan.week + s.plan.year + s.plan.forever) + '</div><div class="lbl">С premium</div></div>' +
-      '<div class="card"><div class="num">' + s.wishlistsActive + '</div><div class="lbl">Активных вишлистов</div></div>' +
-      '<div class="card"><div class="num">' + s.referrals.qualified + '</div><div class="lbl">Приглашённых друзей</div></div>' +
-    '</div>' +
-    barsBlock('Тариф', Object.entries(s.plan).filter(e => e[1] > 0), planLabel) +
-    barsBlock('Кому чаще всего дарят', s.giveTo, RCP) +
-    barsBlock('Интересы получателей', s.interests, INT) +
-    barsBlock('Пол пользователей', Object.entries(s.gender).filter(e => e[1] > 0), genderLabel) +
-    barsBlock('Что чаще всего добавляют в вишлист', s.topItems) +
-    barsBlock('Подарки мечты (что хотят себе)', s.topDreams) +
-    barsBlock('Призы колеса', Object.entries(s.spins));
-}
-
-async function loadIdeas() {
-  const r = await fetch(API + '/admin/api/ideas').then(x => x.json());
-  document.getElementById('ideasList').innerHTML = r.items.map(i =>
-    '<div class="list-item"><div class="t"><b>' + esc(i.title) + '</b><span>' + esc(CAT[i.cat] || i.cat) + ' · до ' + i.budget + ' ₽</span></div><button data-del-idea="' + i.id + '">Удалить</button></div>'
-  ).join('') || '<div class="empty-note">Пока нет ни одной идеи из админки</div>';
-  document.querySelectorAll('[data-del-idea]').forEach(b => b.onclick = async () => {
-    if (!confirm('Удалить идею?')) return;
-    await fetch(API + '/admin/api/ideas/' + b.dataset.delIdea, { method: 'DELETE' });
-    loadIdeas();
-  });
-}
-async function loadStories() {
-  const r = await fetch(API + '/admin/api/stories').then(x => x.json());
-  document.getElementById('storiesList').innerHTML = r.items.map(s =>
-    '<div class="list-item"><div class="t"><b>' + esc(s.emoji) + ' ' + esc(s.title) + '</b><span>' + esc(s.slide_title) + '</span></div><button data-del-story="' + s.id + '">Удалить</button></div>'
-  ).join('') || '<div class="empty-note">Пока нет ни одной сторис из админки</div>';
-  document.querySelectorAll('[data-del-story]').forEach(b => b.onclick = async () => {
-    if (!confirm('Удалить сторис?')) return;
-    await fetch(API + '/admin/api/stories/' + b.dataset.delStory, { method: 'DELETE' });
-    loadStories();
-  });
-}
-function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-
-document.getElementById('ideaForm').onsubmit = async e => {
-  e.preventDefault();
-  const f = new FormData(e.target);
-  const body = {
-    cat: f.get('cat'), title: f.get('title'), budget: +f.get('budget'),
-    desc: f.get('desc') || '', long: f.get('long') || '',
-    recipients: f.getAll('recipients'), interests: f.getAll('interests'),
-    photo: f.get('photo') || '', buy: f.get('buy') || ''
+  // контент: идеи, сторис, друзья бренда — одна схема «список / сохранить (создать или изменить) / удалить»
+  const content = (name, table, fields, validate) => {
+    on('GET', new RegExp(`^/admin/api/${name}$`), g((req, res) => {
+      const rows = db.prepare(`SELECT * FROM ${table} ORDER BY created_at DESC`).all();
+      json(res, 200, { ok: true, items: rows.map(r => ({ ...r, ...(r.recipients !== undefined ? { recipients: list(r.recipients), interests: list(r.interests) } : {}) })) });
+    }));
+    on('POST', new RegExp(`^/admin/api/${name}$`), g(async (req, res) => {
+      const b = await readBody(req);
+      const row = fields(b);
+      const err = validate(row);
+      if (err) return json(res, 400, { ok: false, error: err });
+      const id = /^[\w-]{1,40}$/.test(b.id || '') ? b.id : 'admin-' + randomUUID().slice(0, 8);
+      const cols = Object.keys(row);
+      db.prepare(`INSERT INTO ${table} (id, ${cols.join(', ')}, created_at) VALUES (?, ${cols.map(() => '?').join(', ')}, ?)
+        ON CONFLICT(id) DO UPDATE SET ${cols.map(c => `${c} = excluded.${c}`).join(', ')}`)
+        .run(id, ...cols.map(c => row[c]), Date.now());
+      json(res, 200, { ok: true, id });
+    }));
+    on('DELETE', new RegExp(`^/admin/api/${name}/([\\w-]+)$`), g((req, res, m) => {
+      db.prepare(`DELETE FROM ${table} WHERE id = ?`).run(m[1]);
+      json(res, 200, { ok: true });
+    }));
   };
-  await fetch(API + '/admin/api/ideas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-  e.target.reset(); loadIdeas();
-};
-document.getElementById('storyForm').onsubmit = async e => {
-  e.preventDefault();
-  const f = new FormData(e.target);
-  const body = {
-    title: f.get('title'), emoji: f.get('emoji') || '✨', bg: f.get('bg'), mascot: f.get('mascot'),
-    slideTitle: f.get('slideTitle'), slideText: f.get('slideText'),
-    ctaLabel: f.get('ctaLabel'), ctaRoute: f.get('ctaRoute'), ctaParam: f.get('ctaRoute') === 'cat' ? f.get('ctaParam') : ''
-  };
-  await fetch(API + '/admin/api/stories', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-  e.target.reset(); loadStories();
-};
 
-loadStats(); loadIdeas(); loadStories();
-</script>
-</body></html>`;
+  content('ideas', 'admin_ideas', b => ({
+    cat: str(b.cat, 20), title: str(b.title, 80), desc: str(b.desc, 140), long_desc: str(b.long || b.desc, 600),
+    budget: +b.budget || 0,
+    recipients: JSON.stringify((b.recipients || []).filter(x => META.recipients[x])),
+    interests: JSON.stringify((b.interests || []).filter(x => META.interests[x])),
+    photo: httpUrl(b.photo), buy: httpUrl(b.buy)
+  }), r => !META.categories[r.cat] ? 'Выбери повод' : !r.title ? 'Нужно название' : !META.budgets[r.budget] ? 'Выбери бюджет' : null);
+
+  content('stories', 'admin_stories', b => ({
+    title: str(b.title, 30), emoji: str(b.emoji, 8) || '✨', bg: META.storyBg[b.bg] ? b.bg : 'mango',
+    mascot: META.mascots.includes(b.mascot) ? b.mascot : 'wow',
+    slide_title: str(b.slideTitle, 60), slide_text: str(b.slideText, 300),
+    cta_label: str(b.ctaLabel, 30), cta_route: META.ctaRoutes[b.ctaRoute] ? b.ctaRoute : 'home',
+    cta_param: b.ctaRoute === 'cat' && META.categories[b.ctaParam] ? b.ctaParam : ''
+  }), r => !r.title ? 'Нужно название кружка' : !r.slide_title ? 'Нужен заголовок' : !r.slide_text ? 'Нужен текст' : !r.cta_label ? 'Нужен текст кнопки' : null);
+
+  content('friends', 'admin_friends', b => ({
+    nick: str(b.nick, 40), platform: str(b.platform, 30), idea: str(b.idea, 80), desc: str(b.desc, 200), link: httpUrl(b.link)
+  }), r => !r.nick ? 'Нужен ник' : !r.idea ? 'Нужна идея подарка' : null);
 }

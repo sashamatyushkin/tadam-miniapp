@@ -1,16 +1,16 @@
 // ── Квест, paywall, рефералы, UGC, друзья бренда, настройки, намёк ───
-import { CONFIG, CATEGORIES, BRAND_FRIENDS, RECIPIENTS, INTERESTS, SOCIAL, DEBUG, deepLink, TELEGRAM } from '../config.js?v=2609142002';
-import { IDEAS, IDEAS_BY_CAT } from '../data/ideas.js?v=2609142002';
+import { CONFIG, CATEGORIES, BRAND_FRIENDS, RECIPIENTS, INTERESTS, SOCIAL, DEBUG, deepLink, TELEGRAM } from '../config.js?v=2609142045';
+import { IDEAS, IDEAS_BY_CAT } from '../data/ideas.js?v=2609142045';
 import {
   state, save, track, questSteps, questComplete, issueQuestReward,
   isPremium, accessLabel, grantAccess, activeDiscount, resetAll, resetTips,
   addToWishlist, defaultWishlist, inWishlist, planId, profileFilled
-} from '../store.js?v=2609142002';
-import { esc, mascot, sheet, toast, confirmSheet, plural } from '../ui.js?v=2609142002';
-import { tg } from '../tg.js?v=2609142002';
-import { go, back } from '../app.js?v=2609142002';
-import { openHint } from './hint.js?v=2609142002';
-import { api, apiAvailable } from '../api.js?v=2609142002';
+} from '../store.js?v=2609142045';
+import { esc, mascot, sheet, toast, confirmSheet, plural } from '../ui.js?v=2609142045';
+import { tg } from '../tg.js?v=2609142045';
+import { go, back } from '../app.js?v=2609142045';
+import { openHint } from './hint.js?v=2609142045';
+import { api, apiAvailable } from '../api.js?v=2609142045';
 
 // ── «Заполни и получи» ───────────────────────────────────────────────
 export function renderQuest() {
@@ -373,7 +373,7 @@ export function renderInvite() {
 }
 
 // ── Награды (переиспользуем экран колеса) ────────────────────────────
-export { renderRewards } from './wheel.js?v=2609142002';
+export { renderRewards } from './wheel.js?v=2609142045';
 
 // ── Друзья бренда ────────────────────────────────────────────────────
 export function renderFriends() {
@@ -442,7 +442,15 @@ export function renderUgc() {
             : '<button class="btn" id="apply">Подать заявку</button>'}
         <p class="small muted center">Проверку делает администратор вручную. Просмотры подтверждаются скриншотом и ссылкой.</p>
       </div>`,
-    mount(app) { app.querySelector('#apply')?.addEventListener('click', ugcForm); }
+    mount(app) {
+      app.querySelector('#apply')?.addEventListener('click', ugcForm);
+      // Решение принимает админ — подтягиваем актуальный статус заявки
+      if (apiAvailable() && u) api.ugcStatus().then(r => {
+        const a = r?.application;
+        if (!a || a.status === state.ugc?.status) return;
+        state.ugc = { ...state.ugc, status: a.status }; save(); go('ugc', {}, true);
+      });
+    }
   };
 }
 
@@ -467,6 +475,7 @@ function ugcForm() {
         status: 'submitted', submittedAt: Date.now()
       };
       track('ugc_submission_created', { platform: state.ugc.platform });
+      if (apiAvailable()) api.ugcSubmit(state.ugc);   // заявка уходит в админку
       save(); close(); tg.haptic('success'); go('ugc', {}, true);
     };
   });

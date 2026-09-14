@@ -3,8 +3,8 @@
 // все функции тихо возвращают null — вызывающий код падает обратно
 // на локальное поведение (как было до backend). Никто, кто просто открыл
 // GitHub Pages без запущенного сервера, ничего не замечает и не теряет.
-import { API_BASE } from './config.js?v=2609142002';
-import { tg } from './tg.js?v=2609142002';
+import { API_BASE } from './config.js?v=2609142045';
+import { tg } from './tg.js?v=2609142045';
 
 const TIMEOUT_MS = 4000;
 
@@ -38,7 +38,7 @@ async function call(method, path, body) {
 }
 
 export const api = {
-  auth: () => call('POST', '/api/auth'),
+  auth: startParam => call('POST', '/api/auth', { startParam: startParam || '' }),
   access: () => call('GET', '/api/access'),
   grantTest: productId => call('POST', '/api/access/grant-test', { productId }),
 
@@ -49,7 +49,7 @@ export const api = {
   dateCreate: d => call('POST', '/api/dates', d),
   dateDelete: id => call('DELETE', '/api/dates/' + id),
 
-  wishlistSync: (token, title, items, dream) => call('POST', '/api/wishlist/sync', { token, title, items, dream }),
+  wishlistSync: (token, title, items, dream, shared = true, wlId = '') => call('POST', '/api/wishlist/sync', { token, title, items, dream, shared, wlId }),
   wishlistRevoke: token => call('POST', '/api/wishlist/revoke', { token }),
   wishlistPublic: token => call('GET', '/api/wishlist/' + token), // без auth — публичная ссылка получателя
 
@@ -62,5 +62,9 @@ export const api = {
 
   // Каталог из админки — идеи и сторис, которых нет в статической сборке фронтенда
   contentIdeas: () => call('GET', '/api/content/ideas'),
-  contentStories: () => call('GET', '/api/content/stories')
+  contentStories: () => call('GET', '/api/content/stories'),
+  contentFriends: () => call('GET', '/api/content/friends'),
+
+  ugcSubmit: a => call('POST', '/api/ugc', a),
+  ugcStatus: () => call('GET', '/api/ugc')
 };

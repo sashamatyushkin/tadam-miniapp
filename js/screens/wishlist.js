@@ -1,14 +1,14 @@
 // ── Вишлисты: свой список, шеринг и намёки ───────────────────────────
-import { state, save, track, createWishlist, removeItem, wishlistLimit, isPremium } from '../store.js?v=2609142002';
-import { deepLink } from '../config.js?v=2609142002';
-import { esc, mascot, sheet, toast, confirmSheet, plural } from '../ui.js?v=2609142002';
-import { IDEAS } from '../data/ideas.js?v=2609142002';
-import { cover } from './ideas.js?v=2609142002';
-import { tg } from '../tg.js?v=2609142002';
-import { go, back } from '../app.js?v=2609142002';
-import { maybeShowTips } from './coach.js?v=2609142002';
-import { openHint } from './hint.js?v=2609142002';
-import { api, apiAvailable } from '../api.js?v=2609142002';
+import { state, save, track, createWishlist, removeItem, wishlistLimit, isPremium, syncWishlists } from '../store.js?v=2609142045';
+import { deepLink } from '../config.js?v=2609142045';
+import { esc, mascot, sheet, toast, confirmSheet, plural } from '../ui.js?v=2609142045';
+import { IDEAS } from '../data/ideas.js?v=2609142045';
+import { cover } from './ideas.js?v=2609142045';
+import { tg } from '../tg.js?v=2609142045';
+import { go, back } from '../app.js?v=2609142045';
+import { maybeShowTips } from './coach.js?v=2609142045';
+import { openHint } from './hint.js?v=2609142045';
+import { api, apiAvailable } from '../api.js?v=2609142045';
 
 
 // Пустой вишлист показываем не голой надписью, а примерами: человек сразу видит,
@@ -167,6 +167,7 @@ function addOwn(wl) {
       const link = normalizeLink(el.querySelector('#l').value);
       if (link === false) return toast('Ссылка должна начинаться с https://');
       wl.items.push({ id: Math.random().toString(36).slice(2, 10), title: t, desc: el.querySelector('#d').value.trim(), link: link || '', addedAt: Date.now() });
+      syncWishlists();
       track('own_wish_added', { wl: wl.id });
       save(); close(); tg.haptic('success'); go('wl', { id: wl.id }, true);
     };
@@ -223,14 +224,15 @@ function shareSheet(wl) {
     </div>`, (el, close) => {
     // Публикуем на backend, чтобы ссылка реально открывала список у получателя,
     // а не заглушку. Без backend — просто честно предупреждаем в подписи ниже.
-    const syncNow = () => { if (apiAvailable()) api.wishlistSync(wl.shareToken, wl.title, wl.items, state.profile.dreamGift); };
+    const syncNow = () => { if (apiAvailable()) api.wishlistSync(wl.shareToken, wl.title, wl.items, state.profile.dreamGift, true, wl.id); };
     el.querySelector('#send').onclick = () => {
       wl.shared = true; save(); track('wishlist_shared', { wl: wl.id });
       syncNow();
       tg.share(url, text); close();
     };
     el.querySelector('#copy').onclick = async () => {
-      syncNow();
+      // скопированная ссылка — тоже отправленная: без shared сервер не откроет список получателю
+      wl.shared = true; save(); syncNow();
       try { await navigator.clipboard.writeText(text + '\n' + url); toast('Скопировано'); } catch (e) { toast(url); }
     };
     el.querySelector('#revoke').onclick = () => {
@@ -239,6 +241,7 @@ function shareSheet(wl) {
       wl.shareToken = [...a].map(b => b.toString(16).padStart(2, '0')).join('');
       wl.shared = false; save(); track('share_link_revoked', { wl: wl.id });
       if (apiAvailable()) api.wishlistRevoke(oldToken); // старая ссылка перестаёт открываться и на сервере
+      syncWishlists();                                   // новый токен — нерасшаренный список, виден только в админке
       close(); toast('Старая ссылка больше не работает');
     };
   });

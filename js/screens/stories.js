@@ -1,11 +1,11 @@
 // ── Сторис на главной (как в банковских приложениях) ────────────────
 // Подборка под ситуацию: сезон, ближайшая дата близкого, механики.
 // Каждая сторис ведёт в конкретный повод, вишлист или механику.
-import { state, save, track, daysUntil, isPremium, profileFilled } from '../store.js?v=2609142002';
-import { CATEGORIES } from '../config.js?v=2609142002';
-import { esc, mascot, plural } from '../ui.js?v=2609142002';
-import { tg } from '../tg.js?v=2609142002';
-import { go } from '../app.js?v=2609142002';
+import { state, save, track, daysUntil, isPremium, profileFilled } from '../store.js?v=2609142045';
+import { CATEGORIES } from '../config.js?v=2609142045';
+import { esc, mascot, plural } from '../ui.js?v=2609142045';
+import { tg } from '../tg.js?v=2609142045';
+import { go } from '../app.js?v=2609142045';
 
 const G = {
   ny:     'linear-gradient(160deg,#1F7A55,#54B183)',

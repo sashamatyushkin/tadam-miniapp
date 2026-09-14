@@ -1,20 +1,21 @@
 // ── Точка входа и роутер ─────────────────────────────────────────────
-import { tg } from './tg.js?v=2609142002';
-import { load, save, state, track, registerReferral, syncAccessFromServer, syncReferral, resetAll } from './store.js?v=2609142002';
-import { api, apiAvailable } from './api.js?v=2609142002';
-import { $, closeSheet, sheetOpen } from './ui.js?v=2609142002';
+import { tg } from './tg.js?v=2609142045';
+import { load, save, state, track, registerReferral, syncAccessFromServer, syncReferral, resetAll, syncWishlists, syncDates } from './store.js?v=2609142045';
+import { api, apiAvailable } from './api.js?v=2609142045';
+import { $, closeSheet, sheetOpen } from './ui.js?v=2609142045';
 
-import * as Onboarding from './screens/onboarding.js?v=2609142002';
-import * as Home from './screens/home.js?v=2609142002';
-import * as Ideas from './screens/ideas.js?v=2609142002';
-import * as Wishlist from './screens/wishlist.js?v=2609142002';
-import * as Wheel from './screens/wheel.js?v=2609142002';
-import * as Profile from './screens/profile.js?v=2609142002';
-import * as Dates from './screens/dates.js?v=2609142002';
-import * as Extra from './screens/extra.js?v=2609142002';
-import { dismissTour } from './screens/coach.js?v=2609142002';
-import { addAdminIdeas } from './data/ideas.js?v=2609142002';
-import { addAdminStories } from './screens/stories.js?v=2609142002';
+import * as Onboarding from './screens/onboarding.js?v=2609142045';
+import * as Home from './screens/home.js?v=2609142045';
+import * as Ideas from './screens/ideas.js?v=2609142045';
+import * as Wishlist from './screens/wishlist.js?v=2609142045';
+import * as Wheel from './screens/wheel.js?v=2609142045';
+import * as Profile from './screens/profile.js?v=2609142045';
+import * as Dates from './screens/dates.js?v=2609142045';
+import * as Extra from './screens/extra.js?v=2609142045';
+import { dismissTour } from './screens/coach.js?v=2609142045';
+import { addAdminIdeas } from './data/ideas.js?v=2609142045';
+import { BRAND_FRIENDS } from './config.js?v=2609142045';
+import { addAdminStories } from './screens/stories.js?v=2609142045';
 
 const ROUTES = {
   onboarding: Onboarding.render,
@@ -104,9 +105,13 @@ async function boot() {
 
   // Не блокируем запуск: если backend недоступен или тормозит, приложение
   // продолжает работать локально, как и раньше.
-  if (apiAvailable()) { api.auth().then(() => syncReferral()); syncAccessFromServer(); loadAdminContent(); }
-
   const sp = tg.startParam();
+  if (apiAvailable()) {
+    // auth первым: он создаёт пользователя на сервере и запоминает, откуда тот пришёл
+    api.auth(sp).then(() => { syncReferral(); syncAccessFromServer(); syncWishlists(); syncDates(); });
+    loadAdminContent();
+  }
+
   // Тестовый запуск «с нуля»: каждый вход по debug-ссылке стирает данные и начинает со знакомства
   if (sp === 'debug') { resetAll(); save(true); }
   registerReferral(sp);
@@ -128,8 +133,9 @@ async function boot() {
 // а если что-то уже нарисовано (главная или каталог) — перерисовываем той же командой,
 // что и обычная навигация, чтобы новый контент появился без перезахода в приложение.
 async function loadAdminContent() {
-  const [ideasRes, storiesRes] = await Promise.all([api.contentIdeas(), api.contentStories()]);
+  const [ideasRes, storiesRes, friendsRes] = await Promise.all([api.contentIdeas(), api.contentStories(), api.contentFriends()]);
   let changed = false;
+  if (friendsRes?.ok) BRAND_FRIENDS.splice(0, BRAND_FRIENDS.length, ...friendsRes.items);
   if (ideasRes?.ok && ideasRes.items.length) { addAdminIdeas(ideasRes.items); changed = true; }
   if (storiesRes?.ok && storiesRes.items.length) { addAdminStories(storiesRes.items); changed = true; }
   if (changed && (current.route === 'home' || current.route === 'cat')) go(current.route, current.params, true);

@@ -127,8 +127,47 @@ for (const ddl of [
   "ALTER TABLE users ADD COLUMN interests TEXT",
   "ALTER TABLE users ADD COLUMN profile_updated_at INTEGER",
   "ALTER TABLE users ADD COLUMN dream_gift TEXT",
-  "ALTER TABLE wishlists ADD COLUMN dream TEXT"
+  "ALTER TABLE wishlists ADD COLUMN dream TEXT",
+  // откуда пришёл человек: промокод (p_…), приглашение (r…), намёк (h_/w_) или прямой вход
+  "ALTER TABLE users ADD COLUMN source TEXT",
+  "ALTER TABLE users ADD COLUMN last_seen_at INTEGER",
+  // вишлист теперь синхронизируется всегда (для админки), а по ссылке открывается только расшаренный.
+  // DEFAULT 1 — все строки до этой миграции попадали в базу только при шеринге
+  "ALTER TABLE wishlists ADD COLUMN shared INTEGER NOT NULL DEFAULT 1",
+  "ALTER TABLE wishlists ADD COLUMN wl_id TEXT"
 ]) { try { db.exec(ddl); } catch (e) { /* колонка уже есть */ } }
+
+db.exec(`
+CREATE TABLE IF NOT EXISTS admin_friends (
+  id TEXT PRIMARY KEY,
+  nick TEXT NOT NULL,
+  platform TEXT NOT NULL DEFAULT '',
+  idea TEXT NOT NULL DEFAULT '',
+  desc TEXT NOT NULL DEFAULT '',
+  link TEXT NOT NULL DEFAULT '',
+  created_at INTEGER NOT NULL
+);
+
+-- Заявки в программу «Твори с Та-дам». Раньше оставались только на телефоне автора.
+CREATE TABLE IF NOT EXISTS ugc_applications (
+  id TEXT PRIMARY KEY,
+  user_id INTEGER NOT NULL,
+  platform TEXT NOT NULL,
+  link TEXT NOT NULL,
+  nick TEXT NOT NULL,
+  views INTEGER NOT NULL DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'submitted',   -- submitted | approved_basic | approved_100k | rejected
+  created_at INTEGER NOT NULL,
+  reviewed_at INTEGER
+);
+
+-- Промокоды для рекламы у блогеров: ссылка t.me/<бот>?start=p_<code>
+CREATE TABLE IF NOT EXISTS promo_codes (
+  code TEXT PRIMARY KEY,
+  title TEXT NOT NULL DEFAULT '',
+  created_at INTEGER NOT NULL
+);
+`);
 
 db.exec(`
 CREATE TABLE IF NOT EXISTS referral_codes (
@@ -137,11 +176,15 @@ CREATE TABLE IF NOT EXISTS referral_codes (
 );
 `);
 
-export function upsertUser(user) {
+// source записывается один раз — при первом появлении человека. Повторные входы
+// по другим ссылкам не переписывают, откуда он пришёл изначально.
+export function upsertUser(user, source) {
+  const now = Date.now();
   db.prepare(`
-    INSERT INTO users (id, first_name, username, created_at) VALUES (?, ?, ?, ?)
-    ON CONFLICT(id) DO UPDATE SET first_name = excluded.first_name, username = excluded.username
-  `).run(user.id, user.first_name || '', user.username || '', Date.now());
+    INSERT INTO users (id, first_name, username, created_at, source, last_seen_at) VALUES (?, ?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET first_name = excluded.first_name, username = excluded.username,
+      source = COALESCE(users.source, excluded.source), last_seen_at = excluded.last_seen_at
+  `).run(user.id, user.first_name || '', user.username || '', now, source || null, now);
 }
 
 export function getEntitlement(userId) {
