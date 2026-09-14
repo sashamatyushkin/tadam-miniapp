@@ -2,9 +2,9 @@
 // Механика подсмотрена в проекте «ЛМ воронка» (components/Tour.tsx):
 // вырез рисуем не clip-path, а огромной тенью вокруг рамки — так у выреза
 // настоящее скругление. Блюр добавляем четырьмя панелями вокруг выреза.
-import { tipSeen, markTip, track } from '../store.js?v=2609141730';
-import { $, mascot, esc } from '../ui.js?v=2609141730';
-import { tg } from '../tg.js?v=2609141730';
+import { tipSeen, markTip, track } from '../store.js?v=2609141746';
+import { $, mascot, esc } from '../ui.js?v=2609141746';
+import { tg } from '../tg.js?v=2609141746';
 
 // sel — что подсветить, pad — отступ вокруг, place — где предпочтительно карточка
 const TOURS = {

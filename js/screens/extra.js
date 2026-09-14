@@ -1,16 +1,16 @@
 // ── Квест, paywall, рефералы, UGC, друзья бренда, настройки, намёк ───
-import { CONFIG, CATEGORIES, BRAND_FRIENDS, RECIPIENTS, INTERESTS, SOCIAL, deepLink, TELEGRAM } from '../config.js?v=2609141730';
-import { IDEAS, IDEAS_BY_CAT } from '../data/ideas.js?v=2609141730';
+import { CONFIG, CATEGORIES, BRAND_FRIENDS, RECIPIENTS, INTERESTS, SOCIAL, deepLink, TELEGRAM } from '../config.js?v=2609141746';
+import { IDEAS, IDEAS_BY_CAT } from '../data/ideas.js?v=2609141746';
 import {
   state, save, track, questSteps, questComplete, issueQuestReward,
   isPremium, accessLabel, grantAccess, activeDiscount, resetAll, resetTips,
   addToWishlist, defaultWishlist, inWishlist, planId, profileFilled
-} from '../store.js?v=2609141730';
-import { esc, mascot, sheet, toast, confirmSheet, plural } from '../ui.js?v=2609141730';
-import { tg } from '../tg.js?v=2609141730';
-import { go, back } from '../app.js?v=2609141730';
-import { openHint } from './hint.js?v=2609141730';
-import { api, apiAvailable } from '../api.js?v=2609141730';
+} from '../store.js?v=2609141746';
+import { esc, mascot, sheet, toast, confirmSheet, plural } from '../ui.js?v=2609141746';
+import { tg } from '../tg.js?v=2609141746';
+import { go, back } from '../app.js?v=2609141746';
+import { openHint } from './hint.js?v=2609141746';
+import { api, apiAvailable } from '../api.js?v=2609141746';
 
 // ── «Заполни и получи» ───────────────────────────────────────────────
 export function renderQuest() {
@@ -225,13 +225,26 @@ export function renderPaywall({ from } = {}) {
   };
 }
 
+// Год стоит как ~4 недельных тарифа, но действует в 52 раза дольше — это и есть
+// понятная на глаз выгода, а не абстрактный процент. Считаем от реальных цен,
+// а не хардкодим — если цены в CONFIG поменяются, подпись пересчитается сама.
+function yearValueNote() {
+  const week = CONFIG.products.find(p => p.id === 'week');
+  const year = CONFIG.products.find(p => p.id === 'year');
+  if (!week || !year) return '';
+  const weeksWorth = Math.round(year.priceRub / week.priceRub);
+  return `Платишь как за ${weeksWorth} ${plural(weeksWorth, 'неделю', 'недели', 'недель')} — а premium действует весь год`;
+}
+
 function planCards(disc, only) {
   return CONFIG.products.filter(p => !only || only.includes(p.id)).map(p => {
     const price = (p.id === 'week' && disc) ? p.promoRub : p.priceRub;
-    return `<div class="plan ${p.best ? 'plan--on' : ''}" data-p="${p.id}">
+    const best = !!p.best;
+    return `<div class="plan ${best ? 'plan--best' : ''}" data-p="${p.id}">
+      ${best ? '<span class="plan__ribbon">✦ выбор большинства</span>' : ''}
       <div class="plan__top">
         <div>
-          <div style="font-weight:800">${esc(p.title)}${p.best ? ' <span class="badge100">выгоднее</span>' : ''}</div>
+          <div style="font-weight:800">${esc(p.title)}</div>
           <div class="small muted">${esc(p.sub)}</div>
         </div>
         <div style="font-weight:800;white-space:nowrap;text-align:right">
@@ -239,6 +252,7 @@ function planCards(disc, only) {
           <div class="small muted" style="font-weight:600">за ${p.per}</div>
         </div>
       </div>
+      ${best ? `<div class="plan__value">🔥 ${esc(yearValueNote())}</div>` : ''}
     </div>`;
   }).join('');
 }
@@ -355,7 +369,7 @@ export function renderInvite() {
 }
 
 // ── Награды (переиспользуем экран колеса) ────────────────────────────
-export { renderRewards } from './wheel.js?v=2609141730';
+export { renderRewards } from './wheel.js?v=2609141746';
 
 // ── Друзья бренда ────────────────────────────────────────────────────
 export function renderFriends() {

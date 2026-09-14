@@ -1,18 +1,18 @@
 // ── Точка входа и роутер ─────────────────────────────────────────────
-import { tg } from './tg.js?v=2609141730';
-import { load, save, state, track, registerReferral, syncAccessFromServer, syncReferral } from './store.js?v=2609141730';
-import { api, apiAvailable } from './api.js?v=2609141730';
-import { $, closeSheet, sheetOpen } from './ui.js?v=2609141730';
+import { tg } from './tg.js?v=2609141746';
+import { load, save, state, track, registerReferral, syncAccessFromServer, syncReferral } from './store.js?v=2609141746';
+import { api, apiAvailable } from './api.js?v=2609141746';
+import { $, closeSheet, sheetOpen } from './ui.js?v=2609141746';
 
-import * as Onboarding from './screens/onboarding.js?v=2609141730';
-import * as Home from './screens/home.js?v=2609141730';
-import * as Ideas from './screens/ideas.js?v=2609141730';
-import * as Wishlist from './screens/wishlist.js?v=2609141730';
-import * as Wheel from './screens/wheel.js?v=2609141730';
-import * as Profile from './screens/profile.js?v=2609141730';
-import * as Dates from './screens/dates.js?v=2609141730';
-import * as Extra from './screens/extra.js?v=2609141730';
-import { dismissTour } from './screens/coach.js?v=2609141730';
+import * as Onboarding from './screens/onboarding.js?v=2609141746';
+import * as Home from './screens/home.js?v=2609141746';
+import * as Ideas from './screens/ideas.js?v=2609141746';
+import * as Wishlist from './screens/wishlist.js?v=2609141746';
+import * as Wheel from './screens/wheel.js?v=2609141746';
+import * as Profile from './screens/profile.js?v=2609141746';
+import * as Dates from './screens/dates.js?v=2609141746';
+import * as Extra from './screens/extra.js?v=2609141746';
+import { dismissTour } from './screens/coach.js?v=2609141746';
 
 const ROUTES = {
   onboarding: Onboarding.render,

@@ -1,10 +1,10 @@
 /* ── Та-дам · дизайн-система (брендбук) ───────────────────────────── */
 /* WOFF2, сабсет кириллица+латиница (fonttools). Было 636 КБ в TTF/OTF на 5 файлов — стало ~88 КБ */
-@font-face{font-family:'Bups';src:url('assets/fonts/bups-Regular.woff2?v=2609141730') format('woff2');font-weight:400;font-display:swap}
-@font-face{font-family:'Nunito';src:url('assets/fonts/Nunito-Regular.woff2?v=2609141730') format('woff2');font-weight:400;font-display:swap}
-@font-face{font-family:'Nunito';src:url('assets/fonts/Nunito-SemiBold.woff2?v=2609141730') format('woff2');font-weight:600;font-display:swap}
-@font-face{font-family:'Nunito';src:url('assets/fonts/Nunito-Bold.woff2?v=2609141730') format('woff2');font-weight:700;font-display:swap}
-@font-face{font-family:'Nunito';src:url('assets/fonts/Nunito-ExtraBold.woff2?v=2609141730') format('woff2');font-weight:800;font-display:swap}
+@font-face{font-family:'Bups';src:url('assets/fonts/bups-Regular.woff2?v=2609141746') format('woff2');font-weight:400;font-display:swap}
+@font-face{font-family:'Nunito';src:url('assets/fonts/Nunito-Regular.woff2?v=2609141746') format('woff2');font-weight:400;font-display:swap}
+@font-face{font-family:'Nunito';src:url('assets/fonts/Nunito-SemiBold.woff2?v=2609141746') format('woff2');font-weight:600;font-display:swap}
+@font-face{font-family:'Nunito';src:url('assets/fonts/Nunito-Bold.woff2?v=2609141746') format('woff2');font-weight:700;font-display:swap}
+@font-face{font-family:'Nunito';src:url('assets/fonts/Nunito-ExtraBold.woff2?v=2609141746') format('woff2');font-weight:800;font-display:swap}
 
 :root{
   color-scheme:light; /* иначе системные select/date внутри светлой карточки могли отрисоваться тёмными */
@@ -245,9 +245,17 @@ h1,h2,h3,h4{margin:0}
 
 /* ── прочее ─────────────────────────────────────────────────────── */
 .paywall-box{background:var(--ice);border-radius:var(--r-lg);padding:18px;text-align:center}
-.plan{border:2px solid var(--line);border-radius:var(--r-md);padding:14px;cursor:pointer;background:var(--surface)}
-.plan--on{border-color:var(--mango)}
+.plan{position:relative;border:2px solid var(--line);border-radius:var(--r-md);padding:14px;cursor:pointer;background:var(--surface)}
 .plan__top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+/* «Выбор большинства»: приподнят над обычными карточками — толще рамка мангового
+   цвета, лёгкая тёплая подложка и тень, лента-бейдж сверху, как это делают на
+   сайтах с тарифами, чтобы взгляд сам туда попадал. */
+.plan--best{border-color:var(--mango);border-width:3px;background:linear-gradient(180deg,#FFF3E4,var(--surface) 55%);
+  box-shadow:0 10px 26px -10px rgba(247,65,1,.35);margin-top:14px;padding-top:16px}
+.plan__ribbon{position:absolute;top:-13px;left:50%;transform:translateX(-50%);white-space:nowrap;
+  background:var(--mango-dark);color:#fff;font-size:11px;font-weight:800;letter-spacing:.02em;
+  padding:5px 14px;border-radius:999px;box-shadow:0 4px 10px -3px rgba(112,39,32,.5)}
+.plan__value{margin-top:10px;padding-top:10px;border-top:1px dashed #F0C68E;font-size:12.5px;font-weight:700;color:var(--mango-dark)}
 .badge100{background:var(--mango);color:#fff;font-size:10px;font-weight:800;padding:3px 8px;border-radius:999px}
 .friend{display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid var(--line)}
 .friend__ava{width:38px;height:38px;border-radius:50%;background:var(--mango);color:#fff;display:grid;place-items:center;font-weight:800;flex:0 0 auto}
