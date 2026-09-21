@@ -3,9 +3,9 @@
 // В production источник истины — backend: доступ, лимиты, розыгрыш колеса,
 // рефералы и платежи проверяются сервером, клиент лишь отображает результат.
 
-import { tg } from './tg.js?v=2609142045';
-import { CONFIG, WHEEL } from './config.js?v=2609142045';
-import { api, apiAvailable } from './api.js?v=2609142045';
+import { tg } from './tg.js?v=2609211121';
+import { CONFIG, WHEEL, CATEGORIES, GUIDES, DOCS_VERSION } from './config.js?v=2609211121';
+import { api, apiAvailable } from './api.js?v=2609211121';
 
 const KEY = 'tadam_state_v1';
 const CHUNK = 3500; // лимит значения Telegram CloudStorage — 4096 символов
@@ -38,6 +38,11 @@ function blank() {
     rewards: [],
     extraSlots: 0,
     discountUntil: null,
+    // Призы колеса: что уже получено — чтобы повтор честно превращался в +1 спин (ТЗ, раздел 04)
+    prizes: { guides: {}, discount: null, discountUsed: false, openedCats: [], friendCodes: [] },
+    promo: null,                    // промокод от друга: { code, priceRub } — скидка на «Навсегда»
+    // Согласия по 152-ФЗ и 38-ФЗ: когда и на какую редакцию документов человек согласился
+    consents: { pd: null, ads: null, offer: null, version: null },
     referral: { code: null, invited: [], invitedBy: null, claimed: false, invitedCount: 0 },
     quest: { rewardIssued: false, rewardCode: null },
     hints: [],
@@ -84,7 +89,7 @@ async function saveCloud(json) {
   if (parts.length > 40) {                              // защита от переполнения — не пишем
     if (!warnedOverflow) {
       warnedOverflow = true;
-      import('./ui.js?v=2609142045').then(m => m.toast('Данных стало много — почисти старые вишлисты, иначе новое не сохранится'));
+      import('./ui.js?v=2609211121').then(m => m.toast('Данных стало много — почисти старые вишлисты, иначе новое не сохранится'));
     }
     return;
   }
@@ -167,19 +172,20 @@ export const isPremium = () =>
   state.access.type === 'forever' ||
   (!!state.access.until && Date.now() < state.access.until);
 
-// Полный premium — годовой тариф или «навсегда» из UGC-программы. Только он даёт
-// безлимит важных дат и напоминания за 14/7/3/1 день; недельный — нет.
+// «Навсегда» (и годовой доступ, выданный до смены тарифов) — полный premium:
+// второе колесо и напоминания о датах круглый год.
 export const isFullPremium = () =>
-  isPremium() && (state.access.type === 'year' || state.access.type === 'forever');
+  isPremium() && (state.access.type === 'forever' || state.access.type === 'year');
 
 // Текущий тариф одним словом — для сравнительной таблицы
-export const planId = () => !isPremium() ? 'free' : (isFullPremium() ? 'year' : 'week');
+export const planId = () => !isPremium() ? 'free' : (isFullPremium() ? 'forever' : 'week');
 
 export const accessLabel = () => {
   if (state.access.type === 'forever') return 'Навсегда';
   if (isPremium()) {
     const left = Math.ceil((state.access.until - Date.now()) / 86400000);
-    return `${isFullPremium() ? 'Год' : 'Неделя'} · ещё ${left} дн.`;
+    const name = { year: 'Год', gift: 'Подарок от друга' }[state.access.type] || 'На праздник';
+    return `${name} · ещё ${left} ${left % 10 === 1 && left % 100 !== 11 ? 'день' : 'дн.'}`;
   }
   return 'Бесплатный';
 };
@@ -187,14 +193,18 @@ export const accessLabel = () => {
 export function grantAccess(productId, source) {
   const p = CONFIG.products.find(x => x.id === productId);
   if (!p) return;
-  // Год поверх недели стартует от сегодня, а не прибавляется к хвосту недели:
-  // человек платит за полный premium, недельные остатки не должны сгорать внутри года.
-  const type = p.id === 'year' ? 'year' : 'week';
-  const keepTail = isPremium() && state.access.until && (type === state.access.type || state.access.type === 'holiday');
-  const base = keepTail ? state.access.until : Date.now();
   // «Навсегда» ничем не понижаем
-  if (state.access.type === 'forever' && isPremium()) return;
-  state.access = { type, until: base + p.days * 86400000, source };
+  if (state.access.type === 'forever') return;
+  if (p.id === 'forever') {
+    state.access = { type: 'forever', until: null, source };
+    // скидка из колеса или от друга — одноразовая: после покупки гасим
+    if (state.prizes.discount) state.prizes.discountUsed = true;
+    state.promo = null;
+  } else {
+    // Продление «На праздник» прибавляется к оставшимся дням, а не сжигает их
+    const base = isPremium() && state.access.until ? state.access.until : Date.now();
+    state.access = { type: 'week', until: base + p.days * 86400000, source };
+  }
   track('entitlement_issued', { product: productId, source });
   save();
   // Зеркалим на сервер: только он проверяет premium для колеса/будущих платежей —
@@ -225,11 +235,38 @@ export function categoryOpen(cat) {
 export const wishlistLimit = () =>
   isPremium() ? Infinity : CONFIG.limits.freeWishlists + state.extraSlots;
 export const datesLimit = () =>
-  isFullPremium() ? Infinity : CONFIG.limits.freeDates;
+  isPremium() ? Infinity : CONFIG.limits.freeDates;
 
-// За сколько дней напоминаем при текущем тарифе (сервер применяет то же правило сам)
+// За сколько дней напоминаем при текущем тарифе (сервер применяет то же правило сам):
+// с premium — за 14, 7, 3 и 1 день; без него — за день и только по одной дате
 export const reminderOffsets = () =>
-  isFullPremium() ? CONFIG.reminders.defaultOffsets : [1];
+  isPremium() ? CONFIG.reminders.defaultOffsets : [1];
+
+// Цена «Навсегда» с учётом скидки из колеса или промокода друга
+export function foreverPrice() {
+  const p = CONFIG.products.find(x => x.id === 'forever');
+  const fromWheel = activeDiscount() ? p.promoRub : Infinity;
+  const fromFriend = state.promo?.priceRub || Infinity;
+  return Math.min(p.priceRub, fromWheel, fromFriend);
+}
+
+// «Намекни» без premium — ограниченно: несколько карточек в сутки
+export const hintsLeftToday = () => {
+  if (isPremium()) return Infinity;
+  const day = todayStr();
+  const used = state.hints.filter(h => h.day === day).length;
+  return Math.max(0, CONFIG.limits.freeHintsPerDay - used);
+};
+
+// ── согласия ─────────────────────────────────────────────────────────
+export const consentsGiven = () => !!state.consents.pd;
+export function setConsent(kind, value) {
+  state.consents[kind] = value ? Date.now() : null;
+  state.consents.version = DOCS_VERSION;
+  track('consent_' + (value ? 'given' : 'withdrawn'), { kind });
+  save();
+  if (apiAvailable()) api.consent(kind, !!value, DOCS_VERSION);
+}
 
 // ── профиль ──────────────────────────────────────────────────────────
 export const profileFilled = () => {
@@ -365,54 +402,86 @@ function advanceSpinCounter() {
   else state.wheel.bonusSpins = Math.max(0, state.wheel.bonusSpins - 1);
 }
 
-// Для premium не разыгрываем то, что ему ничего не даёт (категория на 24 часа,
-// скидка на неделю): эти сектора выпадают из пула, остальные веса сохраняют пропорции.
-export const rewardPool = () =>
-  WHEEL.rewards.filter(r => r.weight > 0 && !(isPremium() && r.premium === false));
+// Какое колесо показываем: №2 — тарифу «Навсегда», №1 — всем остальным (ТЗ, раздел 01)
+export const wheelKind = () => isFullPremium() ? 'premium' : 'free';
+// Живые веса секторов приходят с сервера (админка) и перекрывают значения из config.js
+export function setWheelWeights(w) {
+  for (const kind of ['free', 'premium'])
+    for (const r of WHEEL[kind]) if (w?.[kind]?.[r.code] != null) r.weight = +w[kind][r.code];
+}
+export const wheelSectors = () => WHEEL[wheelKind()];
+
+const paidCats = () => CATEGORIES.filter(c => !c.free);
+// Платные поводы, которые колесо ещё не открывало и которые сейчас закрыты
+export const catsForPrize = () => isPremium() ? [] :
+  paidCats().filter(c => !state.prizes.openedCats.includes(c.id) && !(state.tempCategories[c.id] > Date.now()));
+// Код для друга: G… — подарок «3 дня premium», D… — скидка. Буква говорит, что это за код,
+// даже когда сервер недоступен.
+const friendCodeFor = kind => (kind === 'friend_gift' ? 'G' : 'D') + token().slice(0, 7).toUpperCase();
+const recentFriendCodes = () => state.prizes.friendCodes.filter(c => Date.now() - c.at < 30 * 86400000).length;
+
+// Защита от повторов: получен ли уже этот приз (тогда вместо него — честный +1 спин)
+function alreadyHave(code) {
+  if (code.startsWith('guide_')) return !!state.prizes.guides[code];
+  if (code === 'discount') return !!state.prizes.discount;
+  if (code === 'category') return !catsForPrize().length || state.rewards.some(r => r.code === 'category24' && !r.redeemed && r.expiresAt > Date.now());
+  if (code === 'friend_discount' || code === 'friend_gift') return recentFriendCodes() >= WHEEL.friendCodesPer30Days;
+  return false;
+}
 
 export function spin() {
   if (spinsAvailable() <= 0) { track('spin_rejected', { reason: 'no_spins' }); return null; }
   advanceSpinCounter();
-
-  const pool = rewardPool();
+  const pool = wheelSectors().filter(r => r.weight > 0);
   const total = pool.reduce((s, r) => s + r.weight, 0);
   let x = secureRandom() * total, picked = pool[pool.length - 1];
   for (const r of pool) { if (x < r.weight) { picked = r; break; } x -= r.weight; }
-
-  const res = { code: picked.code, title: picked.title, at: Date.now(), ruleVersion: WHEEL.ruleVersion };
-  state.wheel.history.push(res);
-  applyReward(picked.code);
-  track('spin_completed', { code: picked.code, ruleVersion: WHEEL.ruleVersion, source: 'local' });
-  save();
-  return { reward: picked, index: WHEEL.rewards.indexOf(picked) };
+  const converted = alreadyHave(picked.code);
+  const code = picked.code.startsWith('friend_') && !converted ? friendCodeFor(picked.code) : null;
+  return finishSpin(picked, converted, code, 'local');
 }
 
-// Тот же спин, но выбор награды уже сделал backend (криптостойкий RNG, честные лимиты,
-// идемпотентность по ключу — см. server/wheel.js). Используется, когда сервер доступен.
-export function applyServerSpin(code) {
-  const picked = WHEEL.rewards.find(r => r.code === code);
+// Тот же спин, но выбор и проверку повторов уже сделал backend (криптостойкий RNG,
+// честные лимиты, идемпотентность — см. server/wheel.js). Клиент только применяет итог.
+export function applyServerSpin(r) {
+  const picked = wheelSectors().find(x => x.code === r.reward);
   if (!picked) return null;
   advanceSpinCounter();
-  const res = { code: picked.code, title: picked.title, at: Date.now(), ruleVersion: WHEEL.ruleVersion };
-  state.wheel.history.push(res);
-  applyReward(picked.code);
-  track('spin_completed', { code: picked.code, ruleVersion: WHEEL.ruleVersion, source: 'server' });
-  save();
-  return { reward: picked, index: WHEEL.rewards.indexOf(picked) };
+  return finishSpin(picked, !!r.converted, r.friendCode || null, 'server');
 }
 
-export function applyReward(code) {
+function finishSpin(picked, converted, friendCode, source) {
+  state.wheel.history.push({ code: picked.code, converted, at: Date.now(), ruleVersion: WHEEL.ruleVersion });
+  if (converted) addBonusSpin();
+  else applyReward(picked.code, friendCode);
+  track('spin_completed', { code: picked.code, converted, ruleVersion: WHEEL.ruleVersion, source });
+  save();
+  return { reward: picked, converted, friendCode, index: wheelSectors().indexOf(picked) };
+}
+
+function addBonusSpin() {
+  if (state.wheel.bonusEarnedToday >= CONFIG.limits.maxBonusSpinsPerDay) return track('wheel_limit_reached', { reason: 'bonus_cap' });
+  state.wheel.bonusSpins += 1;
+  state.wheel.bonusEarnedToday += 1;
+}
+
+export function applyReward(code, friendCode) {
   const now = Date.now();
-  if (code === 'slot') state.extraSlots += 1;
-  if (code === 'spin') {
-    if (state.wheel.bonusEarnedToday < CONFIG.limits.maxBonusSpinsPerDay) {
-      state.wheel.bonusSpins += 1;
-      state.wheel.bonusEarnedToday += 1;
-    } else track('wheel_limit_reached', { reason: 'bonus_cap' });
+  if (code === 'spin') addBonusSpin();
+  if (code.startsWith('guide_')) {
+    state.prizes.guides[code] = now;
+    state.rewards.push({ id: uid(), code, title: WHEEL.free.concat(WHEEL.premium).find(r => r.code === code).title, issuedAt: now, expiresAt: null, redeemed: false });
   }
-  if (code === 'discount') { state.discountUntil = now + 86400000; track('discount_won', {}); }
-  if (code === 'category') state.rewards.push({ id: uid(), code: 'category24', title: 'Premium-категория на 24 часа', issuedAt: now, expiresAt: now + 86400000, redeemed: false });
-  if (code === 'set') state.rewards.push({ id: uid(), code: 'set', title: 'Эксклюзивная подборка', issuedAt: now, expiresAt: now + 7 * 86400000, redeemed: false });
+  if (code === 'discount') {
+    // Скидка закрепляется за человеком без срока: активировать можно когда угодно (ТЗ, раздел 02)
+    state.prizes.discount = now;
+    state.rewards.push({ id: uid(), code: 'discount', title: 'Скидка на «Навсегда»: 490 → 300 ₽', issuedAt: now, expiresAt: null, redeemed: false });
+  }
+  if (code === 'category') state.rewards.push({ id: uid(), code: 'category24', title: 'Категория на сутки', issuedAt: now, expiresAt: now + 7 * 86400000, redeemed: false });
+  if (code === 'friend_discount' || code === 'friend_gift') {
+    state.prizes.friendCodes.push({ code: friendCode, kind: code, at: now });
+    state.rewards.push({ id: uid(), code, friendCode, title: code === 'friend_gift' ? `Подарок другу: ${WHEEL.friendGiftDays} дня premium` : 'Скидка для друга', issuedAt: now, expiresAt: null, redeemed: false });
+  }
   if (code !== 'empty') track('reward_issued', { code });
   save();
 }
@@ -423,16 +492,43 @@ export function redeemCategory(rewardId, catId) {
   r.redeemed = true;
   r.catId = catId;
   state.tempCategories[catId] = Date.now() + 86400000;
+  if (!state.prizes.openedCats.includes(catId)) state.prizes.openedCats.push(catId);
   track('reward_redeemed', { code: r.code, cat: catId });
   save();
   return true;
 }
 
-export const activeDiscount = () => !!state.discountUntil && Date.now() < state.discountUntil;
+// Скидка из колеса действует, пока человек не купил «Навсегда»
+export const activeDiscount = () => !!state.prizes.discount && !state.prizes.discountUsed && !isFullPremium();
+
+// Код друга из колеса №2: G… — 3 дня premium, D… — скидка на «Навсегда».
+// Сервер проверяет, что код существует, не свой и ещё не погашен; без сервера — верим ссылке.
+export async function redeemFriendCode(raw) {
+  const code = String(raw || '').trim().toUpperCase();
+  if (!/^[GD][0-9A-F]{7}$/.test(code)) return { ok: false, error: 'bad_code' };
+  if (state.prizes.friendCodes.some(c => c.code === code)) return { ok: false, error: 'self' };
+  let kind = null;
+  if (apiAvailable()) {
+    const r = await api.friendCodeRedeem(code);
+    if (r && !r.ok) return r;
+    if (r) kind = r.kind;
+  }
+  kind = kind || (code[0] === 'G' ? 'friend_gift' : 'friend_discount');
+  if (kind === 'friend_gift') {
+    if (isFullPremium()) return { ok: false, error: 'has_forever' };
+    const base = isPremium() && state.access.until ? state.access.until : Date.now();
+    state.access = { type: isPremium() ? state.access.type : 'gift', until: base + WHEEL.friendGiftDays * 86400000, source: 'friend' };
+  } else {
+    state.promo = { code, priceRub: WHEEL.friendDiscountRub };
+  }
+  track('friend_code_redeemed', { kind });
+  save();
+  return { ok: true, kind };
+}
 
 // ── намёки и шеринг ──────────────────────────────────────────────────
 export function createHint(payload) {
-  const h = { id: uid(), token: token(), createdAt: Date.now(), ...payload };
+  const h = { id: uid(), token: token(), createdAt: Date.now(), day: todayStr(), ...payload };
   state.hints.push(h);
   track('hint_created', { idea: payload.ideaId || null });
   save();

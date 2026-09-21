@@ -195,6 +195,15 @@ a{color:var(--blue)}
   .users .tr > :nth-child(n+3){display:none}
   .donut-wrap{flex-direction:column;align-items:stretch}
 }
+.wtable{display:grid;gap:4px;margin-top:8px}
+.wrow{display:grid;grid-template-columns:1.6fr 80px 56px 1fr;gap:8px;align-items:center;font-size:13.5px;padding:4px 0;border-bottom:1px solid var(--line)}
+.wrow.wh{font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.wrow input{width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:8px;font:inherit}
+.wrow .pc{font-weight:800;color:var(--mango-dark)}
+.rules{margin:0;padding-left:18px;line-height:1.7;font-size:14px}
+.sel{padding:9px 12px;border:1px solid var(--line);border-radius:10px;font:inherit;background:#fff}
+.bank .tr{grid-template-columns:36px 2.4fr 1fr 90px 1fr 1fr 96px;align-items:start}
+@media (max-width:760px){.bank .tr{grid-template-columns:30px 1fr 90px}.bank .tr > :nth-child(n+4):not(:last-child){display:none}.bank .tr > :nth-child(3){display:none}}
 </style>
 </head>
 <body>
@@ -206,7 +215,9 @@ a{color:var(--blue)}
       <button data-v="users"><span class="ico">👥</span>Пользователи</button>
       <button data-v="growth"><span class="ico">🔗</span>Промокоды и друзья</button>
       <button data-v="ugc"><span class="ico">🎬</span>Заявки UGC<span class="badge" id="ugcBadge" hidden></span></button>
-      <button data-v="ideas"><span class="ico">🎁</span>Идеи подарков</button>
+      <button data-v="wheel"><span class="ico">🎡</span>Колесо фортуны</button>
+      <button data-v="bank"><span class="ico">📚</span>База идей</button>
+      <button data-v="ideas"><span class="ico">🎁</span>Свои идеи</button>
       <button data-v="stories"><span class="ico">⭕</span>Сторис</button>
       <button data-v="friends"><span class="ico">✨</span>Друзья бренда</button>
     </nav>
@@ -247,9 +258,27 @@ a{color:var(--blue)}
       <div id="ugc"><div class="empty">Загружаем…</div></div>
     </section>
 
+    <!-- КОЛЕСО -->
+    <section class="view" id="v-wheel">
+      <div class="pagehead"><div><h1>Колесо фортуны</h1><p>Два колеса по ТЗ: №1 — бесплатным и тарифу «На праздник», №2 — тарифу «Навсегда». Шансы меняются здесь и действуют сразу, без выкладки приложения</p></div>
+        <button class="btn soft sm" onclick="loadWheel()">↻ Обновить</button></div>
+      <div id="wheel"><div class="empty">Загружаем…</div></div>
+    </section>
+
+    <!-- БАЗА ИДЕЙ -->
+    <section class="view" id="v-bank">
+      <div class="pagehead"><div><h1>База идей</h1><p>Банк вау-идей из таблицы клиента «Та-дам_база данных». Правится в Excel и загружается скриптом tools/import_ideas.py</p></div></div>
+      <div class="toolbar">
+        <label class="search">🔍<input id="bq" placeholder="Идея, кому, интересы, где искать"></label>
+        <select id="bcat" class="sel"><option value="">Все поводы</option></select>
+        <div class="seg" id="bacc"><button data-f="" class="on">Все</button><button data-f="free">Бесплатные</button><button data-f="premium">Premium</button></div>
+      </div>
+      <div id="bank"><div class="empty">Загружаем…</div></div>
+    </section>
+
     <!-- ИДЕИ -->
     <section class="view" id="v-ideas">
-      <div class="pagehead"><div><h1>Идеи подарков</h1><p>Добавленные здесь идеи встают первыми в выбранном поводе. Встроенные идеи приложения здесь не показываются</p></div>
+      <div class="pagehead"><div><h1>Свои идеи</h1><p>Идеи сверх базы клиента: встают первыми в выбранном поводе и видны бесплатно</p></div>
         <button class="btn" onclick="openIdea()">＋ Добавить идею</button></div>
       <div id="ideas"></div>
     </section>
@@ -287,7 +316,7 @@ const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
 const plural = (n, one, few, many) => { const a = n % 10, b = n % 100; return a === 1 && b !== 11 ? one : a >= 2 && a <= 4 && (b < 10 || b >= 20) ? few : many; };
 const fmtDate = t => t ? new Date(t).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
 const ago = t => { if (!t) return '—'; const d = Math.floor((Date.now() - t) / 864e5); return d <= 0 ? 'сегодня' : d === 1 ? 'вчера' : `${d} ${plural(d, 'день', 'дня', 'дней')} назад`; };
-const PLAN = { free: 'Бесплатно', week: 'Неделя', year: 'Год', forever: 'Навсегда' };
+const PLAN = { free: 'Бесплатно', week: 'На праздник', year: 'Год (UGC)', forever: 'Навсегда' };
 const GENDER = { f: 'Женский', m: 'Мужской', x: 'Не сказал', unknown: 'Не заполнено' };
 const SOURCE = { direct: 'Сами нашли бота', promo: 'По промокоду', referral: 'Пригласил друг', hint: 'По намёку или вишлисту', other: 'Другое' };
 const BG = { mango: 'linear-gradient(160deg,#F74101,#FF8A4C)', coffee: 'linear-gradient(160deg,#702720,#9E4034)', ice: 'linear-gradient(160deg,#3E9BD6,#8FCDF2)', purple: 'linear-gradient(160deg,#6C4FD1,#A98BF0)', rose: 'linear-gradient(160deg,#C74B78,#EE86AB)', gold: 'linear-gradient(160deg,#C9861E,#F5C95C)', ny: 'linear-gradient(160deg,#1F7A55,#54B183)' };
@@ -304,7 +333,7 @@ async function api(path, opts = {}) {
 }
 
 // ── навигация ──
-const loaders = { overview: loadOverview, users: loadUsers, growth: loadGrowth, ugc: loadUgc, ideas: loadIdeas, stories: loadStories, friends: loadFriends };
+const loaders = { overview: loadOverview, users: loadUsers, growth: loadGrowth, ugc: loadUgc, wheel: loadWheel, bank: loadBank, ideas: loadIdeas, stories: loadStories, friends: loadFriends };
 function show(v) {
   document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
   document.querySelectorAll('.view').forEach(s => s.classList.toggle('on', s.id === 'v-' + v));
@@ -360,7 +389,8 @@ async function loadOverview() {
     ins.push(['👥', `Всего <b>${num(s.totalUsers)}</b> ${plural(s.totalUsers, 'пользователь', 'пользователя', 'пользователей')}, за последние 7 дней пришло <b>${num(s.new7)}</b>, заходили — <b>${num(s.active7)}</b>.`]);
     ins.push(['🙋', `Профиль заполнили <b>${pct(s.profiled, s.totalUsers)}%</b>. ${pct(s.profiled, s.totalUsers) < 40 ? 'Мало — стоит напомнить про бонус за «Заполни и получи».' : 'Хороший уровень — данных для выводов хватает.'}`]);
     if (s.giveTo[0]) ins.push(['🎯', `Чаще всего дарят <b>${esc((META.recipients[s.giveTo[0][0]] || '').toLowerCase())}</b> — это выбрали ${pct(s.giveTo[0][1], s.profiled)}% заполнивших профиль. Под эту аудиторию стоит добавлять идеи и сторис.`]);
-    ins.push(['⭐', `Premium у <b>${num(premium)}</b> (${pct(premium, s.totalUsers)}%)${premium ? `, из них на год — ${num(s.plan.year)}` : ''}.`]);
+    ins.push(['⭐', `Premium у <b>${num(premium)}</b> (${pct(premium, s.totalUsers)}%)${premium ? `, из них «Навсегда» — ${num(s.plan.forever)}` : ''}.`]);
+    ins.push(['📄', `Согласие на обработку данных дали <b>${num(s.consents.pd)}</b>, на рассылки — <b>${num(s.consents.ads)}</b> (${pct(s.consents.ads, s.consents.pd)}% из них). Оферту при оплате приняли ${num(s.consents.offer)}.`]);
     if (s.topItems[0]) ins.push(['💖', `Самое желанное в вишлистах — <b>«${esc(s.topItems[0][0])}»</b> (${s.topItems[0][1]} ${plural(s.topItems[0][1], 'раз', 'раза', 'раз')}).`]);
     const bestSrc = Object.entries(s.sources).filter(e => e[0] !== 'direct').sort((a, b) => b[1] - a[1])[0];
     if (bestSrc && bestSrc[1]) ins.push(['🔗', `Лучший канал привлечения — <b>${SOURCE[bestSrc[0]].toLowerCase()}</b>: ${num(bestSrc[1])} ${plural(bestSrc[1], 'человек', 'человека', 'человек')}.`]);
@@ -401,6 +431,7 @@ async function loadOverview() {
     <div class="sec">Колесо</div>
     <div class="grid g2">
       ${card('Какие призы выпадают', 'Все спины за всё время', donut(Object.entries(s.spins), META.rewards))}
+      ${card('Защита от повторов', 'Сколько раз уже полученный приз превратился в +1 спин', `<div class="kpi" style="padding:6px 0"><div class="v">${num(s.converted)}</div><div class="l">спинов-замен</div></div><p class="hint">Шансы и подробности — в разделе «Колесо фортуны».</p>`)}
     </div>`;
 }
 
@@ -458,9 +489,9 @@ function renderUser(u) {
         <h3>Доступ</h3>
         <p class="hint">Сейчас: ${planPill(u)} ${u.plan !== 'free' && u.plan !== 'forever' && u.until ? '· до ' + fmtDate(u.until) : ''}</p>
         <div class="access-btns">
-          <button class="btn sm soft" onclick="grant(${u.id},'week')">Неделя</button>
-          <button class="btn sm soft" onclick="grant(${u.id},'year')">Год</button>
+          <button class="btn sm soft" onclick="grant(${u.id},'week')">На праздник · 7 дней</button>
           <button class="btn sm soft" onclick="grant(${u.id},'forever')">Навсегда</button>
+          <button class="btn sm soft" onclick="grant(${u.id},'year')">Год (награда UGC)</button>
           ${u.plan !== 'free' ? `<button class="btn sm danger" onclick="grant(${u.id},'free')">Забрать доступ</button>` : ''}
         </div>
         <p class="hint" style="margin:10px 0 0">Человеку придёт сообщение от бота. В приложении доступ обновится при следующем открытии.</p>
@@ -499,11 +530,27 @@ function renderUser(u) {
         ${u.invitedUsers.length ? `<div class="bars" style="margin-top:10px">${u.invitedUsers.map(f => `<div class="small">👤 <a href="#" onclick="openUser(${f.id});return false">${esc(f.profile_name || f.first_name || f.id)}</a> <span class="muted">· ${fmtDate(f.created_at)}</span></div>`).join('')}</div>` : '<div class="empty">Пока никого</div>'}
         <p class="hint" style="margin:10px 0 0">Спинов колеса за всё время: ${u.spins}</p>
       </div>
+
+      <div class="card">
+        <h3>Призы колеса · ${u.prizes.length}</h3>
+        ${u.prizes.length ? `<div class="bars" style="margin-top:10px">${u.prizes.map(p => `<div class="small">🎁 <b>${esc(META.rewards[p.code] || (p.code === 'promo' ? 'Промокод друга: скидка' : p.code))}</b>${p.meta ? ` <code>${esc(p.meta)}</code>` : ''} <span class="muted">· ${fmtDate(p.created_at)}</span></div>`).join('')}</div>` : '<div class="empty">Пока ничего не выиграл</div>'}
+        ${u.friendCodes.length ? `<p class="hint" style="margin:10px 0 4px">Коды для друзей</p>${u.friendCodes.map(c => `<div class="small"><code>${esc(c.code)}</code> · ${c.kind === 'friend_gift' ? '3 дня premium' : 'скидка'} · ${c.redeemed_by ? `активирован ${fmtDate(c.redeemed_at)}` : 'ещё не активирован'}</div>`).join('')}` : ''}
+      </div>
+
+      <div class="card">
+        <h3>Согласия</h3>
+        <div class="facts" style="margin-top:10px">
+          ${[['pd', 'Обработка персональных данных'], ['ads', 'Рекламные рассылки'], ['offer', 'Оферта (при оплате)']].map(([k, t]) => {
+            const c = u.consents[k];
+            return `<div><div class="k">${t}</div><div class="val">${!c ? '—' : c.value ? `✅ ${fmtDate(c.created_at)}` : `отозвано ${fmtDate(c.created_at)}`}</div></div>`;
+          }).join('')}
+        </div>
+      </div>
     </div>`;
 }
 
 async function grant(id, plan) {
-  const text = { week: 'Выдать premium на неделю?', year: 'Выдать premium на год?', forever: 'Выдать premium навсегда?', free: 'Забрать доступ? Человек вернётся на бесплатный тариф.' }[plan];
+  const text = { week: 'Выдать «На праздник» — premium на 7 дней?', year: 'Выдать premium на год?', forever: 'Выдать premium навсегда?', free: 'Забрать доступ? Человек вернётся на бесплатный тариф.' }[plan];
   if (!confirm(text)) return;
   try {
     const { user } = await api(`/admin/api/users/${id}/access`, { method: 'POST', body: { plan } });
@@ -611,6 +658,102 @@ async function removeItem(kind, id, what, reload) {
   await api(`/admin/api/${kind}/${id}`, { method: 'DELETE' }); toast('Удалено'); reload();
 }
 
+// ── КОЛЕСО ──
+const WHEEL_NAMES = { free: 'Колесо №1 · бесплатные и «На праздник»', premium: 'Колесо №2 · «Навсегда»' };
+async function loadWheel() {
+  const d = await api('/admin/api/wheel').catch(() => null);
+  if (!d) return $('#wheel').innerHTML = '<div class="blank"><b>Не получилось загрузить</b>Проверь, что сервер запущен</div>';
+  const fc = d.friendCodes;
+  $('#wheel').innerHTML = `
+    <div class="grid g4">
+      <div class="card kpi"><div class="v">${num(d.totalSpins)}</div><div class="l">Спинов по новым правилам</div></div>
+      <div class="card kpi"><div class="v">${num(d.discounts)}</div><div class="l">Скидок 490 → 300 ₽ выдано</div></div>
+      <div class="card kpi"><div class="v">${num(d.categoriesOpened)}</div><div class="l">Категорий на сутки</div></div>
+      <div class="card kpi"><div class="v">${num((fc.friend_gift?.used || 0) + (fc.friend_discount?.used || 0))}</div><div class="l">Друзей пришло по кодам</div><div class="d muted">из ${num((fc.friend_gift?.issued || 0) + (fc.friend_discount?.issued || 0))} выданных</div></div>
+    </div>
+    <div class="grid g2" style="margin-top:14px">
+      ${['free', 'premium'].map(kind => {
+        const w = d.weights[kind], total = Object.values(w).reduce((a, b) => a + b, 0);
+        return `<form class="card" data-kind="${kind}" onsubmit="saveWheel(event)">
+          <h3>${WHEEL_NAMES[kind]}</h3>
+          <p class="hint">Шанс — вес сектора. Процент пересчитывается сам. «Повезёт в следующий раз» должен выпадать чаще ценных призов.</p>
+          <div class="wtable">
+            <div class="wrow wh"><div>Сектор</div><div>Вес</div><div>Шанс</div><div>Выпало</div></div>
+            ${META.wheel[kind].map(code => {
+              const dr = d.drawn[code] || { n: 0, converted: 0 };
+              return `<div class="wrow"><div>${esc(META.rewards[code])}</div>
+                <div><input type="number" min="0" max="1000" name="${code}" value="${w[code]}" oninput="wheelPct(this.form)"></div>
+                <div class="pc" data-pc="${code}">${pct(w[code], total)}%</div>
+                <div class="small">${num(dr.n)}${dr.converted ? ` <span class="muted">(${num(dr.converted)} → +1 спин)</span>` : ''}</div></div>`;
+            }).join('')}
+          </div>
+          <div class="acts" style="margin-top:12px"><button class="btn sm" type="submit">Сохранить шансы</button></div>
+        </form>`;
+      }).join('')}
+    </div>
+    <div class="sec">Гайды-призы</div>
+    <div class="grid g2">
+      ${d.guides.map(g => `<div class="card"><div style="display:flex;gap:14px;align-items:flex-start">
+        <a href="${esc(g.url)}" target="_blank" rel="noopener"><img src="${esc(g.url)}" alt="" style="width:96px;border-radius:10px;border:1px solid var(--line)"></a>
+        <div><h3>${esc(g.title)}</h3><p class="hint">Получили: <b>${num(g.holders)}</b> ${plural(g.holders, 'человек', 'человека', 'человек')}. Повторно не выпадает — вместо него +1 спин.</p>
+        <a class="small" href="${esc(g.url)}" target="_blank" rel="noopener">Открыть гайд →</a></div></div></div>`).join('')}
+    </div>
+    <div class="sec">Правила из ТЗ</div>
+    <div class="card"><ul class="rules">
+      <li>1 бесплатный спин в сутки + 1 спин за каждого приглашённого друга (до 5 в сутки).</li>
+      <li>Гайды и скидка 490 → 300 ₽ выдаются один раз; при повторе — +1 спин.</li>
+      <li>«Категория на сутки» открывает ещё не открытую категорию; если все открыты (или есть premium) — +1 спин.</li>
+      <li>Скидка для друга и подарок другу (3 дня premium) — новый уникальный код каждый раз, не больше 3 за 30 дней; сверх лимита — +1 спин.</li>
+    </ul></div>`;
+}
+function wheelPct(f) {
+  const vals = [...f.querySelectorAll('input[type=number]')].map(i => [i.name, Math.max(0, +i.value || 0)]);
+  const total = vals.reduce((s, v) => s + v[1], 0);
+  for (const [code, v] of vals) f.querySelector(`[data-pc="${code}"]`).textContent = pct(v, total) + '%';
+}
+async function saveWheel(e) {
+  e.preventDefault();
+  const f = e.target, weights = Object.fromEntries([...f.querySelectorAll('input[type=number]')].map(i => [i.name, +i.value]));
+  try { await api('/admin/api/wheel', { method: 'POST', body: { kind: f.dataset.kind, weights } }); toast('Шансы сохранены — уже действуют'); loadWheel(); }
+  catch (err) { toast(err.message); }
+}
+
+// ── БАЗА ИДЕЙ ──
+let bank = [], bState = { q: '', cat: '', acc: '' };
+async function loadBank() {
+  if (!bank.length) bank = (await api('/admin/api/bank').catch(() => ({ items: [] }))).items;
+  const sel = $('#bcat');
+  if (sel.options.length === 1) sel.innerHTML += Object.entries(META.categories).map(([k, v]) => `<option value="${k}">${esc(v)} · ${bank.filter(i => i.cat === k).length}</option>`).join('');
+  renderBank();
+}
+function renderBank() {
+  const q = bState.q.toLowerCase();
+  const rows = bank.filter(i => (!bState.cat || i.cat === bState.cat) && (!bState.acc || (bState.acc === 'free') === i.free)
+    && (!q || (i.title + ' ' + i.why + ' ' + i.who + ' ' + i.tags + ' ' + i.where).toLowerCase().includes(q)));
+  const free = bank.filter(i => i.free).length;
+  $('#bank').innerHTML = `
+    <p class="hint" style="margin:0 0 10px">Всего <b>${num(bank.length)}</b> ${plural(bank.length, 'идея', 'идеи', 'идей')} в 13 поводах · бесплатных ${num(free)} (по 20 в «День рождения», «Новый год», «Просто так») · показано ${num(rows.length)}</p>
+    <div class="table bank">
+      <div class="tr head"><div>№</div><div>Идея · почему вау</div><div>Кому</div><div>Бюджет</div><div>Интересы</div><div>Где искать</div><div>Доступ</div></div>
+      ${rows.slice(0, 300).map(i => `<div class="tr">
+        <div class="muted small">${i.n}</div>
+        <div><b>${esc(i.title)}</b><div class="small muted">${esc(i.why)}</div>${bState.cat ? '' : `<div class="small" style="color:var(--mango-dark)">${esc(META.categories[i.cat])}</div>`}</div>
+        <div class="small">${esc(i.who)}</div>
+        <div class="small">${esc(META.budgets[i.budget])}</div>
+        <div class="small">${esc(i.tags)}</div>
+        <div class="small">${esc(i.where)}</div>
+        <div>${i.free ? '<span class="pill p-free">бесплатно</span>' : '<span class="pill p-forever">premium</span>'}</div>
+      </div>`).join('')}
+    </div>
+    ${rows.length > 300 ? '<p class="hint">Показаны первые 300 — уточни поиск или выбери повод</p>' : ''}`;
+}
+let bTimer;
+$('#bq').oninput = e => { clearTimeout(bTimer); bTimer = setTimeout(() => { bState.q = e.target.value.trim(); renderBank(); }, 200); };
+$('#bcat').onchange = e => { bState.cat = e.target.value; renderBank(); };
+document.querySelectorAll('#bacc button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('#bacc button').forEach(x => x.classList.toggle('on', x === b)); bState.acc = b.dataset.f; renderBank();
+});
+
 // ── ИДЕИ ──
 let ideas = [];
 async function loadIdeas() {
@@ -631,16 +774,21 @@ function openIdea(id) {
       <div class="f"><label>Бюджет</label><select name="budget" required><option value="">Выбери</option>${opts(META.budgets, i.budget)}</select></div>
     </div>
     <div class="f"><label>Название</label><input name="title" required maxlength="80" value="${esc(i.title)}" placeholder="Именная виноградная лоза"></div>
-    <div class="f"><label>Короткое описание · видно в списке</label><input name="desc" maxlength="140" value="${esc(i.desc)}" placeholder="лоза на винодельне и вино с именной этикеткой"></div>
+    <div class="f"><label>Почему вау · видно в списке</label><input name="desc" maxlength="140" value="${esc(i.desc)}" placeholder="лоза на винодельне и вино с именной этикеткой"></div>
     <div class="f"><label>Подробно · видно в карточке идеи</label><textarea name="long" rows="3" maxlength="600">${esc(i.long_desc)}</textarea></div>
-    <div class="f"><label>Кому подойдёт</label>${chipset('recipients', META.recipients, i.recipients)}</div>
-    <div class="f"><label>Интересы</label>${chipset('interests', META.interests, i.interests)}</div>
+    <div class="f"><label>Кому подойдёт · для фильтра</label>${chipset('recipients', META.recipients, i.recipients)}</div>
+    <div class="row2">
+      <div class="f"><label>Кому · как в карточке</label><input name="who" maxlength="80" value="${esc(i.who)}" placeholder="друг, партнёр"></div>
+      <div class="f"><label>Где искать</label><input name="where" maxlength="80" value="${esc(i.where_to)}" placeholder="Винодельни с программой"></div>
+    </div>
+    <div class="f"><label>Интересы · для фильтра</label>${chipset('interests', Object.fromEntries(Object.entries(META.interests).slice(0, 14)), i.interests)}</div>
+    <div class="f"><label>Интересы · как в карточке</label><input name="tags" maxlength="80" value="${esc(i.tags)}" placeholder="вино, статус"></div>
     <div class="row2">
       <div class="f"><label>Ссылка «где купить» · по желанию</label><input name="buy" type="url" value="${esc(i.buy)}" placeholder="https://"></div>
       <div class="f"><label>Фото · ссылка на картинку</label><input name="photo" type="url" value="${esc(i.photo)}" placeholder="https://"></div>
     </div>`,
     async f => {
-      await api('/admin/api/ideas', { method: 'POST', body: { id, cat: f.cat.value, budget: +f.budget.value, title: f.title.value, desc: f.desc.value, long: f.long.value, buy: f.buy.value, photo: f.photo.value, recipients: checked(f, 'recipients'), interests: checked(f, 'interests') } });
+      await api('/admin/api/ideas', { method: 'POST', body: { id, cat: f.cat.value, budget: +f.budget.value, title: f.title.value, desc: f.desc.value, long: f.long.value, buy: f.buy.value, photo: f.photo.value, recipients: checked(f, 'recipients'), interests: checked(f, 'interests'), who: f.who.value, tags: f.tags.value, where: f.where.value } });
       toast(id ? 'Идея обновлена' : 'Идея добавлена ✨'); loadIdeas();
     }, id ? 'Сохранить' : 'Добавить');
 }

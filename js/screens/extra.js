@@ -1,16 +1,16 @@
 // ── Квест, paywall, рефералы, UGC, друзья бренда, настройки, намёк ───
-import { CONFIG, CATEGORIES, BRAND_FRIENDS, RECIPIENTS, INTERESTS, SOCIAL, DEBUG, deepLink, TELEGRAM } from '../config.js?v=2609142045';
-import { IDEAS, IDEAS_BY_CAT } from '../data/ideas.js?v=2609142045';
+import { CONFIG, CATEGORIES, BRAND_FRIENDS, RECIPIENTS, INTERESTS, SOCIAL, DEBUG, deepLink, TELEGRAM, WHEEL, DOCS } from '../config.js?v=2609211121';
+import { IDEAS, IDEAS_BY_CAT } from '../data/ideas.js?v=2609211121';
 import {
   state, save, track, questSteps, questComplete, issueQuestReward,
-  isPremium, accessLabel, grantAccess, activeDiscount, resetAll, resetTips,
-  addToWishlist, defaultWishlist, inWishlist, planId, profileFilled
-} from '../store.js?v=2609142045';
-import { esc, mascot, sheet, toast, confirmSheet, plural } from '../ui.js?v=2609142045';
-import { tg } from '../tg.js?v=2609142045';
-import { go, back } from '../app.js?v=2609142045';
-import { openHint } from './hint.js?v=2609142045';
-import { api, apiAvailable } from '../api.js?v=2609142045';
+  isPremium, isFullPremium, accessLabel, grantAccess, resetAll, resetTips, foreverPrice, setConsent,
+  addToWishlist, defaultWishlist, inWishlist, planId, profileFilled, redeemFriendCode
+} from '../store.js?v=2609211121';
+import { esc, mascot, sheet, toast, confirmSheet, plural } from '../ui.js?v=2609211121';
+import { tg } from '../tg.js?v=2609211121';
+import { go, back } from '../app.js?v=2609211121';
+import { openHint } from './hint.js?v=2609211121';
+import { api, apiAvailable } from '../api.js?v=2609211121';
 
 // ── «Заполни и получи» ───────────────────────────────────────────────
 export function renderQuest() {
@@ -138,22 +138,51 @@ export function renderMe() {
   };
 }
 
-// ── Сравнение тарифов ────────────────────────────────────────────────
+// ── Тарифы: таблица как в «Та-дам тарифы.pdf» ──────────────────────
+// Колонки: бесплатно (крючок) · на праздник (кофейная) · навсегда (манго, «выгодно»).
+const PLAN_COLS = [
+  { id: 'free', name: 'бесплатно', price: '0 ₽', sub: 'крючок' },
+  { id: 'week', name: 'на праздник', price: '149 ₽', sub: 'доступ 7 дней' },
+  { id: 'forever', name: 'навсегда', price: '490 ₽', sub: 'бессрочно', badge: 'выгодно' }
+];
+const GOOD = /^(✓|без лимита|полностью)$/;
+
 function compareTable() {
   const cur = planId();
-  const head = [['free', 'Бесплатно'], ['week', '149 ₽<br>неделя'], ['year', '599 ₽<br>год']];
+  const fp = foreverPrice();
+  const price = c => c.id === 'forever' && fp < 490 ? `<s>490</s> ${fp} ₽` : c.price;
   return `
-    <div class="cmp">
-      <div class="cmp__row cmp__head">
-        <div class="cmp__name"></div>
-        ${head.map(([id, t]) => `<div class="cmp__cell ${id === cur ? 'cmp__cell--cur' : ''} ${id === 'year' ? 'cmp__cell--best' : ''}"><div>${t}${id === cur ? '<span class="cmp__now">у тебя</span>' : ''}</div></div>`).join('')}
-      </div>
-      ${CONFIG.compare.map(([name, ...vals]) => `
-        <div class="cmp__row">
-          <div class="cmp__name">${esc(name)}</div>
-          ${vals.map((v, k) => `<div class="cmp__cell ${head[k][0] === cur ? 'cmp__cell--cur' : ''} ${head[k][0] === 'year' ? 'cmp__cell--best' : ''}">${esc(v)}</div>`).join('')}
+    <div class="tariff">
+      <div class="tariff__row tariff__head">
+        <div></div>
+        ${PLAN_COLS.map(c => `<div class="tariff__col tariff__col--${c.id}">
+          ${c.badge ? `<span class="tariff__badge">${c.badge}</span>` : ''}
+          <div class="bups tariff__name">${c.name}</div>
+          <div class="bups tariff__price">${price(c)}</div>
+          <div class="tariff__sub">${c.sub}</div>
+          ${c.id === cur ? '<span class="tariff__now">у тебя</span>' : ''}
         </div>`).join('')}
+      </div>
+      ${CONFIG.compare.map(([name, hint, ...vals]) => `
+        <div class="tariff__row">
+          <div class="tariff__label"><b>${esc(name)}</b>${hint ? `<span>${esc(hint)}</span>` : ''}</div>
+          ${vals.map((v, k) => `<div class="tariff__cell tariff__cell--${PLAN_COLS[k].id} ${GOOD.test(v) ? 'tariff__cell--good' : ''}">${esc(v)}</div>`).join('')}
+        </div>`).join('')}
+      <div class="tariff__row tariff__foot">
+        <div></div><div></div>
+        <div class="tariff__cell tariff__cell--week"><span class="bups">149 ₽</span></div>
+        <div class="tariff__cell tariff__cell--forever"><span class="bups">${fp} ₽</span></div>
+      </div>
     </div>`;
+}
+
+// «Кому 149 ₽ / Кому 490 ₽» — карточки из тарифной сетки клиента
+function whoCards() {
+  return `<div class="whocards">${CONFIG.products.map(p => `
+    <div class="whocard whocard--${p.id}">
+      <div class="bups whocard__t">кому ${p.priceRub} ₽</div>
+      <p>${esc(p.who)}</p>
+    </div>`).join('')}</div>`;
 }
 
 // ── Замок повода: сначала объясняем, что внутри, потом ведём на оплату ──
@@ -162,8 +191,6 @@ export function openLockSheet(catId) {
   if (!cat) return go('paywall', { from: 'category' });
   const list = IDEAS_BY_CAT[catId] || [];
   const teaser = list.slice(0, 3);
-  const disc = activeDiscount();
-  const price = disc ? CONFIG.products[0].promoRub : CONFIG.products[0].priceRub;
   track('locked_category_sheet', { cat: catId });
 
   sheet(`
@@ -173,7 +200,7 @@ export function openLockSheet(catId) {
         <div class="bups lockhead__name">${esc(cat.name).replace(/\n/g, ' ')}</div>
         <div class="lockhead__lock">🔒</div>
       </div>
-      <p class="muted small center">Внутри ${list.length} ${plural(list.length, 'идея', 'идеи', 'идей')} под этот повод. Вот три из них:</p>
+      <p class="muted small center">Внутри ${list.length} ${plural(list.length, 'вау-идея', 'вау-идеи', 'вау-идей')} под этот повод. Вот три из них:</p>
       <div class="peek">
         ${teaser.map(i => `
           <div class="peek__row">
@@ -187,13 +214,12 @@ export function openLockSheet(catId) {
       </div>
       <div class="card">
         <div style="font-weight:800;margin-bottom:6px">Что откроется</div>
-        <div class="small">✦ Все 13 поводов, а не три</div>
+        <div class="small">✦ Все 13 поводов и по 40 идей в каждом</div>
         <div class="small">✦ Фильтры: кому, бюджет, интересы</div>
-        <div class="small">✦ Безлимит вишлистов, дат и намёков</div>
+        <div class="small">✦ Безлимит вишлистов, намёков и напоминаний</div>
       </div>
-      <button class="btn" id="pay">Открыть за ${price} ₽ в неделю →</button>
-      <p class="small muted center" style="margin-top:-4px">или полный premium на год — 599 ₽</p>
-      ${disc ? '<p class="small center" style="color:var(--mango);font-weight:700">Скидка из колеса действует 24 часа 🎉</p>' : ''}
+      <button class="btn" id="pay">Открыть за 149 ₽ на 7 дней →</button>
+      <p class="small muted center" style="margin-top:-4px">или навсегда — ${foreverPrice()} ₽</p>
       <button class="btn btn--ghost" id="later">Может, позже</button>
     </div>`, (el, close) => {
     el.querySelector('#pay').onclick = () => { close(); go('paywall', { from: 'lock_sheet', cat: catId }); };
@@ -201,60 +227,32 @@ export function openLockSheet(catId) {
   });
 }
 
-// ── Paywall и «оплата» ───────────────────────────────────────────────
+// ── Paywall и оплата ─────────────────────────────────────────────────
 export function renderPaywall({ from } = {}) {
   track('paywall_viewed', { from: from || 'direct' });
-  if (isPremium()) return renderAccess();
-  const disc = activeDiscount();
-
+  if (isFullPremium()) return renderAccess();
+  const fp = foreverPrice();
   return {
     html: `
-      <div class="wrap center" style="padding-top:6px">
-        ${mascot('cool', 'mascot--md')}
-        <h1 class="bups" style="font-size:32px;color:var(--mango)">открой все поводы</h1>
-        <p class="muted small">Неделя — чтобы быстро найти подарок. Год — полный premium.</p>
+      <div class="wrap" style="padding-top:6px">
+        <div class="eyebrow">та-дам · тарифы</div>
+        <h1 class="bups" style="font-size:34px;line-height:1.02;color:var(--coffee);margin-top:6px">что входит<br>в каждый тариф</h1>
+        <p class="small" style="font-weight:700;margin-top:8px">Оба платных тарифа открывают весь premium. Разница — в сроке доступа и в том, насколько раскрываются функции «на дистанции».</p>
       </div>
       <div class="wrap stack" style="margin-top:14px">
-        ${planCards(disc)}
-        ${disc ? '<p class="small center" style="color:var(--mango);font-weight:700">Скидка на неделю из колеса действует 24 часа 🎉</p>' : ''}
-        <div class="section-title" style="margin:6px 0 0">Что входит</div>
         ${compareTable()}
+        ${whoCards()}
+        ${fp < 490 ? `<p class="small center" style="color:var(--mango);font-weight:800">🎉 Твоя скидка: «Навсегда» за ${fp} ₽ вместо 490 ₽</p>` : ''}
+        ${isPremium() ? '' : '<button class="btn btn--coffee" data-p="week">На праздник · 149 ₽</button>'}
+        <button class="btn" data-p="forever">Навсегда · ${fp} ₽</button>
+        <button class="linkbtn" id="promo">Есть промокод от друга?</button>
         <p class="small muted center">Оплата прямо в Telegram. Доступ открывается сразу после оплаты.</p>
       </div>`,
-    mount(app) { bindPlans(app); }
+    mount(app) {
+      bindPlans(app);
+      app.querySelector('#promo').onclick = () => promoSheet();
+    }
   };
-}
-
-// Год стоит как ~4 недельных тарифа, но действует в 52 раза дольше — это и есть
-// понятная на глаз выгода, а не абстрактный процент. Считаем от реальных цен,
-// а не хардкодим — если цены в CONFIG поменяются, подпись пересчитается сама.
-function yearValueNote() {
-  const week = CONFIG.products.find(p => p.id === 'week');
-  const year = CONFIG.products.find(p => p.id === 'year');
-  if (!week || !year) return '';
-  const weeksWorth = Math.round(year.priceRub / week.priceRub);
-  return `Платишь как за ${weeksWorth} ${plural(weeksWorth, 'неделю', 'недели', 'недель')} — а premium действует весь год`;
-}
-
-function planCards(disc, only) {
-  return CONFIG.products.filter(p => !only || only.includes(p.id)).map(p => {
-    const price = (p.id === 'week' && disc) ? p.promoRub : p.priceRub;
-    const best = !!p.best;
-    return `<div class="plan ${best ? 'plan--best' : ''}" data-p="${p.id}">
-      ${best ? '<span class="plan__ribbon">✦ выбор большинства</span>' : ''}
-      <div class="plan__top">
-        <div>
-          <div style="font-weight:800">${esc(p.title)}</div>
-          <div class="small muted">${esc(p.sub)}</div>
-        </div>
-        <div style="font-weight:800;white-space:nowrap;text-align:right">
-          ${(p.id === 'week' && disc) ? `<span style="text-decoration:line-through;opacity:.5;font-weight:400">${p.priceRub} ₽</span> ` : ''}${price} ₽
-          <div class="small muted" style="font-weight:600">за ${p.per}</div>
-        </div>
-      </div>
-      ${best ? `<div class="plan__value">🔥 ${esc(yearValueNote())}</div>` : ''}
-    </div>`;
-  }).join('');
 }
 
 function bindPlans(app) {
@@ -264,28 +262,59 @@ function bindPlans(app) {
   });
 }
 
+// Промокод из колеса друга: G… — 3 дня premium, D… — скидка на «Навсегда»
+export function promoSheet(prefill = '') {
+  sheet(`
+    <div class="stack">
+      <h3 class="h2">Промокод от друга</h3>
+      <p class="small muted">Друг мог выиграть его в колесе и подарить тебе: 3 дня premium или скидку на «Навсегда».</p>
+      <div class="field"><input id="code" value="${esc(prefill)}" placeholder="Например, G1A2B3C4" maxlength="8" autocapitalize="characters"></div>
+      <button class="btn" id="ok">Активировать</button>
+    </div>`, (el, close) => {
+    el.querySelector('#ok').onclick = async () => {
+      const r = await redeemFriendCode(el.querySelector('#code').value);
+      if (!r.ok) return toast({
+        bad_code: 'Такого промокода нет — проверь буквы', self: 'Это твой собственный код — отправь его другу',
+        used: 'Этот промокод уже активирован', has_forever: 'У тебя уже доступ навсегда ✨'
+      }[r.error] || 'Не получилось активировать');
+      close(); tg.haptic('success');
+      toast(r.kind === 'friend_gift' ? `Та-дам! ${WHEEL.friendGiftDays} дня premium твои 🎁` : `Скидка активна: «Навсегда» за ${WHEEL.friendDiscountRub} ₽`);
+      go(r.kind === 'friend_gift' ? 'access' : 'paywall', {}, true);
+    };
+  });
+}
+
 function payFlow(productId) {
   const p = CONFIG.products.find(x => x.id === productId);
-  const price = (p.id === 'week' && activeDiscount()) ? p.promoRub : p.priceRub;
+  const price = p.id === 'forever' ? foreverPrice() : p.priceRub;
   sheet(`
     <div class="stack center">
       ${mascot('cool', 'mascot--sm')}
       <h3 class="h2">Premium · ${esc(p.title.toLowerCase())}</h3>
-      <p class="muted">${esc(p.sub)}</p>
+      <p class="muted">${p.id === 'forever' ? 'Все поводы, идеи, фильтры и напоминания — без срока' : 'Все поводы, идеи и фильтры на 7 дней'}</p>
       <div class="bups" style="font-size:36px;color:var(--mango)">${price} ₽</div>
-      <p class="small muted" style="margin-top:-8px">за ${p.per}</p>
-      <button class="btn" id="pay">Оплатить ${price} ₽</button>
+      <label class="check">
+        <input type="checkbox" id="offer">
+        <span>Принимаю условия <button type="button" class="linkbtn" data-doc="offer">публичной оферты</button> и&nbsp;согласен на обработку данных для оплаты по <button type="button" class="linkbtn" data-doc="privacy">политике</button></span>
+      </label>
+      <button class="btn" id="pay" disabled>Оплатить ${price} ₽</button>
+      <p class="small muted" style="margin-top:-6px">Доступ открывается сразу после оплаты, поэтому возврат после этого не предусмотрен (п. 5.7 оферты).</p>
       <button class="btn btn--ghost" id="no">Отмена</button>
     </div>`, (el, close) => {
+    const cb = el.querySelector('#offer'), pay = el.querySelector('#pay');
+    cb.onchange = () => { pay.disabled = !cb.checked; };
+    el.querySelectorAll('[data-doc]').forEach(b => b.onclick = e => { e.preventDefault(); close(); go('doc', { id: b.dataset.doc }); });
     el.querySelector('#no').onclick = close;
-    el.querySelector('#pay').onclick = () => {
-      // ВНИМАНИЕ: до подключения Telegram Stars доступ выдаётся без списания —
+    pay.onclick = () => {
+      if (!cb.checked) return;
+      setConsent('offer', true);
+      // ВНИМАНИЕ: до подключения платёжной системы доступ выдаётся без списания —
       // это закрывается на сервере (invoice → pre_checkout_query → successful_payment).
-      track('payment_started', { id: productId, demo: true });
+      track('payment_started', { id: productId, price, demo: true });
       close();
       setTimeout(() => {
         grantAccess(productId, 'demo');
-        track('payment_success', { id: productId, demo: true });
+        track('payment_success', { id: productId, price, demo: true });
         tg.haptic('success');
         go('access', {}, true);
       }, 400);
@@ -294,7 +323,7 @@ function payFlow(productId) {
 }
 
 export function renderAccess() {
-  const full = planId() === 'year';
+  const full = isFullPremium();
   return {
     html: `
       <div class="wrap center" style="padding-top:14px">
@@ -306,17 +335,15 @@ export function renderAccess() {
         ${compareTable()}
         ${full ? '' : `
           <div class="info">
-            <div style="font-weight:800">Хочешь, чтобы мы напоминали о датах заранее?</div>
-            <div class="small" style="margin-top:4px">В годовом premium — безлимит важных дат и напоминания за 14, 7, 3 и 1 день с подборкой идей.</div>
+            <div style="font-weight:800">Хочешь, чтобы всё работало круглый год?</div>
+            <div class="small" style="margin-top:4px">«Навсегда» — один раз заплатил и забыл: напоминания о датах близких весь год, календарь праздников полностью и отдельное колесо с подарками для друзей.</div>
           </div>
-          ${planCards(false, ['year'])}`}
+          <button class="btn" data-p="forever">Навсегда · ${foreverPrice()} ₽</button>`}
         <button class="btn ${full ? '' : 'btn--soft'}" id="go">Придумать подарок</button>
       </div>`,
     mount(app) {
       app.querySelector('#go').onclick = () => go('home', {}, true);
       bindPlans(app);
-      // «Восстановить покупку» отсюда убрали: доступ пока хранится только на этом устройстве,
-      // восстанавливать реально нечего — кнопка обещала то, чего приложение не умеет.
     }
   };
 }
@@ -373,7 +400,7 @@ export function renderInvite() {
 }
 
 // ── Награды (переиспользуем экран колеса) ────────────────────────────
-export { renderRewards } from './wheel.js?v=2609142045';
+export { renderRewards } from './wheel.js?v=2609211121';
 
 // ── Друзья бренда ────────────────────────────────────────────────────
 export function renderFriends() {
@@ -578,9 +605,10 @@ export function renderSettings() {
         <div class="rows">
           <button class="row" data-t="reminders"><span class="row__ico">🔔</span><span class="row__t">Напоминания о датах</span><span class="row__v">${state.settings.reminders ? 'вкл' : 'выкл'}</span></button>
           <button class="row" data-t="analytics"><span class="row__ico">📊</span><span class="row__t">Аналитика использования</span><span class="row__v">${state.settings.analytics ? 'вкл' : 'выкл'}</span></button>
+          <button class="row" id="ads"><span class="row__ico">📨</span><span class="row__t">Новости и акции от Та-дам</span><span class="row__v">${state.consents.ads ? 'вкл' : 'выкл'}</span></button>
           <button class="row" data-me><span class="row__ico">🙋</span><span class="row__t">Мой профиль</span><span class="row__chev">›</span></button>
           <button class="row" id="tips"><span class="row__ico">💡</span><span class="row__t">Показать подсказки заново</span><span class="row__chev">›</span></button>
-          <button class="row" data-go="terms"><span class="row__ico">📄</span><span class="row__t">Условия и приватность</span><span class="row__chev">›</span></button>
+          <button class="row" data-go="terms"><span class="row__ico">📄</span><span class="row__t">Документы и приватность</span><span class="row__chev">›</span></button>
         </div>
 
         <div class="spacer"></div>
@@ -601,6 +629,12 @@ export function renderSettings() {
         save(); go('settings', {}, true);
       });
       app.querySelector('[data-go]').onclick = () => go('terms', {});
+      // Согласие на рассылки — отдельное и добровольное (38-ФЗ «О рекламе», ст. 18): его можно отозвать в один тап
+      app.querySelector('#ads').onclick = () => {
+        if (state.consents.ads) { setConsent('ads', false); toast('Больше не будем присылать новости и акции'); return go('settings', {}, true); }
+        confirmSheet('Присылать новости и акции?', 'Не чаще раза в день: новые подборки, скидки и розыгрыши. Отписаться можно здесь же.', 'Согласен',
+          () => { setConsent('ads', true); go('settings', {}, true); });
+      };
       app.querySelector('#tips').onclick = () => { resetTips(); toast('Подсказки вернулись — загляни на Главную'); go('home', {}, true); };
       app.querySelector('[data-me]').onclick = () => go('me', {});
       app.querySelector('#testreset')?.addEventListener('click', () => {
@@ -626,10 +660,10 @@ export function renderSupport() {
         ${mascot('search', 'mascot--sm')}
         <div class="card">
           <div style="font-weight:800">Что-то пошло не так?</div>
-          <p class="small muted">Напиши нам в Telegram — ответим и починим. С вопросами по оплате — туда же.</p>
+          <p class="small muted">Напиши нам в Telegram или на ta-damapp@yandex.ru — ответим и починим. С вопросами по оплате — туда же.</p>
         </div>
         <button class="btn" id="w">Написать в поддержку</button>
-        <button class="btn btn--ghost" id="t">Условия и приватность</button>
+        <button class="btn btn--ghost" id="t">Документы и приватность</button>
       </div>`,
     mount(app) {
       app.querySelector('#w').onclick = () => {
@@ -641,32 +675,43 @@ export function renderSupport() {
   };
 }
 
+// Юридические документы клиента: оферта, политика, два согласия.
+// Тексты лежат в docs/*.html и подгружаются только при открытии — не тянем 40 КБ на старте.
 export function renderTerms() {
   return {
     html: `
-      <div class="topbar"><h1 class="topbar__title bups" style="color:var(--mango)">условия</h1></div>
-      <div class="wrap stack small">
-        <div class="card">
-          <b>Что мы храним</b>
-          <p class="muted">Профиль, вишлисты, важные даты и настройки — только чтобы подбирать идеи, присылать напоминания и сохранять твои списки между устройствами.</p>
+      <div class="topbar"><h1 class="topbar__title bups" style="color:var(--mango)">документы</h1></div>
+      <div class="wrap stack">
+        <div class="rows">
+          ${Object.entries(DOCS).map(([id, t]) => `<button class="row" data-doc="${id}"><span class="row__ico">📄</span><span class="row__t">${esc(t)}</span><span class="row__chev">›</span></button>`).join('')}
         </div>
-        <div class="card">
-          <b>Приватность</b>
-          <p class="muted">Даты близких и желания видны только тебе. Публичная ссылка открывается лишь тем, кому ты её отправил, и может быть отозвана.</p>
+        <div class="card small">
+          <b>Коротко</b>
+          <p class="muted">Даты близких и желания видны только тебе. Публичная ссылка на вишлист открывается лишь тем, кому ты её отправил. Колесо — не лотерея: спины бесплатные и не продаются.</p>
         </div>
-        <div class="card">
-          <b>Оплата</b>
-          <p class="muted">Premium — цифровой доступ на выбранный срок: неделя или год. Оплата проходит в Telegram, доступ открывается сразу после подтверждения платежа.</p>
-        </div>
-        <div class="card">
-          <b>Колесо</b>
-          <p class="muted">Это не лотерея и не азартная игра: спины бесплатные и не продаются. Шансы на призы раскроем по запросу в поддержку.</p>
-        </div>
+        <p class="small muted center">ИП Кудеярова Ангелина Сергеевна · ИНН 645294829078<br>ОГРНИП 325645700116523 · ta-damapp@yandex.ru</p>
         <button class="btn btn--ghost" id="del">Удалить мои данные</button>
       </div>`,
     mount(app) {
+      app.querySelectorAll('[data-doc]').forEach(b => b.onclick = () => go('doc', { id: b.dataset.doc }));
       app.querySelector('#del').onclick = () => confirmSheet('Удалить все данные?', 'Действие необратимо', 'Удалить',
         () => { resetAll(); go('onboarding', {}, true); });
+    }
+  };
+}
+
+export function renderDoc({ id }) {
+  const title = DOCS[id];
+  if (!title) return renderNotFound();
+  return {
+    hideNav: !state.onboarded,              // до знакомства таб-бар не показываем: иначе онбординг можно проскочить
+    html: `<div class="wrap doc"><div id="doc"><p class="muted small center" style="margin-top:40px">Загружаем документ…</p></div>
+      <button class="btn btn--soft" id="docback" style="margin-top:18px">Понятно, назад</button></div>`,
+    mount(app) {
+      app.querySelector('#docback').onclick = () => back();
+      fetch(`docs/${id}.html?v=2609211121`).then(r => r.ok ? r.text() : Promise.reject())
+        .then(html => { app.querySelector('#doc').innerHTML = html; })
+        .catch(() => { app.querySelector('#doc').innerHTML = '<p class="muted center" style="margin-top:40px">Не удалось загрузить документ. Проверь интернет и попробуй ещё раз.</p>'; });
     }
   };
 }

@@ -1,11 +1,11 @@
 // ── Сторис на главной (как в банковских приложениях) ────────────────
 // Подборка под ситуацию: сезон, ближайшая дата близкого, механики.
 // Каждая сторис ведёт в конкретный повод, вишлист или механику.
-import { state, save, track, daysUntil, isPremium, profileFilled } from '../store.js?v=2609142045';
-import { CATEGORIES } from '../config.js?v=2609142045';
-import { esc, mascot, plural } from '../ui.js?v=2609142045';
-import { tg } from '../tg.js?v=2609142045';
-import { go } from '../app.js?v=2609142045';
+import { state, save, track, daysUntil, isPremium, profileFilled } from '../store.js?v=2609211121';
+import { CATEGORIES } from '../config.js?v=2609211121';
+import { esc, mascot, plural } from '../ui.js?v=2609211121';
+import { tg } from '../tg.js?v=2609211121';
+import { go } from '../app.js?v=2609211121';
 
 const G = {
   ny:     'linear-gradient(160deg,#1F7A55,#54B183)',
@@ -96,23 +96,22 @@ const ABOUT = {
     { bg: G.mango, mascot: 'search', title: 'идеи\nпод повод', text: 'Выбираешь повод и человека — получаешь подборку нетипичных идей с бюджетом и подсказкой, где купить.' },
     { bg: G.coffee, mascot: 'heart', title: 'вишлист\nи намёки', text: 'Сохраняй то, что хочешь сам, и отправляй близким намёк — без неловкого «что тебе подарить?».' },
     { bg: G.ice, mascot: 'notes', title: 'не забудем\nважные даты', text: 'Добавь дни рождения близких — бот напомнит заранее и сразу подкинет идей.' },
-    { bg: G.gold, mascot: 'wow', title: 'и колесо\nкаждый день', text: 'Бесплатный спин раз в сутки: открытые категории, эксклюзивные подборки и скидки.' }
+    { bg: G.gold, mascot: 'wow', title: 'и колесо\nкаждый день', text: 'Бесплатный спин раз в сутки: гайды с вау-букетами и таймкодами, категория на сутки и скидка на premium.' }
   ],
   cta: { label: 'Подобрать подарок', route: 'cat', params: { id: 'birthday' } }
 };
 
-// Витрина вау-идей: пока в каталоге нет фото и виджетов, показываем здесь,
-// что подарки тут нетипичные.
+// «Вау-идеи внутри» — четыре готовые сторис-картинки от клиента (1080×1920).
+// У каждого слайда своя кнопка: ведёт в тот повод, из которого идея.
 const WOW = {
-  id: 'wow', title: 'Вау-идеи\nвнутри', emoji: '✨', bg: G.purple,
+  id: 'wow', title: 'Вау-идеи\nвнутри', emoji: '✨', bg: G.mango,
   slides: [
-    { bg: G.purple, emoji: '🍇', title: 'своя виноградная\nлоза', text: 'Лоза на винодельне записана на имя человека, а из её урожая делают вино с именной этикеткой.' },
-    { bg: G.coffee, emoji: '⭐', title: 'звезда\nв честь человека', text: 'Сертификат с координатами и картой неба, где отмечена «его» звезда.' },
-    { bg: G.rose, emoji: '🎵', title: 'винил с вашим\nплейлистом', text: 'Песни вашей истории, напечатанные на настоящей пластинке с именной обложкой.' },
-    { bg: G.ny, emoji: '💌', title: 'капсула\nвремени', text: 'Письма друг другу, которые вы вскроете ровно через год.' },
-    { bg: G.mango, emoji: '🎬', title: 'видео\nот кумира', text: 'Любимый актёр или блогер поздравляет по имени — и это не шутка.' }
+    { img: 'assets/stories/wow-1.jpg', cta: { label: 'Идеи на день рождения', route: 'cat', params: { id: 'birthday' } } },
+    { img: 'assets/stories/wow-2.jpg', cta: { label: 'Идеи на Новый год', route: 'cat', params: { id: 'newyear' } } },
+    { img: 'assets/stories/wow-3.jpg', cta: { label: 'Идеи на новоселье', route: 'cat', params: { id: 'home' } } },
+    { img: 'assets/stories/wow-4.jpg' }
   ],
-  cta: { label: 'Смотреть все идеи', route: 'cat', params: { id: 'birthday' } }
+  cta: { label: 'Смотреть все подборки', route: 'home', params: {} }
 };
 
 // Сторис из админки. Хранится своей ссылкой (не переприсваивается), addAdminStories
@@ -151,12 +150,12 @@ export function buildStories() {
   });
   list.push({
     id: 'wheel', title: 'Спин\nкаждый день', emoji: '🎡', bg: G.gold,
-    slides: [{ bg: G.gold, mascot: 'wow', title: 'бесплатный спин\nраз в сутки', text: 'Категория на 24 часа, эксклюзивная подборка, дополнительный слот вишлиста или скидка на premium.' }],
+    slides: [{ bg: G.gold, mascot: 'wow', title: 'бесплатный спин\nраз в сутки', text: 'Гайд «12 вау-букетов», таймкоды для записок, категория на сутки или скидка на «Навсегда». Повторов нет — вместо них ещё спин.' }],
     cta: { label: 'Крутить колесо', route: 'wheel', params: {} }
   });
   if (!isPremium()) list.push({
     id: 'premium', title: 'Все 13\nповодов', emoji: '✦', bg: G.ice,
-    slides: [{ bg: G.ice, mascot: 'cool', title: 'открыть\nвсё сразу', text: 'Все поводы, идеи и фильтры — 149 ₽ в неделю. Полный premium на год с напоминаниями о датах близких — 599 ₽.' }],
+    slides: [{ bg: G.ice, mascot: 'cool', title: 'открыть\nвсё сразу', text: 'Все 13 поводов, 40 идей в каждом и фильтры: 149 ₽ на 7 дней — к празднику, или 490 ₽ навсегда.' }],
     cta: { label: 'Посмотреть доступ', route: 'paywall', params: { from: 'story' } }
   });
   list.push(...adminStories);
@@ -224,23 +223,24 @@ export function openStories(list, index) {
 
   function render() {
     const st = list[si], s = st.slides[sl];
+    const cta = s.cta || st.cta;
     track('story_viewed', { id: st.id, slide: sl });
     root.innerHTML = `
-      <div class="stv__screen" style="background:${s.bg}">
+      <div class="stv__screen ${s.img ? 'stv__screen--img' : ''}" style="background:${s.bg || G.mango}">
         <div class="stv__bars">${st.slides.map((_, k) =>
           `<i class="${k < sl ? 'done' : ''}">${k === sl ? '<b></b>' : ''}</i>`).join('')}</div>
         <div class="stv__top">
           <span class="stv__brand">та-дам</span>
           <button class="stv__x" type="button" aria-label="Закрыть">✕</button>
         </div>
-        <div class="stv__body">
+        ${s.img ? `<img class="stv__img" src="${esc(s.img)}?v=2609211121" alt="">` : `<div class="stv__body">
           ${s.video ? `<video class="stv__video" src="${esc(s.video)}" autoplay muted playsinline></video>`
             : s.emoji ? `<div class="stv__emoji">${s.emoji}</div>` : mascot(s.mascot, 'stv__mascot')}
           <h2 class="bups stv__title">${esc(s.title).replace(/\n/g, '<br>')}</h2>
           <p class="stv__text">${esc(s.text)}</p>
-        </div>
+        </div>`}
         <div class="stv__ft">
-          <button class="btn stv__cta" type="button">${esc(st.cta.label)}</button>
+          <button class="btn stv__cta" type="button">${esc(cta.label)}</button>
         </div>
         <div class="stv__tap stv__tap--l"></div>
         <div class="stv__tap stv__tap--r"></div>
@@ -253,7 +253,7 @@ export function openStories(list, index) {
       e.stopPropagation();
       track('story_cta', { id: st.id });
       seen(st.id); close(); tg.haptic('light');
-      go(st.cta.route, st.cta.params);
+      go(cta.route, cta.params);
     };
 
     clearTimeout(timer);

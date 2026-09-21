@@ -1,9 +1,9 @@
 // ── Онбординг: привет → кому дарим → первая дата ─────────────────────
-import { state, save, track, addDate, claimReferral } from '../store.js?v=2609142045';
-import { CATEGORIES, RELATIONS, REMINDER_TYPES } from '../config.js?v=2609142045';
-import { mascot, esc, toast } from '../ui.js?v=2609142045';
-import { tg } from '../tg.js?v=2609142045';
-import { go } from '../app.js?v=2609142045';
+import { state, save, track, addDate, claimReferral, setConsent, consentsGiven } from '../store.js?v=2609211121';
+import { CATEGORIES, RELATIONS, REMINDER_TYPES } from '../config.js?v=2609211121';
+import { mascot, esc, toast, sheet } from '../ui.js?v=2609211121';
+import { tg } from '../tg.js?v=2609211121';
+import { go } from '../app.js?v=2609211121';
 
 let step = 0;
 let picked = null;
@@ -28,10 +28,12 @@ function hello() {
           <p class="muted" style="max-width:280px">Помогу придумать подарок, от которого загорятся глаза. Даже если идей совсем нет.</p>
         </div>
         ${dots(0)}
-        <button class="btn" id="go">Поехали</button>
-        <button class="btn btn--ghost" id="skip">Пропустить знакомство</button>
+        ${consentBoxes()}
+        <button class="btn" id="go" ${consentsGiven() ? '' : 'disabled'}>Поехали</button>
+        <button class="btn btn--ghost" id="skip" ${consentsGiven() ? '' : 'disabled'}>Пропустить знакомство</button>
       </div>`,
     mount(app) {
+      bindConsents(app, ok => { app.querySelector('#go').disabled = !ok; app.querySelector('#skip').disabled = !ok; });
       app.querySelector('#go').onclick = () => {
         track('onboarding_started', {});
         claimReferral();                       // пришёл по приглашению — засчитываем другу спин
@@ -40,6 +42,39 @@ function hello() {
       app.querySelector('#skip').onclick = () => finish(true);
     }
   };
+}
+
+// ── Согласия при первом входе (152-ФЗ: обработка ПД; 38-ФЗ: рассылки — отдельно и по желанию)
+function consentBoxes() {
+  return `<div class="consents">
+    <label class="check"><input type="checkbox" id="c-pd" ${state.consents.pd ? 'checked' : ''}>
+      <span>Принимаю <button type="button" class="linkbtn" data-doc="privacy">политику</button> и даю <button type="button" class="linkbtn" data-doc="pd-consent">согласие на обработку персональных данных</button></span></label>
+    <label class="check"><input type="checkbox" id="c-ads" ${state.consents.ads ? 'checked' : ''}>
+      <span>Хочу получать новости и акции — <button type="button" class="linkbtn" data-doc="ads-consent">согласие на рассылки</button> <span class="muted">(по желанию)</span></span></label>
+  </div>`;
+}
+function bindConsents(root, onChange) {
+  const pd = root.querySelector('#c-pd'), ads = root.querySelector('#c-ads');
+  pd.onchange = () => { setConsent('pd', pd.checked); onChange(pd.checked); };
+  ads.onchange = () => setConsent('ads', ads.checked);
+  root.querySelectorAll('[data-doc]').forEach(b => b.onclick = e => { e.preventDefault(); go('doc', { id: b.dataset.doc }); });
+}
+
+// Для тех, кто познакомился с приложением до появления документов: спрашиваем один раз при входе
+export function askConsentsIfNeeded() {
+  if (consentsGiven()) return;
+  sheet(`
+    <div class="stack">
+      ${mascot('notes', 'mascot--sm')}
+      <h3 class="h2 center">Пара формальностей</h3>
+      <p class="small muted center">По закону нам нужно твоё согласие, чтобы хранить профиль, вишлисты и даты близких.</p>
+      ${consentBoxes()}
+      <button class="btn" id="ok" disabled>Продолжить</button>
+    </div>`, (el, close) => {
+    bindConsents(el, ok => { el.querySelector('#ok').disabled = !ok; });
+    el.querySelectorAll('[data-doc]').forEach(b => b.onclick = e => { e.preventDefault(); close(); go('doc', { id: b.dataset.doc }); });
+    el.querySelector('#ok').onclick = () => close();
+  }, { locked: true });
 }
 
 const stepBack = to => () => { step = to; go('onboarding', {}, true); };
@@ -129,4 +164,5 @@ function finish(skipped) {
   step = 0;
   if (picked && !skipped) go('cat', { id: picked }, true);
   else go('home', {}, true);
+  import('../app.js?v=2609211121').then(m => m.offerPendingPromo());
 }

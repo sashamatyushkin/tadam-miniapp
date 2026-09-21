@@ -1,5 +1,5 @@
 // ── UI-примитивы ─────────────────────────────────────────────────────
-import { tg } from './tg.js?v=2609142045';
+import { tg } from './tg.js?v=2609211121';
 
 export const $ = (sel, root = document) => root.querySelector(sel);
 export const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -7,9 +7,9 @@ export const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;'
 // картинки считает её высоту нулевой — центрированный контент собирается выше,
 // а в момент загрузки прыгает вниз. С атрибутами место резервируется сразу.
 const MASCOT_SIZE = {
-  alert: [213, 257], bubble: [260, 230], cool: [249, 247], heart: [184, 246],
-  notes: [209, 249], peek: [159, 242], run: [259, 249], search: [260, 223],
-  sleep: [260, 234], think: [221, 253], wave: [260, 250], wow: [260, 252]
+  alert: [499, 540], bubble: [540, 435], cool: [540, 497], heart: [515, 540],
+  notes: [523, 540], peek: [458, 540], run: [540, 448], search: [540, 490],
+  sleep: [540, 445], think: [530, 540], wave: [540, 522], wow: [540, 477]
 };
 export const mascot = (name, cls = 'mascot--md') => {
   const [w, h] = MASCOT_SIZE[name] || [240, 240];
@@ -28,17 +28,18 @@ export function toast(text) {
 }
 
 let sheetCloser = null;
-export function sheet(html, onMount) {
+// opts.locked — шторку нельзя смахнуть тапом по фону или «Назад» (например, согласие на обработку данных)
+export function sheet(html, onMount, opts = {}) {
   closeSheet();
   const root = $('#sheet-root');
   const bg = document.createElement('div'); bg.className = 'sheet-bg';
   const sh = document.createElement('div'); sh.className = 'sheet';
   sh.innerHTML = `<div class="sheet__grip"></div>${html}`;
   root.append(bg, sh);
-  bg.onclick = closeSheet;
+  if (!opts.locked) bg.onclick = closeSheet;
   const onBack = () => closeSheet();
-  tg.pushBack(onBack);                    // «Назад» Telegram сначала закрывает шторку
-  sheetCloser = () => { bg.remove(); sh.remove(); sheetCloser = null; tg.popBack(onBack); };
+  if (!opts.locked) tg.pushBack(onBack);  // «Назад» Telegram сначала закрывает шторку
+  sheetCloser = () => { bg.remove(); sh.remove(); sheetCloser = null; if (!opts.locked) tg.popBack(onBack); };
   onMount?.(sh, closeSheet);
   return sheetCloser;
 }

@@ -1,14 +1,14 @@
 // ── Вишлисты: свой список, шеринг и намёки ───────────────────────────
-import { state, save, track, createWishlist, removeItem, wishlistLimit, isPremium, syncWishlists } from '../store.js?v=2609142045';
-import { deepLink } from '../config.js?v=2609142045';
-import { esc, mascot, sheet, toast, confirmSheet, plural } from '../ui.js?v=2609142045';
-import { IDEAS } from '../data/ideas.js?v=2609142045';
-import { cover } from './ideas.js?v=2609142045';
-import { tg } from '../tg.js?v=2609142045';
-import { go, back } from '../app.js?v=2609142045';
-import { maybeShowTips } from './coach.js?v=2609142045';
-import { openHint } from './hint.js?v=2609142045';
-import { api, apiAvailable } from '../api.js?v=2609142045';
+import { state, save, track, createWishlist, removeItem, wishlistLimit, isPremium, syncWishlists } from '../store.js?v=2609211121';
+import { deepLink } from '../config.js?v=2609211121';
+import { esc, mascot, sheet, toast, confirmSheet, plural } from '../ui.js?v=2609211121';
+import { IDEAS } from '../data/ideas.js?v=2609211121';
+import { cover } from './ideas.js?v=2609211121';
+import { tg } from '../tg.js?v=2609211121';
+import { go, back } from '../app.js?v=2609211121';
+import { maybeShowTips } from './coach.js?v=2609211121';
+import { openHint } from './hint.js?v=2609211121';
+import { api, apiAvailable } from '../api.js?v=2609211121';
 
 
 // Пустой вишлист показываем не голой надписью, а примерами: человек сразу видит,
@@ -62,7 +62,7 @@ export function render() {
         <button class="btn" id="find">Найти первую идею</button>
         <div class="spacer"></div>
         <button class="btn btn--soft" id="new">Новый вишлист</button>
-        <p class="small muted center" style="margin-top:8px">${isPremium() ? 'Premium: безлимит вишлистов' : `Осталось слотов: ${Math.max(0, wishlistLimit() - wls.length)} из ${wishlistLimit()}`}</p>
+        <p class="small muted center" style="margin-top:8px">${isPremium() ? 'Premium: безлимит вишлистов' : `Бесплатно — ${wishlistLimit()} ${wishlistLimit() === 1 ? 'вишлист' : 'вишлиста'}. С premium — сколько угодно`}</p>
       </div>`,
     mount(app) {
       maybeShowTips('wishlist');

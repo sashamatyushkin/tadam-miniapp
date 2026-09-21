@@ -1,12 +1,12 @@
 // ── Главная: поводы ──────────────────────────────────────────────────
-import { CATEGORIES } from '../config.js?v=2609142045';
-import { state, categoryOpen, isPremium, track, questComplete } from '../store.js?v=2609142045';
-import { esc, mascot } from '../ui.js?v=2609142045';
-import { tg } from '../tg.js?v=2609142045';
-import { go } from '../app.js?v=2609142045';
-import { maybeShowTips } from './coach.js?v=2609142045';
-import { storiesRow, bindStories } from './stories.js?v=2609142045';
-import { openLockSheet } from './extra.js?v=2609142045';
+import { CATEGORIES } from '../config.js?v=2609211121';
+import { state, categoryOpen, isPremium, track, questComplete } from '../store.js?v=2609211121';
+import { esc, mascot } from '../ui.js?v=2609211121';
+import { tg } from '../tg.js?v=2609211121';
+import { go } from '../app.js?v=2609211121';
+import { maybeShowTips } from './coach.js?v=2609211121';
+import { storiesRow, bindStories } from './stories.js?v=2609211121';
+import { openLockSheet } from './extra.js?v=2609211121';
 
 export function render() {
   track('home_viewed', { premium: isPremium() });
@@ -59,7 +59,7 @@ export function render() {
           ${mascot('cool', 'mascot--sm')}
           <div style="flex:1">
             <div style="font-weight:800">Открыть все 13 поводов</div>
-            <div class="small muted">Неделя — 149 ₽, год — 599 ₽</div>
+            <div class="small muted">На праздник — 149 ₽ · навсегда — 490 ₽</div>
           </div>
           <button class="btn btn--sm" id="pw">Смотреть</button>
         </div>`}

@@ -1,12 +1,12 @@
 // ── Подборка идей: фильтры, пагинация, paywall, пустое состояние ─────
-import { CATEGORIES, RECIPIENTS, BUDGETS, INTERESTS, CONFIG } from '../config.js?v=2609142045';
-import { IDEAS, IDEAS_BY_CAT } from '../data/ideas.js?v=2609142045';
-import { state, isPremium, categoryOpen, track, inWishlist, addToWishlist, defaultWishlist, save, totalWishlistItems } from '../store.js?v=2609142045';
-import { esc, mascot, sheet, toast, closeSheet, plural } from '../ui.js?v=2609142045';
-import { tg } from '../tg.js?v=2609142045';
-import { go, back } from '../app.js?v=2609142045';
-import { openHint } from './hint.js?v=2609142045';
-import { maybeShowTips, maybeShowTips as _t } from './coach.js?v=2609142045';
+import { CATEGORIES, RECIPIENTS, BUDGETS, INTERESTS, CONFIG } from '../config.js?v=2609211121';
+import { IDEAS, IDEAS_BY_CAT } from '../data/ideas.js?v=2609211121';
+import { state, isPremium, categoryOpen, track, inWishlist, addToWishlist, defaultWishlist, save, totalWishlistItems } from '../store.js?v=2609211121';
+import { esc, mascot, sheet, toast, closeSheet, plural } from '../ui.js?v=2609211121';
+import { tg } from '../tg.js?v=2609211121';
+import { go, back } from '../app.js?v=2609211121';
+import { openHint } from './hint.js?v=2609211121';
+import { maybeShowTips, maybeShowTips as _t } from './coach.js?v=2609211121';
 
 // f/query/shown осознанно живут на уровне модуля — так они переживают повторный рендер
 // одной и той же категории при клике по чипу фильтра. Но именно поэтому раньше они же
@@ -34,10 +34,10 @@ const OVER_10K = 99999;
 
 function apply(list) {
   return list.filter(i =>
-    (!f.rec || i.recipients.includes(f.rec)) &&
+    (!f.rec || !i.recipients.length || i.recipients.includes(f.rec)) &&   // без адресата (напр. «юбиляр») — подходит всем
     (!f.budget || (f.budget === OVER_10K ? i.budget === OVER_10K : i.budget <= f.budget)) &&
     (!f.interest || i.interests.includes(f.interest)) &&
-    (!query || (i.title + ' ' + i.desc).toLowerCase().includes(query.toLowerCase()))
+    (!query || (i.title + ' ' + i.desc + ' ' + i.tags + ' ' + i.who).toLowerCase().includes(query.toLowerCase()))
   );
 }
 
@@ -65,7 +65,7 @@ export function cover(i, cls) {
 export function buyLink(i) {
   return i.buy
     ? { url: i.buy, label: 'Где купить', exact: true }
-    : { url: 'https://yandex.ru/search/?text=' + encodeURIComponent(i.title + ' купить'), label: 'Найти, где купить', exact: false };
+    : { url: 'https://yandex.ru/search/?text=' + encodeURIComponent(i.title), label: 'Найти, где купить', exact: false };
 }
 
 function ideaRow(i, n) {
@@ -79,7 +79,7 @@ function ideaRow(i, n) {
         <div class="idea__desc">${esc(i.desc)}</div>
         <div class="idea__tags">
           <span class="tag tag--budget">${esc(b.name)}</span>
-          ${i.interests.map(id => `<span class="tag tag--ice">${esc(INTERESTS.find(x => x.id === id)?.name || id)}</span>`).join('')}
+          ${i.interests.slice(0, 1).map(id => `<span class="tag tag--ice">${esc(INTERESTS.find(x => x.id === id)?.name || id)}</span>`).join('')}
         </div>
       </div>
       <button class="idea__fav heart ${inWishlist(i.id) ? 'heart--on' : ''}" data-fav="${i.id}" aria-label="В вишлист">${HEART}</button>
@@ -102,7 +102,7 @@ export function render({ id }) {
   if (!cat) return { html: '<div class="wrap"><p>Повод не найден</p></div>' };
   if (!categoryOpen(cat)) return {
     html: '', hideNav: false,
-    mount: () => { go('home', {}, true); import('./extra.js?v=2609142045').then(m => m.openLockSheet(id)); }
+    mount: () => { go('home', {}, true); import('./extra.js?v=2609211121').then(m => m.openLockSheet(id)); }
   };
 
   // Другая категория (или пришли из поиска) — старые фильтры и поисковый запрос не тащим за собой.
@@ -120,7 +120,8 @@ export function render({ id }) {
 
   const all = IDEAS_BY_CAT[id] || [];
   const premium = isPremium();
-  const limited = premium ? all : all.slice(0, CONFIG.limits.freeIdeasPerCategory);
+  // Бесплатные идеи отмечены в базе клиента (колонка «Доступ»), а не просто «первые 20»
+  const limited = premium ? all : all.filter(i => i.free);
   // Считаем из фактических данных категории, а не из константы — так «ещё N» никогда
   // не наврёт. Когда появится БД, `all.length` будет приходить уже оттуда.
   const hiddenCount = premium ? 0 : Math.max(0, all.length - limited.length);
@@ -144,8 +145,8 @@ export function render({ id }) {
         ${(!premium && hiddenCount > 0) ? `
           <div class="info center" style="margin-top:18px">
             <div class="bups" style="font-size:26px;color:#173F63">та-дам! ещё ${hiddenCount} ${plural(hiddenCount, 'идея', 'идеи', 'идей')}</div>
-            <p class="small" style="margin:8px 0 14px">Ты посмотрел ${limited.length} бесплатных. Открой все идеи и фильтры.</p>
-            <button class="btn" id="pw">Открыть от 149 ₽ в неделю</button>
+            <p class="small" style="margin:8px 0 14px">Ты посмотрел ${limited.length} бесплатных. Открой все ${all.length} и фильтры.</p>
+            <button class="btn" id="pw">Открыть все — от 149 ₽</button>
           </div>` : ''}
         <div class="spacer"></div>
       </div>`,
@@ -157,7 +158,7 @@ export function renderSearch() {
   lastCatId = null;             // возврат в любую категорию после поиска начнётся с чистых фильтров
   const premium = isPremium();
   const openCats = CATEGORIES.filter(c => categoryOpen(c)).map(c => c.id);
-  const pool = IDEAS.filter(i => openCats.includes(i.cat) && (premium || i.order < CONFIG.limits.freeIdeasPerCategory));
+  const pool = IDEAS.filter(i => openCats.includes(i.cat) && (premium || i.free || !CATEGORIES.find(c => c.id === i.cat)?.free));
   const list = query ? apply(pool) : [];
 
   return {
@@ -176,7 +177,7 @@ export function renderSearch() {
       const redraw = () => {
         const premium2 = isPremium();
         const openCats2 = CATEGORIES.filter(c => categoryOpen(c)).map(c => c.id);
-        const pool2 = IDEAS.filter(i => openCats2.includes(i.cat) && (premium2 || i.order < CONFIG.limits.freeIdeasPerCategory));
+        const pool2 = IDEAS.filter(i => openCats2.includes(i.cat) && (premium2 || i.free || !CATEGORIES.find(c => c.id === i.cat)?.free));
         const l = query ? apply(pool2) : [];
         res.innerHTML = !query
           ? `<p class="muted small center" style="margin-top:24px">Напиши, что ищешь: «кофе», «плед», «фотосессия»</p>`
@@ -246,11 +247,15 @@ export function openIdea(ideaId) {
       ${cover(i, 'cover--big')}
       <div class="idea__tags">
         <span class="tag tag--budget">${esc(b.name)}</span>
-        ${i.recipients.map(r => `<span class="tag">${esc(RECIPIENTS.find(x => x.id === r)?.name || r)}</span>`).join('')}
         ${i.interests.map(id => `<span class="tag tag--ice">${esc(INTERESTS.find(x => x.id === id)?.name || id)}</span>`).join('')}
       </div>
       <h3 class="h1">${esc(i.title)}</h3>
-      <p class="muted">${esc(i.long || i.desc)}</p>
+      <div class="whywow"><b>Почему вау</b>${esc(i.long || i.desc)}</div>
+      <div class="ideafacts">
+        ${i.who ? `<div><span>Кому</span>${esc(i.who)}</div>` : ''}
+        ${i.tags ? `<div><span>Интересы</span>${esc(i.tags)}</div>` : ''}
+        ${i.where ? `<div><span>Где искать</span>${esc(i.where)}</div>` : ''}
+      </div>
       <button class="btn" id="fav">${inWishlist(i.id) ? 'Уже в вишлисте' : 'В вишлист 💖'}</button>
       <button class="btn btn--soft" id="hint">Намекнуть другу 💌</button>
       <button class="btn btn--ghost" id="buy">${esc(buy.label)} →</button>

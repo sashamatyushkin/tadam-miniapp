@@ -31,6 +31,8 @@ for f in sorted(root.glob('js/**/*.js')):
     src = f.read_text()
     new = re.sub(r"""(from\s+|import\()(['"])(\.\.?/[^'"?]+\.js)(\?v=[^'"]*)?\2""",
                  lambda m: f'{m.group(1)}{m.group(2)}{m.group(3)}?v={ver}{m.group(2)}', src)
+    # версия у загружаемых по ходу файлов: документы, гайды, картинки сторис
+    new = re.sub(r'(\.html|\}|\))\?v=\d+', rf'\1?v={ver}', new)
     if new != src:
         f.write_text(new); count += 1
 

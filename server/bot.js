@@ -39,6 +39,12 @@ async function onMessage(msg) {
         text: 'С тобой поделились вишлистом 🎁'
       });
     }
+    if (arg && arg.startsWith('f_')) {
+      return call('sendMessage', {
+        chat_id: chat, reply_markup: appButton('🎁 Забрать подарок', arg),
+        text: `Тебе подарок от друга 🎁\nПромокод: ${arg.slice(2).toUpperCase()}\nЖми кнопку — активируем прямо в приложении.`
+      });
+    }
     if (arg === 'debug') {
       return call('sendMessage', {
         chat_id: chat, reply_markup: appButton('🧪 Запустить с нуля', 'debug'),
@@ -59,7 +65,7 @@ async function onMessage(msg) {
     });
 
   if (cmd === '/terms')
-    return call('sendMessage', { chat_id: chat, text: 'Условия и политика приватности — в приложении: «Профиль → Настройки → Условия и приватность».\n' + WEBAPP });
+    return call('sendMessage', { chat_id: chat, text: 'Оферта, политика обработки персональных данных и согласия — в приложении: «Профиль → Документы».\n\nИП Кудеярова Ангелина Сергеевна, ИНН 645294829078, ОГРНИП 325645700116523\nta-damapp@yandex.ru' });
   if (cmd === '/support')
     return call('sendMessage', { chat_id: chat, text: 'Напиши прямо сюда, что случилось — разберёмся 🙌' });
   if (cmd === '/paysupport')

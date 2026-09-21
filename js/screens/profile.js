@@ -1,9 +1,9 @@
 // ── Профиль ──────────────────────────────────────────────────────────
-import { state, isPremium, accessLabel, track, profileFilled } from '../store.js?v=2609142045';
-import { esc } from '../ui.js?v=2609142045';
-import { tg } from '../tg.js?v=2609142045';
-import { go } from '../app.js?v=2609142045';
-import { maybeShowTips } from './coach.js?v=2609142045';
+import { state, isPremium, accessLabel, track, profileFilled } from '../store.js?v=2609211121';
+import { esc } from '../ui.js?v=2609211121';
+import { tg } from '../tg.js?v=2609211121';
+import { go } from '../app.js?v=2609211121';
+import { maybeShowTips } from './coach.js?v=2609211121';
 
 export function render() {
   const u = tg.user();
@@ -24,6 +24,7 @@ export function render() {
         <div class="rows">
           <button class="row" data-go="me"><span class="row__ico">🙋</span><span class="row__t">Мой профиль</span><span class="row__v">${profileFilled() ? 'заполнен' : 'заполнить'}</span><span class="row__chev">›</span></button>
           <button class="row" data-go="dates"><span class="row__ico">📅</span><span class="row__t">Важные даты</span><span class="row__v">${state.dates.length}</span><span class="row__chev">›</span></button>
+          <button class="row" data-go="calendar"><span class="row__ico">🗓️</span><span class="row__t">Календарь праздников</span><span class="row__chev">›</span></button>
           <button class="row" data-go="wishlist"><span class="row__ico">💖</span><span class="row__t">Мои вишлисты</span><span class="row__v">${state.wishlists.length}</span><span class="row__chev">›</span></button>
           <button class="row" data-go="invite"><span class="row__ico">👥</span><span class="row__t">Друзья и намёки</span><span class="row__v">${hints}</span><span class="row__chev">›</span></button>
           <button class="row" data-go="paywall"><span class="row__ico">⭐</span><span class="row__t">Мой доступ</span><span class="row__v">${accessLabel()}</span><span class="row__chev">›</span></button>
@@ -32,6 +33,7 @@ export function render() {
           <button class="row" data-go="friends"><span class="row__ico">✨</span><span class="row__t">Друзья бренда</span><span class="row__chev">›</span></button>
           <button class="row" data-go="ugc"><span class="row__ico">🎬</span><span class="row__t">Твори с Та-дам</span><span class="row__chev">›</span></button>
           <button class="row" data-go="settings"><span class="row__ico">⚙️</span><span class="row__t">Настройки</span><span class="row__chev">›</span></button>
+          <button class="row" data-go="terms"><span class="row__ico">📄</span><span class="row__t">Документы</span><span class="row__chev">›</span></button>
           <button class="row" data-go="support"><span class="row__ico">💬</span><span class="row__t">Поддержка</span><span class="row__chev">›</span></button>
         </div>
         <div class="spacer"></div>

@@ -1,10 +1,10 @@
 // ── HTTP API (голый node:http — без Fastify, см. ADR в db.js) ────────
 import { createServer } from 'node:http';
 import { randomUUID } from 'node:crypto';
-import { db, upsertUser, getEntitlement, isPremiumRow, grantEntitlement } from './db.js';
+import { db, upsertUser, getEntitlement, isPremiumRow, isFullPremiumRow, grantEntitlement } from './db.js';
 import { verifyInitData, sendMessage, botCall } from './telegram.js';
-import { spinsAvailable, spin } from './wheel.js';
-import { PRODUCTS, LIMITS } from './config.js';
+import { spinsAvailable, spin, wheelWeights, redeemFriendCode } from './wheel.js';
+import { PRODUCTS, LIMITS, WHEEL } from './config.js';
 import { json, readBody, MAX_BODY } from './util.js';
 import { mountAdmin } from './admin.js';
 
@@ -62,8 +62,16 @@ on('GET', /^\/api\/access$/, (req, res) => {
   const user = authenticate(req);
   if (!user) return json(res, 401, { ok: false, error: 'invalid_init_data' });
   const ent = getEntitlement(user.id);
-  json(res, 200, { ok: true, type: ent.type, until: ent.until, premium: isPremiumRow(ent) });
+  json(res, 200, { ok: true, type: ent.type, until: ent.until, premium: isPremiumRow(ent), foreverPriceRub: foreverPrice(user.id) });
 });
+
+// Цена «Навсегда» для конкретного человека: скидка из колеса (если ещё не купил) или промокод друга.
+// Когда подключится оплата, счёт выставляется именно на эту сумму — клиенту на слово не верим.
+function foreverPrice(userId) {
+  if (isFullPremiumRow(getEntitlement(userId))) return PRODUCTS.forever.priceRub;
+  const has = code => db.prepare('SELECT 1 FROM user_prizes WHERE user_id = ? AND code = ?').get(userId, code);
+  return has('discount') ? WHEEL.discountRub : has('promo') ? WHEEL.friendDiscountRub : PRODUCTS.forever.priceRub;
+}
 
 // Выдача доступа — пока имитация оплаты (Stars ещё не подключены), но теперь
 // хотя бы честно централизована на сервере, а не только в client-side localStorage.
@@ -75,7 +83,7 @@ on('POST', /^\/api\/access\/grant-test$/, async (req, res) => {
   const p = PRODUCTS[productId];
   if (!p) return json(res, 400, { ok: false, error: 'unknown_product' });
   const type = p.type;
-  const until = Date.now() + p.days * 86400000;
+  const until = p.days ? Date.now() + p.days * 86400000 : null;   // «Навсегда» — без срока
   grantEntitlement(user.id, type, until, 'test_purchase:' + productId);
   json(res, 200, { ok: true, type, until });
 });
@@ -95,6 +103,31 @@ on('POST', /^\/api\/wheel\/spin$/, async (req, res) => {
   const r = spin(user.id, key);
   if (!r.ok) return json(res, 409, r);
   json(res, 200, r);
+});
+
+// Друг активирует код из колеса №2 (по ссылке ?start=f_<код> или вручную в тарифах)
+on('POST', /^\/api\/friend-code\/redeem$/, async (req, res) => {
+  const user = authenticate(req);
+  if (!user) return json(res, 401, { ok: false, error: 'invalid_init_data' });
+  const { code } = await readBody(req);
+  const r = redeemFriendCode(user.id, code);
+  if (!r.ok) return json(res, 422, r);
+  const who = user.first_name || 'Друг';
+  sendMessage(r.ownerId, r.kind === 'friend_gift'
+    ? `${who} активировал твой подарок — 3 дня premium в Та-дам 🎁 Спасибо, что делишься!`
+    : `${who} воспользовался твоей скидкой в Та-дам 🎉 Спасибо, что делишься!`);
+  json(res, 200, { ok: true, kind: r.kind });
+});
+
+// ── согласия: храним историю (кто, на что, какая редакция, когда) ──
+on('POST', /^\/api\/consent$/, async (req, res) => {
+  const user = authenticate(req);
+  if (!user) return json(res, 401, { ok: false, error: 'invalid_init_data' });
+  const { kind, value, version } = await readBody(req);
+  if (!['pd', 'ads', 'offer'].includes(kind)) return json(res, 400, { ok: false, error: 'bad_kind' });
+  db.prepare('INSERT INTO consents (user_id, kind, value, version, created_at) VALUES (?, ?, ?, ?, ?)')
+    .run(user.id, kind, value ? 1 : 0, String(version || '').slice(0, 20), Date.now());
+  json(res, 200, { ok: true });
 });
 
 // ── важные даты ────────────────────────────────────────────────────
@@ -257,7 +290,7 @@ on('GET', /^\/api\/content\/ideas$/, (req, res) => {
   json(res, 200, { ok: true, items: rows.map(r => ({
     id: r.id, cat: r.cat, title: r.title, desc: r.desc, long: r.long_desc,
     budget: r.budget, recipients: JSON.parse(r.recipients), interests: JSON.parse(r.interests),
-    photo: r.photo, buy: r.buy
+    photo: r.photo, buy: r.buy, who: r.who || '', tags: r.tags || '', where: r.where_to || ''
   })) });
 });
 
@@ -268,6 +301,12 @@ on('GET', /^\/api\/content\/stories$/, (req, res) => {
     slideTitle: r.slide_title, slideText: r.slide_text,
     ctaLabel: r.cta_label, ctaRoute: r.cta_route, ctaParam: r.cta_param
   })) });
+});
+
+// Веса секторов колеса из админки — клиент рисует те же шансы, что разыгрывает сервер
+on('GET', /^\/api\/content\/wheel$/, (req, res) => {
+  const guides = db.prepare('SELECT code, title, image_path FROM guides').all();
+  json(res, 200, { ok: true, weights: wheelWeights(), guides });
 });
 
 on('GET', /^\/api\/content\/friends$/, (req, res) => {

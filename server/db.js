@@ -13,7 +13,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const dataDir = join(__dirname, 'data');
 mkdirSync(dataDir, { recursive: true });
 
-export const db = new DatabaseSync(join(dataDir, 'tadam.sqlite'));
+// TADAM_DB — отдельный файл базы для тестов, чтобы они не трогали живые данные
+export const db = new DatabaseSync(process.env.TADAM_DB || join(dataDir, 'tadam.sqlite'));
 db.exec('PRAGMA journal_mode = WAL');
 
 db.exec(`
@@ -134,7 +135,11 @@ for (const ddl of [
   // вишлист теперь синхронизируется всегда (для админки), а по ссылке открывается только расшаренный.
   // DEFAULT 1 — все строки до этой миграции попадали в базу только при шеринге
   "ALTER TABLE wishlists ADD COLUMN shared INTEGER NOT NULL DEFAULT 1",
-  "ALTER TABLE wishlists ADD COLUMN wl_id TEXT"
+  "ALTER TABLE wishlists ADD COLUMN wl_id TEXT",
+  // поля базы идей клиента: «Кому», «Интересы», «Где искать» — как в Excel
+  "ALTER TABLE admin_ideas ADD COLUMN who TEXT NOT NULL DEFAULT ''",
+  "ALTER TABLE admin_ideas ADD COLUMN tags TEXT NOT NULL DEFAULT ''",
+  "ALTER TABLE admin_ideas ADD COLUMN where_to TEXT NOT NULL DEFAULT ''"
 ]) { try { db.exec(ddl); } catch (e) { /* колонка уже есть */ } }
 
 db.exec(`
@@ -176,6 +181,65 @@ CREATE TABLE IF NOT EXISTS referral_codes (
 );
 `);
 
+// ── Колесо v2, гайды, коды для друзей, согласия ─────────────────────
+db.exec(`
+-- Веса секторов: правятся в админке и сразу действуют — без выкладки приложения (ТЗ, раздел 04)
+CREATE TABLE IF NOT EXISTS wheel_weights (
+  kind TEXT NOT NULL,                  -- free | premium
+  code TEXT NOT NULL,
+  weight INTEGER NOT NULL,
+  PRIMARY KEY (kind, code)
+);
+
+-- Гайды-призы колеса (одностраничники клиента)
+CREATE TABLE IF NOT EXISTS guides (
+  code TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  image_path TEXT NOT NULL,            -- путь от корня фронтенда
+  updated_at INTEGER NOT NULL
+);
+
+-- Что человек уже выиграл: по этой таблице повтор превращается в +1 спин
+CREATE TABLE IF NOT EXISTS user_prizes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  code TEXT NOT NULL,                  -- guide_bouquets | guide_timecodes | category | discount | friend_discount | friend_gift | promo
+  meta TEXT NOT NULL DEFAULT '',
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS user_prizes_user ON user_prizes(user_id, code);
+
+-- Коды для друзей из колеса №2: G… — 3 дня premium, D… — скидка на «Навсегда»
+CREATE TABLE IF NOT EXISTS friend_codes (
+  code TEXT PRIMARY KEY,
+  owner_id INTEGER NOT NULL,
+  kind TEXT NOT NULL,                  -- friend_gift | friend_discount
+  created_at INTEGER NOT NULL,
+  redeemed_by INTEGER,
+  redeemed_at INTEGER
+);
+
+-- Согласия (152-ФЗ, 38-ФЗ): история, а не только текущее значение — это доказательство для проверки
+CREATE TABLE IF NOT EXISTS consents (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  kind TEXT NOT NULL,                  -- pd | ads | offer
+  value INTEGER NOT NULL,              -- 1 — дал, 0 — отозвал
+  version TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS consents_user ON consents(user_id, kind);
+`);
+try { db.exec("ALTER TABLE spin_results ADD COLUMN converted INTEGER NOT NULL DEFAULT 0"); } catch (e) {}
+try { db.exec("ALTER TABLE spin_results ADD COLUMN friend_code TEXT"); } catch (e) {}
+for (const [code, title, img] of [
+  ['guide_bouquets', '12 вау-букетов', 'assets/guides/bouquets.jpg'],
+  ['guide_timecodes', 'Таймкоды для записок', 'assets/guides/timecodes.jpg']
+]) db.prepare('INSERT OR IGNORE INTO guides (code, title, image_path, updated_at) VALUES (?, ?, ?, ?)').run(code, title, img, Date.now());
+
+export const lastConsent = (userId, kind) =>
+  db.prepare('SELECT value, version, created_at FROM consents WHERE user_id = ? AND kind = ? ORDER BY id DESC LIMIT 1').get(userId, kind) || null;
+
 // source записывается один раз — при первом появлении человека. Повторные входы
 // по другим ссылкам не переписывают, откуда он пришёл изначально.
 export function upsertUser(user, source) {
@@ -196,7 +260,7 @@ export function isPremiumRow(row) {
   return row.type === 'forever' || (row.until != null && Date.now() < row.until);
 }
 
-// Полный premium (год или «навсегда» из UGC): безлимит дат и напоминания за 14/7/3/1 день
+// Полный premium — «Навсегда» (и старый годовой): второе колесо, напоминания круглый год
 export function isFullPremiumRow(row) {
   return isPremiumRow(row) && (row.type === 'year' || row.type === 'forever');
 }

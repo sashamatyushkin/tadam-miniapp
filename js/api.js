@@ -3,8 +3,8 @@
 // все функции тихо возвращают null — вызывающий код падает обратно
 // на локальное поведение (как было до backend). Никто, кто просто открыл
 // GitHub Pages без запущенного сервера, ничего не замечает и не теряет.
-import { API_BASE } from './config.js?v=2609142045';
-import { tg } from './tg.js?v=2609142045';
+import { API_BASE } from './config.js?v=2609211121';
+import { tg } from './tg.js?v=2609211121';
 
 const TIMEOUT_MS = 4000;
 
@@ -64,6 +64,10 @@ export const api = {
   contentIdeas: () => call('GET', '/api/content/ideas'),
   contentStories: () => call('GET', '/api/content/stories'),
   contentFriends: () => call('GET', '/api/content/friends'),
+
+  contentWheel: () => call('GET', '/api/content/wheel'),
+  friendCodeRedeem: code => call('POST', '/api/friend-code/redeem', { code }),
+  consent: (kind, value, version) => call('POST', '/api/consent', { kind, value, version }),
 
   ugcSubmit: a => call('POST', '/api/ugc', a),
   ugcStatus: () => call('GET', '/api/ugc')

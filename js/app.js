@@ -1,21 +1,21 @@
 // ── Точка входа и роутер ─────────────────────────────────────────────
-import { tg } from './tg.js?v=2609142045';
-import { load, save, state, track, registerReferral, syncAccessFromServer, syncReferral, resetAll, syncWishlists, syncDates } from './store.js?v=2609142045';
-import { api, apiAvailable } from './api.js?v=2609142045';
-import { $, closeSheet, sheetOpen } from './ui.js?v=2609142045';
+import { tg } from './tg.js?v=2609211121';
+import { load, save, state, track, registerReferral, syncAccessFromServer, syncReferral, resetAll, syncWishlists, syncDates, setWheelWeights } from './store.js?v=2609211121';
+import { api, apiAvailable } from './api.js?v=2609211121';
+import { $, closeSheet, sheetOpen } from './ui.js?v=2609211121';
 
-import * as Onboarding from './screens/onboarding.js?v=2609142045';
-import * as Home from './screens/home.js?v=2609142045';
-import * as Ideas from './screens/ideas.js?v=2609142045';
-import * as Wishlist from './screens/wishlist.js?v=2609142045';
-import * as Wheel from './screens/wheel.js?v=2609142045';
-import * as Profile from './screens/profile.js?v=2609142045';
-import * as Dates from './screens/dates.js?v=2609142045';
-import * as Extra from './screens/extra.js?v=2609142045';
-import { dismissTour } from './screens/coach.js?v=2609142045';
-import { addAdminIdeas } from './data/ideas.js?v=2609142045';
-import { BRAND_FRIENDS } from './config.js?v=2609142045';
-import { addAdminStories } from './screens/stories.js?v=2609142045';
+import * as Onboarding from './screens/onboarding.js?v=2609211121';
+import * as Home from './screens/home.js?v=2609211121';
+import * as Ideas from './screens/ideas.js?v=2609211121';
+import * as Wishlist from './screens/wishlist.js?v=2609211121';
+import * as Wheel from './screens/wheel.js?v=2609211121';
+import * as Profile from './screens/profile.js?v=2609211121';
+import * as Dates from './screens/dates.js?v=2609211121';
+import * as Extra from './screens/extra.js?v=2609211121';
+import { dismissTour } from './screens/coach.js?v=2609211121';
+import { addAdminIdeas } from './data/ideas.js?v=2609211121';
+import { BRAND_FRIENDS } from './config.js?v=2609211121';
+import { addAdminStories } from './screens/stories.js?v=2609211121';
 
 const ROUTES = {
   onboarding: Onboarding.render,
@@ -39,6 +39,8 @@ const ROUTES = {
   me: Extra.renderMe,
   support: Extra.renderSupport,
   terms: Extra.renderTerms,
+  doc: Extra.renderDoc,
+  calendar: Dates.renderCalendar,
   hint: Extra.renderHint,
   sharedWishlist: Extra.renderSharedWishlist,
   notfound: Extra.renderNotFound
@@ -86,6 +88,8 @@ function paint(fn, params) {
   // Экран может задать свой обработчик (например, шаг назад в онбординге).
   const canBack = stack.length > 0 || current.route !== 'home';
   tg.back(view.onBack || (!view.hideBack && canBack ? back : null));
+  // Познакомился до появления юр. документов — один раз спрашиваем согласие (кроме экрана самого документа)
+  if (state.onboarded && current.route !== 'doc') Onboarding.askConsentsIfNeeded();
 }
 
 function renderTabs(active) {
@@ -125,16 +129,27 @@ async function boot() {
   // экран с id=null, поэтому полученный вишлист всегда показывал заглушку.
   if (sp && sp.startsWith('h_')) { go('hint', { id: sp.slice(2) }, true); return; }
   if (sp && sp.startsWith('w_')) { go('sharedWishlist', { wl: sp.slice(2) }, true); return; }
+  // Код друга из колеса (?start=f_<код>): новичка сначала знакомим, код подставим в тарифах
+  if (sp && sp.startsWith('f_')) state.pendingPromo = sp.slice(2).toUpperCase();
   if (!state.onboarded) { go('onboarding', {}, true); return; }
   go('home', {}, true);
+  offerPendingPromo();
+}
+
+export function offerPendingPromo() {
+  if (!state.pendingPromo || !state.consents.pd) return;
+  const code = state.pendingPromo;
+  state.pendingPromo = null; save();
+  Extra.promoSheet(code);
 }
 
 // Идеи и сторис, добавленные через админку. Не блокирует старт: подгружается в фоне,
 // а если что-то уже нарисовано (главная или каталог) — перерисовываем той же командой,
 // что и обычная навигация, чтобы новый контент появился без перезахода в приложение.
 async function loadAdminContent() {
-  const [ideasRes, storiesRes, friendsRes] = await Promise.all([api.contentIdeas(), api.contentStories(), api.contentFriends()]);
+  const [ideasRes, storiesRes, friendsRes, wheelRes] = await Promise.all([api.contentIdeas(), api.contentStories(), api.contentFriends(), api.contentWheel()]);
   let changed = false;
+  if (wheelRes?.ok) setWheelWeights(wheelRes.weights);
   if (friendsRes?.ok) BRAND_FRIENDS.splice(0, BRAND_FRIENDS.length, ...friendsRes.items);
   if (ideasRes?.ok && ideasRes.items.length) { addAdminIdeas(ideasRes.items); changed = true; }
   if (storiesRes?.ok && storiesRes.items.length) { addAdminStories(storiesRes.items); changed = true; }

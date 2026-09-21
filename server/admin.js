@@ -8,7 +8,9 @@ import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { db, getEntitlement, isPremiumRow, grantEntitlement } from './db.js';
+import { db, getEntitlement, isPremiumRow, grantEntitlement, lastConsent } from './db.js';
+import { wheelWeights, setWheelWeight } from './wheel.js';
+import { WHEEL, PRIZE_TITLES } from './config.js';
 import { json, readBody } from './util.js';
 import { sendMessage } from './telegram.js';
 
@@ -23,8 +25,14 @@ const DAY = 86400000;
 // (тот же осознанный компромисс, что в server/config.js).
 const META = {
   bot: BOT,
-  recipients: { mom: 'Маме', dad: 'Папе', partner: 'Партнёру', friend: 'Другу', colleague: 'Коллеге', child: 'Ребёнку' },
-  interests: { coffee: 'Кофе', sport: 'Спорт', books: 'Книги', beauty: 'Красота', tech: 'Техника', home: 'Дом/уют', travel: 'Путешествия' },
+  recipients: { mom: 'Маме', dad: 'Папе', partner: 'Партнёру', friend: 'Другу', colleague: 'Коллеге', child: 'Ребёнку', family: 'Семье', teacher: 'Учителю' },
+  interests: {
+    memory: 'Память и эмоции', food: 'Еда и напитки', impressions: 'Впечатления', home: 'Дом и уют', romance: 'Романтика',
+    fun: 'Игры и юмор', creative: 'Творчество', learning: 'Обучение', style: 'Красота и стиль', care: 'Забота и здоровье',
+    music: 'Музыка и кино', tech: 'Техника', family: 'Семья и дети', magic: 'Космос и магия',
+    // старые группы — чтобы идеи, добавленные до смены базы, показывались с подписью
+    coffee: 'Кофе', sport: 'Спорт', books: 'Книги', beauty: 'Красота', travel: 'Путешествия'
+  },
   categories: {
     birthday: 'День рождения', newyear: 'Новый год', justso: 'Просто так', anniv: 'Годовщина', feb23: '23 февраля',
     mar8: '8 марта', baby: 'Рождение ребёнка', home: 'Новоселье', school: 'Выпускной / 1 сентября', wedding: 'Свадьба',
@@ -34,7 +42,9 @@ const META = {
   storyBg: { mango: 'Оранжевый', coffee: 'Кофейный', ice: 'Голубой', purple: 'Фиолетовый', rose: 'Розовый', gold: 'Золотой', ny: 'Зелёный' },
   mascots: ['wave', 'think', 'heart', 'notes', 'wow', 'cool', 'sleep', 'search', 'run', 'bubble', 'alert', 'peek'],
   ctaRoutes: { cat: 'Открыть повод', wishlist: 'Вишлист', wheel: 'Колесо', paywall: 'Premium', me: 'Мой профиль', quest: 'Заполни и получи', home: 'Главная' },
-  rewards: { empty: 'Без подарка', set: 'Подборка', category: 'Категория на 24 ч', slot: 'Слот вишлиста', spin: 'Доп. спин', discount: 'Скидка' }
+  rewards: { ...PRIZE_TITLES, set: 'Подборка (старое колесо)', slot: 'Слот вишлиста (старое колесо)' },
+  wheel: { free: WHEEL.free.map(s => s.code), premium: WHEEL.premium.map(s => s.code) },
+  freeCategories: ['birthday', 'newyear', 'justso']
 };
 
 const list = v => { try { const a = JSON.parse(v || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } };
@@ -43,7 +53,7 @@ const count = (sql, ...a) => db.prepare(sql).get(...a).n;
 // Тариф пользователя одним словом — с учётом истёкшего срока
 function planOf(ent) {
   if (!ent || !isPremiumRow(ent)) return 'free';
-  return ent.type === 'holiday' ? 'week' : ent.type;
+  return ent.type === 'holiday' || ent.type === 'gift' ? 'week' : ent.type;
 }
 
 // Источник первого входа → понятная группа для отчёта
@@ -115,6 +125,12 @@ export function computeStats() {
     wishlists: wl.length, itemsTotal,
     dates: count('SELECT COUNT(*) n FROM important_dates'),
     spins: Object.fromEntries(db.prepare('SELECT reward_code, COUNT(*) n FROM spin_results GROUP BY reward_code').all().map(s => [s.reward_code, s.n])),
+    converted: count('SELECT COUNT(*) n FROM spin_results WHERE converted = 1'),
+    consents: {
+      pd: count("SELECT COUNT(DISTINCT user_id) n FROM consents c WHERE kind = 'pd' AND value = 1 AND id = (SELECT MAX(id) FROM consents WHERE user_id = c.user_id AND kind = 'pd')"),
+      ads: count("SELECT COUNT(DISTINCT user_id) n FROM consents c WHERE kind = 'ads' AND value = 1 AND id = (SELECT MAX(id) FROM consents WHERE user_id = c.user_id AND kind = 'ads')"),
+      offer: count("SELECT COUNT(DISTINCT user_id) n FROM consents WHERE kind = 'offer' AND value = 1")
+    },
     referrals: count('SELECT COUNT(*) n FROM referrals WHERE qualified = 1'),
     ugcPending: count("SELECT COUNT(*) n FROM ugc_applications WHERE status = 'submitted'")
   };
@@ -160,11 +176,14 @@ function userDetail(id) {
       WHERE r.referrer_id = ? AND r.qualified = 1 ORDER BY r.created_at DESC`).all(id),
     invitedBy: db.prepare('SELECT u.id, u.first_name, u.profile_name FROM referrals r JOIN users u ON u.id = r.referrer_id WHERE r.user_id = ?').get(id) || null,
     ugc: db.prepare('SELECT platform, link, nick, views, status, created_at FROM ugc_applications WHERE user_id = ? ORDER BY created_at DESC').all(id),
-    spins: count('SELECT COUNT(*) n FROM spin_results WHERE user_id = ?', id)
+    spins: count('SELECT COUNT(*) n FROM spin_results WHERE user_id = ?', id),
+    prizes: db.prepare('SELECT code, meta, created_at FROM user_prizes WHERE user_id = ? ORDER BY created_at DESC').all(id),
+    friendCodes: db.prepare('SELECT code, kind, created_at, redeemed_by, redeemed_at FROM friend_codes WHERE owner_id = ? ORDER BY created_at DESC').all(id),
+    consents: Object.fromEntries(['pd', 'ads', 'offer'].map(k => [k, lastConsent(id, k)]))
   };
 }
 
-const PLAN_TEXT = { week: 'premium на неделю', year: 'premium на год', forever: 'premium навсегда' };
+const PLAN_TEXT = { week: 'premium на 7 дней', year: 'premium на год', forever: 'premium навсегда' };
 
 // Ручная выдача доступа. Приложение подтягивает доступ с сервера при каждом запуске.
 function setAccess(userId, plan) {
@@ -198,6 +217,37 @@ function promoReport() {
       direct: count("SELECT COUNT(*) n FROM users WHERE source IS NULL OR source = 'direct'")
     }
   };
+}
+
+// ── колесо: веса секторов и что выпадает на самом деле ────────────────
+function wheelReport() {
+  const drawn = db.prepare(`SELECT reward_code code, COUNT(*) n, SUM(converted) conv FROM spin_results
+    WHERE rule_version = 'v2' GROUP BY reward_code`).all();
+  const d = Object.fromEntries(drawn.map(r => [r.code, r]));
+  const codes = db.prepare(`SELECT kind, COUNT(*) n, SUM(redeemed_by IS NOT NULL) used FROM friend_codes GROUP BY kind`).all();
+  return {
+    weights: wheelWeights(),
+    drawn: Object.fromEntries(Object.entries(d).map(([k, v]) => [k, { n: v.n, converted: v.conv || 0 }])),
+    totalSpins: count("SELECT COUNT(*) n FROM spin_results WHERE rule_version = 'v2'"),
+    friendCodes: Object.fromEntries(codes.map(c => [c.kind, { issued: c.n, used: c.used || 0 }])),
+    guides: db.prepare('SELECT g.code, g.title, g.image_path, (SELECT COUNT(*) FROM user_prizes p WHERE p.code = g.code) holders FROM guides g').all()
+      .map(g => ({ ...g, url: WEBAPP + g.image_path })),
+    discounts: count("SELECT COUNT(*) n FROM user_prizes WHERE code = 'discount'"),
+    categoriesOpened: count("SELECT COUNT(*) n FROM user_prizes WHERE code = 'category'")
+  };
+}
+
+// ── база идей клиента (генерируется tools/import_ideas.py из Excel) ────
+let ideasBank = null;
+function ideasDb() {
+  if (!ideasBank) {
+    try { ideasBank = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'ideas-db.json'), 'utf8')); }
+    catch (e) { ideasBank = {}; }
+  }
+  return Object.entries(ideasBank).flatMap(([cat, rows]) => rows.map((r, i) => ({
+    n: i + 1, cat, title: r[0], why: r[1], budget: r[2], who: r[5], tags: r[6], where: r[7],
+    free: META.freeCategories.includes(cat) && !!r[8]
+  })));
 }
 
 // ── заявки UGC ───────────────────────────────────────────────────────
@@ -252,6 +302,20 @@ export function mountAdmin(on) {
     setAccess(+m[1], plan);
     json(res, 200, { ok: true, user: userDetail(+m[1]) });
   }));
+
+  // колесо: отчёт и веса секторов (действуют сразу, без выкладки приложения)
+  on('GET', /^\/admin\/api\/wheel$/, g((req, res) => json(res, 200, { ok: true, ...wheelReport() })));
+  on('POST', /^\/admin\/api\/wheel$/, g(async (req, res) => {
+    const { kind, weights } = await readBody(req);
+    if (!WHEEL[kind] || !weights || typeof weights !== 'object') return json(res, 400, { ok: false, error: 'bad_request' });
+    const vals = Object.values(weights).map(Number);
+    if (vals.some(v => !Number.isFinite(v) || v < 0) || !vals.some(v => v > 0)) return json(res, 400, { ok: false, error: 'Шансы — числа от 0, хотя бы один больше нуля' });
+    for (const [code, w] of Object.entries(weights)) setWheelWeight(kind, code, +w);
+    json(res, 200, { ok: true, ...wheelReport() });
+  }));
+
+  // база идей клиента — только просмотр (правится в Excel и импортируется скриптом)
+  on('GET', /^\/admin\/api\/bank$/, g((req, res) => json(res, 200, { ok: true, items: ideasDb() })));
 
   // промокоды
   on('GET', /^\/admin\/api\/promo$/, g((req, res) => json(res, 200, { ok: true, ...promoReport() })));
@@ -314,7 +378,8 @@ export function mountAdmin(on) {
     budget: +b.budget || 0,
     recipients: JSON.stringify((b.recipients || []).filter(x => META.recipients[x])),
     interests: JSON.stringify((b.interests || []).filter(x => META.interests[x])),
-    photo: httpUrl(b.photo), buy: httpUrl(b.buy)
+    photo: httpUrl(b.photo), buy: httpUrl(b.buy),
+    who: str(b.who, 80), tags: str(b.tags, 80), where_to: str(b.where, 80)
   }), r => !META.categories[r.cat] ? 'Выбери повод' : !r.title ? 'Нужно название' : !META.budgets[r.budget] ? 'Выбери бюджет' : null);
 
   content('stories', 'admin_stories', b => ({
