@@ -1,12 +1,12 @@
 // ── Главная: поводы ──────────────────────────────────────────────────
-import { CATEGORIES } from '../config.js?v=2609242257';
-import { state, categoryOpen, isPremium, track, questComplete } from '../store.js?v=2609242257';
-import { esc, mascot } from '../ui.js?v=2609242257';
-import { tg } from '../tg.js?v=2609242257';
-import { go } from '../app.js?v=2609242257';
-import { maybeShowTips } from './coach.js?v=2609242257';
-import { storiesRow, bindStories } from './stories.js?v=2609242257';
-import { openLockSheet } from './extra.js?v=2609242257';
+import { CATEGORIES } from '../config.js?v=2609242324';
+import { state, categoryOpen, isPremium, track, questComplete } from '../store.js?v=2609242324';
+import { esc, mascot } from '../ui.js?v=2609242324';
+import { tg } from '../tg.js?v=2609242324';
+import { go } from '../app.js?v=2609242324';
+import { maybeShowTips } from './coach.js?v=2609242324';
+import { storiesRow, bindStories } from './stories.js?v=2609242324';
+import { openLockSheet } from './extra.js?v=2609242324';
 
 export function render() {
   track('home_viewed', { premium: isPremium() });
@@ -55,11 +55,12 @@ export function render() {
         </div>
 
         ${isPremium() ? '' : `
-        <div class="card" style="margin-top:16px;display:flex;gap:12px;align-items:center">
+        <div class="card promo-card">
           ${mascot('cool', 'mascot--sm')}
-          <div style="flex:1">
-            <div style="font-weight:800">Открыть все 13 поводов</div>
-            <div class="small muted">На праздник — 149 ₽ · навсегда — 490 ₽</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:800;white-space:nowrap">Все 13 поводов</div>
+            <div class="small muted" style="white-space:nowrap">На праздник — 149&nbsp;₽</div>
+            <div class="small muted" style="white-space:nowrap">Навсегда — 490&nbsp;₽</div>
           </div>
           <button class="btn btn--sm" id="pw">Смотреть</button>
         </div>`}

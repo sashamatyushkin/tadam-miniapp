@@ -1,14 +1,14 @@
 // ── Вишлисты: свой список, шеринг и намёки ───────────────────────────
-import { state, save, track, createWishlist, removeItem, wishlistLimit, isPremium, syncWishlists } from '../store.js?v=2609242257';
-import { deepLink } from '../config.js?v=2609242257';
-import { esc, mascot, sheet, toast, confirmSheet, plural } from '../ui.js?v=2609242257';
-import { IDEAS } from '../data/ideas.js?v=2609242257';
-import { cover } from './ideas.js?v=2609242257';
-import { tg } from '../tg.js?v=2609242257';
-import { go, back } from '../app.js?v=2609242257';
-import { maybeShowTips } from './coach.js?v=2609242257';
-import { openHint } from './hint.js?v=2609242257';
-import { api, apiAvailable } from '../api.js?v=2609242257';
+import { state, save, track, createWishlist, removeItem, wishlistLimit, isPremium, syncWishlists } from '../store.js?v=2609242324';
+import { deepLink } from '../config.js?v=2609242324';
+import { esc, mascot, sheet, toast, confirmSheet, plural } from '../ui.js?v=2609242324';
+import { IDEAS } from '../data/ideas.js?v=2609242324';
+import { cover } from './ideas.js?v=2609242324';
+import { tg } from '../tg.js?v=2609242324';
+import { go, back } from '../app.js?v=2609242324';
+import { maybeShowTips } from './coach.js?v=2609242324';
+import { openHint } from './hint.js?v=2609242324';
+import { api, apiAvailable } from '../api.js?v=2609242324';
 
 
 // Пустой вишлист показываем не голой надписью, а примерами: человек сразу видит,

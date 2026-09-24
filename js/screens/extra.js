@@ -1,16 +1,16 @@
 // ── Квест, paywall, рефералы, UGC, друзья бренда, настройки, намёк ───
-import { CONFIG, CATEGORIES, BRAND_FRIENDS, RECIPIENTS, INTERESTS, SOCIAL, DEBUG, deepLink, TELEGRAM, WHEEL, DOCS } from '../config.js?v=2609242257';
-import { IDEAS, IDEAS_BY_CAT } from '../data/ideas.js?v=2609242257';
+import { CONFIG, CATEGORIES, BRAND_FRIENDS, RECIPIENTS, INTERESTS, SOCIAL, DEBUG, deepLink, TELEGRAM, WHEEL, DOCS } from '../config.js?v=2609242324';
+import { IDEAS, IDEAS_BY_CAT } from '../data/ideas.js?v=2609242324';
 import {
   state, save, track, questSteps, questComplete, issueQuestReward,
   isPremium, isFullPremium, accessLabel, grantAccess, resetAll, resetTips, foreverPrice, setConsent,
   addToWishlist, defaultWishlist, inWishlist, planId, profileFilled, redeemFriendCode
-} from '../store.js?v=2609242257';
-import { esc, mascot, sheet, toast, confirmSheet, plural } from '../ui.js?v=2609242257';
-import { tg } from '../tg.js?v=2609242257';
-import { go, back } from '../app.js?v=2609242257';
-import { openHint } from './hint.js?v=2609242257';
-import { api, apiAvailable } from '../api.js?v=2609242257';
+} from '../store.js?v=2609242324';
+import { esc, mascot, sheet, toast, confirmSheet, plural } from '../ui.js?v=2609242324';
+import { tg } from '../tg.js?v=2609242324';
+import { go, back } from '../app.js?v=2609242324';
+import { openHint } from './hint.js?v=2609242324';
+import { api, apiAvailable } from '../api.js?v=2609242324';
 
 // ── «Заполни и получи» ───────────────────────────────────────────────
 export function renderQuest() {
@@ -400,7 +400,7 @@ export function renderInvite() {
 }
 
 // ── Награды (переиспользуем экран колеса) ────────────────────────────
-export { renderRewards } from './wheel.js?v=2609242257';
+export { renderRewards } from './wheel.js?v=2609242324';
 
 // ── Друзья бренда ────────────────────────────────────────────────────
 export function renderFriends() {
@@ -709,7 +709,7 @@ export function renderDoc({ id }) {
       <button class="btn btn--soft" id="docback" style="margin-top:18px">Понятно, назад</button></div>`,
     mount(app) {
       app.querySelector('#docback').onclick = () => back();
-      fetch(`docs/${id}.html?v=2609242257`).then(r => r.ok ? r.text() : Promise.reject())
+      fetch(`docs/${id}.html?v=2609242324`).then(r => r.ok ? r.text() : Promise.reject())
         .then(html => { app.querySelector('#doc').innerHTML = html; })
         .catch(() => { app.querySelector('#doc').innerHTML = '<p class="muted center" style="margin-top:40px">Не удалось загрузить документ. Проверь интернет и попробуй ещё раз.</p>'; });
     }

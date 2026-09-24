@@ -1,10 +1,10 @@
 /* ── Та-дам · дизайн-система (брендбук) ───────────────────────────── */
 /* WOFF2, сабсет кириллица+латиница (fonttools). Было 636 КБ в TTF/OTF на 5 файлов — стало ~88 КБ */
-@font-face{font-family:'Bups';src:url('assets/fonts/bups-Regular.woff2?v=2609242257') format('woff2');font-weight:400;font-display:swap}
-@font-face{font-family:'Nunito';src:url('assets/fonts/Nunito-Regular.woff2?v=2609242257') format('woff2');font-weight:400;font-display:swap}
-@font-face{font-family:'Nunito';src:url('assets/fonts/Nunito-SemiBold.woff2?v=2609242257') format('woff2');font-weight:600;font-display:swap}
-@font-face{font-family:'Nunito';src:url('assets/fonts/Nunito-Bold.woff2?v=2609242257') format('woff2');font-weight:700;font-display:swap}
-@font-face{font-family:'Nunito';src:url('assets/fonts/Nunito-ExtraBold.woff2?v=2609242257') format('woff2');font-weight:800;font-display:swap}
+@font-face{font-family:'Bups';src:url('assets/fonts/bups-Regular.woff2?v=2609242324') format('woff2');font-weight:400;font-display:swap}
+@font-face{font-family:'Nunito';src:url('assets/fonts/Nunito-Regular.woff2?v=2609242324') format('woff2');font-weight:400;font-display:swap}
+@font-face{font-family:'Nunito';src:url('assets/fonts/Nunito-SemiBold.woff2?v=2609242324') format('woff2');font-weight:600;font-display:swap}
+@font-face{font-family:'Nunito';src:url('assets/fonts/Nunito-Bold.woff2?v=2609242324') format('woff2');font-weight:700;font-display:swap}
+@font-face{font-family:'Nunito';src:url('assets/fonts/Nunito-ExtraBold.woff2?v=2609242324') format('woff2');font-weight:800;font-display:swap}
 
 :root{
   color-scheme:light; /* иначе системные select/date внутри светлой карточки могли отрисоваться тёмными */
@@ -223,9 +223,10 @@ h1,h2,h3,h4{margin:0}
 
 /* ── шторка ─────────────────────────────────────────────────────── */
 .sheet-bg{position:fixed;inset:0;background:rgba(112,39,32,.42);z-index:100;animation:fade .18s}
-.sheet{position:fixed;left:0;right:0;bottom:0;background:var(--oat);border-radius:26px 26px 0 0;padding:10px var(--pad) calc(var(--safe-bottom) + 20px);z-index:101;max-height:88vh;overflow:auto;animation:up .26s cubic-bezier(.2,.9,.3,1)}
+.sheet{position:fixed;left:0;right:0;bottom:0;background:var(--oat);border-radius:26px 26px 0 0;padding:10px var(--pad) calc(var(--safe-bottom) + 20px);z-index:101;max-height:88vh;overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;animation:up .26s cubic-bezier(.2,.9,.3,1)}
 @keyframes up{from{transform:translateY(100%)}to{transform:none}}
-.sheet__grip{width:40px;height:4px;border-radius:999px;background:#E0CDB6;margin:4px auto 14px}
+.sheet__grip{width:44px;height:5px;border-radius:999px;background:#D9C3A8;margin:4px auto 14px;position:relative;cursor:pointer}
+.sheet__grip::after{content:'';position:absolute;inset:-14px -40px}   /* большая зона для тапа */
 
 /* ── тосты ──────────────────────────────────────────────────────── */
 #toast-root{position:fixed;left:0;right:0;bottom:calc(var(--tab-h) + var(--tab-gap) + var(--safe-bottom) + 14px);display:grid;justify-items:center;gap:8px;z-index:120;pointer-events:none;padding:0 16px}
@@ -473,3 +474,8 @@ h1,h2,h3,h4{margin:0}
 .calrow--mine .calrow__day{background:var(--coffee)}
 .calrow--lock{opacity:.55}
 .calrow--lock .calrow__day{background:#D9C7B4}
+
+/* баннер «Все 13 поводов» на главной: в одну строку, кнопка не вылезает за край */
+.promo-card{margin-top:16px;display:flex;gap:10px;align-items:center;padding:14px 14px 14px 10px}
+.promo-card .mascot{width:52px;flex:0 0 auto;margin:0}
+.promo-card .btn{flex:0 0 auto;padding:11px 14px}

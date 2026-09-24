@@ -1,5 +1,5 @@
 // ── UI-примитивы ─────────────────────────────────────────────────────
-import { tg } from './tg.js?v=2609242257';
+import { tg } from './tg.js?v=2609242324';
 
 export const $ = (sel, root = document) => root.querySelector(sel);
 export const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -39,11 +39,39 @@ export function sheet(html, onMount, opts = {}) {
   if (!opts.locked) bg.onclick = closeSheet;
   const onBack = () => closeSheet();
   if (!opts.locked) tg.pushBack(onBack);  // «Назад» Telegram сначала закрывает шторку
-  sheetCloser = () => { bg.remove(); sh.remove(); sheetCloser = null; if (!opts.locked) tg.popBack(onBack); };
+  // Пока шторка открыта, страница под ней не прокручивается: иначе палец двигал фон, а не шторку
+  const y = window.scrollY;
+  Object.assign(document.body.style, { position: 'fixed', top: -y + 'px', left: '0', right: '0', overflow: 'hidden' });
+  bg.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+  if (!opts.locked) swipeToClose(sh);
+  sheetCloser = () => {
+    bg.remove(); sh.remove(); sheetCloser = null;
+    Object.assign(document.body.style, { position: '', top: '', left: '', right: '', overflow: '' });
+    window.scrollTo(0, y);
+    if (!opts.locked) tg.popBack(onBack);
+  };
   onMount?.(sh, closeSheet);
   return sheetCloser;
 }
 export function closeSheet() { sheetCloser?.(); }
+
+// Свайп вниз закрывает шторку — когда её содержимое прокручено в самый верх. Тап по полоске сверху тоже закрывает.
+function swipeToClose(sh) {
+  let y0 = null, dy = 0;
+  sh.querySelector('.sheet__grip').onclick = () => closeSheet();
+  sh.addEventListener('touchstart', e => { y0 = sh.scrollTop <= 0 ? e.touches[0].clientY : null; dy = 0; sh.style.transition = ''; }, { passive: true });
+  sh.addEventListener('touchmove', e => {
+    if (y0 == null) return;
+    dy = e.touches[0].clientY - y0;
+    if (dy > 0) { e.preventDefault(); sh.style.transform = `translateY(${dy}px)`; }
+  }, { passive: false });
+  sh.addEventListener('touchend', () => {
+    if (y0 == null) return;
+    y0 = null;
+    if (dy > 90) return closeSheet();
+    sh.style.transition = 'transform .2s'; sh.style.transform = '';
+  });
+}
 export const sheetOpen = () => !!sheetCloser;
 
 export function confirmSheet(title, text, okText, onOk) {

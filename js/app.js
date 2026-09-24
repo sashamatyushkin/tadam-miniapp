@@ -1,21 +1,21 @@
 // ── Точка входа и роутер ─────────────────────────────────────────────
-import { tg } from './tg.js?v=2609242257';
-import { load, save, state, track, registerReferral, syncAccessFromServer, syncReferral, resetAll, syncWishlists, syncDates, setWheelWeights } from './store.js?v=2609242257';
-import { api, apiAvailable } from './api.js?v=2609242257';
-import { $, closeSheet, sheetOpen } from './ui.js?v=2609242257';
+import { tg } from './tg.js?v=2609242324';
+import { load, save, state, track, registerReferral, syncAccessFromServer, syncReferral, resetAll, syncWishlists, syncDates, setWheelWeights } from './store.js?v=2609242324';
+import { api, apiAvailable } from './api.js?v=2609242324';
+import { $, closeSheet, sheetOpen } from './ui.js?v=2609242324';
 
-import * as Onboarding from './screens/onboarding.js?v=2609242257';
-import * as Home from './screens/home.js?v=2609242257';
-import * as Ideas from './screens/ideas.js?v=2609242257';
-import * as Wishlist from './screens/wishlist.js?v=2609242257';
-import * as Wheel from './screens/wheel.js?v=2609242257';
-import * as Profile from './screens/profile.js?v=2609242257';
-import * as Dates from './screens/dates.js?v=2609242257';
-import * as Extra from './screens/extra.js?v=2609242257';
-import { dismissTour } from './screens/coach.js?v=2609242257';
-import { addAdminIdeas } from './data/ideas.js?v=2609242257';
-import { BRAND_FRIENDS } from './config.js?v=2609242257';
-import { addAdminStories } from './screens/stories.js?v=2609242257';
+import * as Onboarding from './screens/onboarding.js?v=2609242324';
+import * as Home from './screens/home.js?v=2609242324';
+import * as Ideas from './screens/ideas.js?v=2609242324';
+import * as Wishlist from './screens/wishlist.js?v=2609242324';
+import * as Wheel from './screens/wheel.js?v=2609242324';
+import * as Profile from './screens/profile.js?v=2609242324';
+import * as Dates from './screens/dates.js?v=2609242324';
+import * as Extra from './screens/extra.js?v=2609242324';
+import { dismissTour } from './screens/coach.js?v=2609242324';
+import { addAdminIdeas } from './data/ideas.js?v=2609242324';
+import { BRAND_FRIENDS } from './config.js?v=2609242324';
+import { addAdminStories } from './screens/stories.js?v=2609242324';
 
 const ROUTES = {
   onboarding: Onboarding.render,

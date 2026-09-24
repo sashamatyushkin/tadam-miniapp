@@ -1,11 +1,11 @@
 // ── Сторис на главной (как в банковских приложениях) ────────────────
 // Подборка под ситуацию: сезон, ближайшая дата близкого, механики.
 // Каждая сторис ведёт в конкретный повод, вишлист или механику.
-import { state, save, track, daysUntil, isPremium, profileFilled } from '../store.js?v=2609242257';
-import { CATEGORIES } from '../config.js?v=2609242257';
-import { esc, mascot, plural } from '../ui.js?v=2609242257';
-import { tg } from '../tg.js?v=2609242257';
-import { go } from '../app.js?v=2609242257';
+import { state, save, track, daysUntil, isPremium, profileFilled } from '../store.js?v=2609242324';
+import { CATEGORIES } from '../config.js?v=2609242324';
+import { esc, mascot, plural } from '../ui.js?v=2609242324';
+import { tg } from '../tg.js?v=2609242324';
+import { go } from '../app.js?v=2609242324';
 
 const G = {
   ny:     'linear-gradient(160deg,#1F7A55,#54B183)',
@@ -233,7 +233,7 @@ export function openStories(list, index) {
           <span class="stv__brand">та-дам</span>
           <button class="stv__x" type="button" aria-label="Закрыть">✕</button>
         </div>
-        ${s.img ? `<div class="stv__imgbox"><img class="stv__img ${s.full ? 'stv__img--full' : ''}" src="${esc(s.img)}?v=2609242257" alt=""></div>` : `<div class="stv__body">
+        ${s.img ? `<div class="stv__imgbox"><img class="stv__img ${s.full ? 'stv__img--full' : ''}" src="${esc(s.img)}?v=2609242324" alt=""></div>` : `<div class="stv__body">
           ${s.video ? `<video class="stv__video" src="${esc(s.video)}" autoplay muted playsinline></video>`
             : s.emoji ? `<div class="stv__emoji">${s.emoji}</div>` : mascot(s.mascot, 'stv__mascot')}
           <h2 class="bups stv__title">${esc(s.title).replace(/\n/g, '<br>')}</h2>
