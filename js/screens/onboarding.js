@@ -1,9 +1,11 @@
 // ── Онбординг: привет → кому дарим → первая дата ─────────────────────
-import { state, save, track, addDate, claimReferral, setConsent, consentsGiven } from '../store.js?v=2609211121';
-import { CATEGORIES, RELATIONS, REMINDER_TYPES } from '../config.js?v=2609211121';
-import { mascot, esc, toast, sheet } from '../ui.js?v=2609211121';
-import { tg } from '../tg.js?v=2609211121';
-import { go } from '../app.js?v=2609211121';
+import { state, save, track, addDate, claimReferral, setConsent, consentsGiven } from '../store.js?v=2609242257';
+import { CATEGORIES, RELATIONS, REMINDER_TYPES } from '../config.js?v=2609242257';
+import { mascot, esc, toast, sheet } from '../ui.js?v=2609242257';
+import { tg } from '../tg.js?v=2609242257';
+import { go } from '../app.js?v=2609242257';
+
+const tgStart = () => tg.startParam();   // с чем открыли приложение (например, ?start=tariffs с сайта)
 
 let step = 0;
 let picked = null;
@@ -162,7 +164,9 @@ function finish(skipped) {
   save();
   track('onboarding_completed', { skipped: !!skipped });
   step = 0;
+  // пришёл с сайта по кнопке «Купить» — после знакомства показываем тарифы
+  if (tgStart() === 'tariffs') { go('home', {}, true); go('paywall', { from: 'site' }); return; }
   if (picked && !skipped) go('cat', { id: picked }, true);
   else go('home', {}, true);
-  import('../app.js?v=2609211121').then(m => m.offerPendingPromo());
+  import('../app.js?v=2609242257').then(m => m.offerPendingPromo());
 }

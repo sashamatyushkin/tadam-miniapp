@@ -45,6 +45,12 @@ async function onMessage(msg) {
         text: `Тебе подарок от друга 🎁\nПромокод: ${arg.slice(2).toUpperCase()}\nЖми кнопку — активируем прямо в приложении.`
       });
     }
+    if (arg === 'tariffs') {
+      return call('sendMessage', {
+        chat_id: chat, reply_markup: appButton('⭐ Выбрать тариф', 'tariffs'),
+        text: 'Тарифы Та-дам 🎁\n\n• На праздник — 149 ₽, доступ на 7 дней\n• Навсегда — 490 ₽, разовый платёж\n\nЖми кнопку — откроется выбор тарифа и оплата.'
+      });
+    }
     if (arg === 'debug') {
       return call('sendMessage', {
         chat_id: chat, reply_markup: appButton('🧪 Запустить с нуля', 'debug'),

@@ -2,12 +2,12 @@
 // Механика по ТЗ клиента: два колеса (№1 — бесплатным и «На праздник», №2 — «Навсегда»),
 // повтор уже полученного приза честно превращается в +1 спин. Когда сервер доступен,
 // розыгрыш и проверку повторов делает он (server/wheel.js), иначе — локально.
-import { WHEEL, CATEGORIES, GUIDES, deepLink } from '../config.js?v=2609211121';
-import { state, save, spin, applyServerSpin, spinsAvailable, track, redeemCategory, wheelSectors, wheelKind, catsForPrize, isFullPremium } from '../store.js?v=2609211121';
-import { esc, mascot, sheet, toast } from '../ui.js?v=2609211121';
-import { tg } from '../tg.js?v=2609211121';
-import { go } from '../app.js?v=2609211121';
-import { api, apiAvailable } from '../api.js?v=2609211121';
+import { WHEEL, CATEGORIES, GUIDES, deepLink } from '../config.js?v=2609242257';
+import { state, save, spin, applyServerSpin, spinsAvailable, track, redeemCategory, wheelSectors, wheelKind, catsForPrize, isFullPremium } from '../store.js?v=2609242257';
+import { esc, mascot, sheet, toast } from '../ui.js?v=2609242257';
+import { tg } from '../tg.js?v=2609242257';
+import { go } from '../app.js?v=2609242257';
+import { api, apiAvailable } from '../api.js?v=2609242257';
 
 // Идемпотентный ключ на одну попытку — если запрос уйдёт повторно (двойной тап,
 // обрыв связи и повтор), сервер вернёт тот же результат, а не разыграет заново.
@@ -167,7 +167,7 @@ export function openGuide(code) {
   const root = document.createElement('div');
   root.className = 'guide';
   root.innerHTML = `<div class="guide__top"><span class="bups">${esc(g.title)}</span><button class="stv__x" type="button" aria-label="Закрыть">✕</button></div>
-    <div class="guide__scroll"><img src="${esc(g.img)}?v=2609211121" alt="${esc(g.title)}"></div>`;
+    <div class="guide__scroll"><img src="${esc(g.img)}?v=2609242257" alt="${esc(g.title)}"></div>`;
   document.body.appendChild(root);
   document.body.style.overflow = 'hidden';
   const close = () => { root.remove(); document.body.style.overflow = ''; tg.popBack(close); };

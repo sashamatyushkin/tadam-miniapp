@@ -1,8 +1,8 @@
 // ── Механика «Намекни»: карточка-намёк уходит в чат Telegram ─────────
-import { createHint, track, hintsLeftToday } from '../store.js?v=2609211121';
-import { deepLink, CONFIG } from '../config.js?v=2609211121';
-import { sheet, esc, toast, mascot } from '../ui.js?v=2609211121';
-import { tg } from '../tg.js?v=2609211121';
+import { createHint, track, hintsLeftToday } from '../store.js?v=2609242257';
+import { deepLink, CONFIG } from '../config.js?v=2609242257';
+import { sheet, esc, toast, mascot } from '../ui.js?v=2609242257';
+import { tg } from '../tg.js?v=2609242257';
 
 export function openHint({ ideaId, title, desc, wishlistId }) {
   // Без premium «Намекни» ограничен по тарифной сетке — несколько карточек в сутки
@@ -16,7 +16,7 @@ export function openHint({ ideaId, title, desc, wishlistId }) {
         <button class="btn" id="pw">Смотреть тарифы</button>
         <button class="btn btn--ghost" id="no">Завтра</button>
       </div>`, (el, close) => {
-      el.querySelector('#pw').onclick = () => { close(); import('../app.js?v=2609211121').then(m => m.go('paywall', { from: 'hints_limit' })); };
+      el.querySelector('#pw').onclick = () => { close(); import('../app.js?v=2609242257').then(m => m.go('paywall', { from: 'hints_limit' })); };
       el.querySelector('#no').onclick = close;
     });
   }

@@ -1,11 +1,11 @@
 // ── Сторис на главной (как в банковских приложениях) ────────────────
 // Подборка под ситуацию: сезон, ближайшая дата близкого, механики.
 // Каждая сторис ведёт в конкретный повод, вишлист или механику.
-import { state, save, track, daysUntil, isPremium, profileFilled } from '../store.js?v=2609211121';
-import { CATEGORIES } from '../config.js?v=2609211121';
-import { esc, mascot, plural } from '../ui.js?v=2609211121';
-import { tg } from '../tg.js?v=2609211121';
-import { go } from '../app.js?v=2609211121';
+import { state, save, track, daysUntil, isPremium, profileFilled } from '../store.js?v=2609242257';
+import { CATEGORIES } from '../config.js?v=2609242257';
+import { esc, mascot, plural } from '../ui.js?v=2609242257';
+import { tg } from '../tg.js?v=2609242257';
+import { go } from '../app.js?v=2609242257';
 
 const G = {
   ny:     'linear-gradient(160deg,#1F7A55,#54B183)',
@@ -109,7 +109,7 @@ const WOW = {
     { img: 'assets/stories/wow-1.jpg', cta: { label: 'Идеи на день рождения', route: 'cat', params: { id: 'birthday' } } },
     { img: 'assets/stories/wow-2.jpg', cta: { label: 'Идеи на Новый год', route: 'cat', params: { id: 'newyear' } } },
     { img: 'assets/stories/wow-3.jpg', cta: { label: 'Идеи на новоселье', route: 'cat', params: { id: 'home' } } },
-    { img: 'assets/stories/wow-4.jpg' }
+    { img: 'assets/stories/wow-4.jpg', full: true }
   ],
   cta: { label: 'Смотреть все подборки', route: 'home', params: {} }
 };
@@ -233,7 +233,7 @@ export function openStories(list, index) {
           <span class="stv__brand">та-дам</span>
           <button class="stv__x" type="button" aria-label="Закрыть">✕</button>
         </div>
-        ${s.img ? `<img class="stv__img" src="${esc(s.img)}?v=2609211121" alt="">` : `<div class="stv__body">
+        ${s.img ? `<div class="stv__imgbox"><img class="stv__img ${s.full ? 'stv__img--full' : ''}" src="${esc(s.img)}?v=2609242257" alt=""></div>` : `<div class="stv__body">
           ${s.video ? `<video class="stv__video" src="${esc(s.video)}" autoplay muted playsinline></video>`
             : s.emoji ? `<div class="stv__emoji">${s.emoji}</div>` : mascot(s.mascot, 'stv__mascot')}
           <h2 class="bups stv__title">${esc(s.title).replace(/\n/g, '<br>')}</h2>

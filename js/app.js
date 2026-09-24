@@ -1,21 +1,21 @@
 // ── Точка входа и роутер ─────────────────────────────────────────────
-import { tg } from './tg.js?v=2609211121';
-import { load, save, state, track, registerReferral, syncAccessFromServer, syncReferral, resetAll, syncWishlists, syncDates, setWheelWeights } from './store.js?v=2609211121';
-import { api, apiAvailable } from './api.js?v=2609211121';
-import { $, closeSheet, sheetOpen } from './ui.js?v=2609211121';
+import { tg } from './tg.js?v=2609242257';
+import { load, save, state, track, registerReferral, syncAccessFromServer, syncReferral, resetAll, syncWishlists, syncDates, setWheelWeights } from './store.js?v=2609242257';
+import { api, apiAvailable } from './api.js?v=2609242257';
+import { $, closeSheet, sheetOpen } from './ui.js?v=2609242257';
 
-import * as Onboarding from './screens/onboarding.js?v=2609211121';
-import * as Home from './screens/home.js?v=2609211121';
-import * as Ideas from './screens/ideas.js?v=2609211121';
-import * as Wishlist from './screens/wishlist.js?v=2609211121';
-import * as Wheel from './screens/wheel.js?v=2609211121';
-import * as Profile from './screens/profile.js?v=2609211121';
-import * as Dates from './screens/dates.js?v=2609211121';
-import * as Extra from './screens/extra.js?v=2609211121';
-import { dismissTour } from './screens/coach.js?v=2609211121';
-import { addAdminIdeas } from './data/ideas.js?v=2609211121';
-import { BRAND_FRIENDS } from './config.js?v=2609211121';
-import { addAdminStories } from './screens/stories.js?v=2609211121';
+import * as Onboarding from './screens/onboarding.js?v=2609242257';
+import * as Home from './screens/home.js?v=2609242257';
+import * as Ideas from './screens/ideas.js?v=2609242257';
+import * as Wishlist from './screens/wishlist.js?v=2609242257';
+import * as Wheel from './screens/wheel.js?v=2609242257';
+import * as Profile from './screens/profile.js?v=2609242257';
+import * as Dates from './screens/dates.js?v=2609242257';
+import * as Extra from './screens/extra.js?v=2609242257';
+import { dismissTour } from './screens/coach.js?v=2609242257';
+import { addAdminIdeas } from './data/ideas.js?v=2609242257';
+import { BRAND_FRIENDS } from './config.js?v=2609242257';
+import { addAdminStories } from './screens/stories.js?v=2609242257';
 
 const ROUTES = {
   onboarding: Onboarding.render,
@@ -132,6 +132,8 @@ async function boot() {
   // Код друга из колеса (?start=f_<код>): новичка сначала знакомим, код подставим в тарифах
   if (sp && sp.startsWith('f_')) state.pendingPromo = sp.slice(2).toUpperCase();
   if (!state.onboarded) { go('onboarding', {}, true); return; }
+  // С сайта по кнопке «Купить» (?start=tariffs) — сразу на тарифы
+  if (sp === 'tariffs') { go('home', {}, true); go('paywall', { from: 'site' }); return; }
   go('home', {}, true);
   offerPendingPromo();
 }

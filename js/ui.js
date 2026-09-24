@@ -1,5 +1,5 @@
 // ── UI-примитивы ─────────────────────────────────────────────────────
-import { tg } from './tg.js?v=2609211121';
+import { tg } from './tg.js?v=2609242257';
 
 export const $ = (sel, root = document) => root.querySelector(sel);
 export const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
